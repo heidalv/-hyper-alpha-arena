@@ -163,11 +163,19 @@ def _gate(symbol: str, conviction: float, tier: str) -> Optional[str]:
 
 
 #: 辩论必须**明确周期**（用户 2026-09-20 指令）：「牛熊分析需要明确周期，日内中期 和长期趋势」。
-#: 三档周期各自独立举证与裁决 —— 禁止用一个不分周期的结论糊过去
+#: **两个周期**各自独立举证与裁决 —— 禁止用一个不分周期的结论糊过去
 #: （「日内看空、长期看多」在实盘是常态，混在一起只会得到一个没用的平均值）。
+#:
+#: [轮159 2026-09-21·用户指正] 原为三档（日内/中期/长期趋势）。**去掉"中期"**，理由：
+#:   ① 用户的两周期口径是唯一真源 —— `backend/config/cycle_semantics.py`（轮48，用户原话）：
+#:      「现在是两个周期进行，实际上就是不能叫中期和长期，实际上是**日内**和**长期趋势**两个周期」；
+#:   ② `TIER_PRIMARY_HORIZON` 只有 mid→日内、long→长期趋势 ⇒ **没有任何车道以"中期"为主周期**，
+#:      它的裁决从来不会成为 `primary_verdict`（即从不影响决策），只是被记进 `horizon_verdicts`；
+#:   ③ 它还让每轮辩论多写一段"中期论点"，直接吃输出 token（轮158 定位到的 900 截断里就有它一份）。
+#: 原本挂在"中期"桶的证据（technical 信号 / 因子路线）改并到**日内**桶 ——
+#: 与中线车道的真实持仓（中位 3.2h）和它的主周期一致。
 HORIZONS: Tuple[Tuple[str, str, str], ...] = (
-    ("intraday", "日内", "小时~1 天：1h/4h 结构、24h 区间位置、资金费/OI/清算、舆情"),
-    ("swing", "中期", "数天~两周：4h/1d 均线结构、7d/30d 收益、因子路线、基本面事件"),
+    ("intraday", "日内", "小时~1 天：1h/4h 结构、24h 区间位置、资金费/OI/清算、舆情、量价与因子路线"),
     ("trend", "长期趋势", "数周~数月：1d/1w 结构、距 EMA200、30d 收益、宏观偏向"),
 )
 HORIZON_KEYS: Tuple[str, ...] = tuple(h[0] for h in HORIZONS)
@@ -187,7 +195,7 @@ _VERDICT_REDUCE_RISK = 0.55
 
 
 def primary_horizon(tier: str) -> str:
-    return TIER_PRIMARY_HORIZON.get(str(tier or "").lower(), "swing")
+    return TIER_PRIMARY_HORIZON.get(str(tier or "").lower(), "intraday")
 
 
 def _horizon_instruction() -> str:
@@ -354,12 +362,12 @@ def _evidence_from_pack(pack: Any, symbol: str) -> Tuple[List[str], Dict[str, An
         by_hz["intraday"].append(
             f"24h 表现 ret_24h={mkt.get('ret_24h_pct')}% 区间位置 pos24={mkt.get('pos24_pct')} "
             f"（{mkt.get('range_24h_low')}~{mkt.get('range_24h_high')}）")
-        # ── 中期 ──
-        by_hz["swing"].append(
+        # ── 中期证据 [轮159] 归入**日内**桶（两周期口径：日内 / 长期趋势）──
+        by_hz["intraday"].append(
             f"4h 结构 ema_trend_4h={mkt.get('ema_trend_4h')} regime={mkt.get('regime')}"
             f"(conf {mkt.get('confidence')})")
-        by_hz["swing"].append(
-            f"中期收益 ret_7d={mkt.get('ret_7d_pct')}% ret_30d={mkt.get('ret_30d_pct')}% "
+        by_hz["intraday"].append(
+            f"收益 ret_7d={mkt.get('ret_7d_pct')}% ret_30d={mkt.get('ret_30d_pct')}% "
             f"rsi14_1d={mkt.get('rsi14_1d')} rv30={mkt.get('rv30_annual_pct')}%")
         # ── 长期趋势 ──
         by_hz["trend"].append(
@@ -397,10 +405,12 @@ def _evidence_from_pack(pack: Any, symbol: str) -> Tuple[List[str], Dict[str, An
         ev.append("六分析师信号：" + " ".join(parts))
         if "technical" in an:
             ctx["composite_score"] = float((an.get("technical") or {}).get("score") or 0.0)
-            by_hz["swing" if primary_horizon("mid") == "intraday" else "intraday"].append(
+            # [轮159] 原为 `by_hz["swing" if primary_horizon("mid") == "intraday" else "intraday"]`
+            # —— 那行本身自相矛盾（结果恒为 "swing"）；中期档删除后归到日内桶。
+            by_hz["intraday"].append(
                 f"量价信号 technical={an['technical'].get('score')}")
         for dom, hz in (("sentiment", "intraday"), ("flow", "intraday"),
-                        ("technical", "swing"), ("fundamental", "trend")):
+                        ("technical", "intraday"), ("fundamental", "trend")):
             if dom in an:
                 by_hz[hz].append(f"{dom} 信号={an[dom].get('score')}(conf{an[dom].get('conf')})")
     gmacro = ((layers.get("analysts") or {}).get("global") or {}).get("macro")
@@ -414,7 +424,7 @@ def _evidence_from_pack(pack: Any, symbol: str) -> Tuple[List[str], Dict[str, An
     if route:
         s = f"因子路线：action={route.get('action')} score={route.get('score')} n={route.get('n')}"
         ev.append(s)
-        by_hz["swing"].append(s)
+        by_hz["intraday"].append(s)   # [轮159] 因子路线并入日内桶（原"中期"档已删）
         try:
             ctx["composite_score"] = float(route.get("score") or ctx.get("composite_score") or 0.0)
         except Exception:  # noqa: BLE001
@@ -561,9 +571,9 @@ def run_debate_for_thesis(
     }
     out["persist_rows"] = _persist(thesis_id, symbol, tier, proposal, out)
     logger.info(
-        "[MidLongBrain] 辩论 %s %s 主周期=%s(%s) 日内=%s 中期=%s 长期=%s 冲突=%s 证据不足=%s risk=%.2f llm=%s %.1fs",
+        "[MidLongBrain] 辩论 %s %s 主周期=%s(%s) 日内=%s 长期=%s 冲突=%s 证据不足=%s risk=%.2f llm=%s %.1fs",
         symbol, tier, HORIZON_CN[prim], out["primary_verdict"],
-        stances.get("intraday"), stances.get("swing"), stances.get("trend"),
+        stances.get("intraday"), stances.get("trend"),
         conflict, (insufficient or "无"), risk_min, used_llm, out["elapsed_s"],
     )
     return out

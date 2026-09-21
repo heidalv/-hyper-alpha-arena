@@ -39,7 +39,6 @@ BULL_BEAR = {
     "weakness": "缺宏观锚定",
     "horizons": {
         "intraday": {"stance": "neutral", "confidence": 0.3, "argument": "日内震荡"},
-        "swing": {"stance": "long", "confidence": 0.6, "argument": "中期偏多"},
         "trend": {"stance": "long", "confidence": 0.55, "argument": "长期向上"},
     },
 }

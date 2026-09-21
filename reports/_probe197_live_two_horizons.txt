@@ -1,0 +1,11 @@
+﻿
+HORIZONS = [('intraday', '日内'), ('trend', '长期趋势')]
+耗时 43.2s
+   verdict            = "reduce"
+   primary_horizon    = "intraday"
+   primary_verdict    = "reduce"
+   horizon_verdicts   = {"intraday": "reduce", "trend": "reduce"}
+   used_llm           = true
+   → horizon_verdicts 键 = ['intraday', 'trend']
+
+

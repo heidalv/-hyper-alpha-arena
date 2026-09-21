@@ -161,8 +161,8 @@ def test_evidence_builder_uses_analyst_signals():
     assert "六分析师信号" in joined, "辩论证据里必须带六分析师数值信号"
     assert "flow=0.1" in joined
     assert ctx.get("composite_score") == pytest.approx(-0.4)
-    # [轮130 周期化] 三个周期都必须拿到证据（空手辩论 = 又一次"装饰"）
-    for k in ("intraday", "swing", "trend"):
+    # [轮159 2026-09-21] 两周期口径（日内/长期趋势）——原为三档，中期档已删（见 BD.HORIZONS 注释）
+    for k in ("intraday", "trend"):
         assert by_hz.get(k), f"周期 {k} 没有证据可辩"
 
 
@@ -191,15 +191,16 @@ def test_each_horizon_gets_evidence_quota(monkeypatch):
 
     ev, ctx, by_hz = BD._evidence_from_pack(_Pack(), "BTC")
     assert by_hz["trend"], "长期趋势必须有证据（距EMA200/宏观）"
-    assert by_hz["swing"], "中期必须有证据（4h结构/收益/因子）"
+    assert by_hz["intraday"], "日内必须有证据（1h/4h 结构、量价、因子路线）"
 
 
 # ───────────────── 5. 周期维度（用户指令：牛熊分析必须明确周期） ─────────────────
 
-def test_three_horizons_declared_with_scope():
+def test_two_horizons_declared_with_scope():
+    """[轮159 2026-09-21] 两周期口径：日内 / 长期趋势（与 config/cycle_semantics.py 一致）。"""
     keys = [h[0] for h in BD.HORIZONS]
-    assert keys == ["intraday", "swing", "trend"]
-    assert BD.HORIZON_CN == {"intraday": "日内", "swing": "中期", "trend": "长期趋势"}
+    assert keys == ["intraday", "trend"], "周期档只允许两档（用户口径：日内 + 长期趋势）"
+    assert BD.HORIZON_CN == {"intraday": "日内", "trend": "长期趋势"}
     for _, cn, scope in BD.HORIZONS:
         assert cn and scope, "每个周期必须写清中文名与证据范围"
 
@@ -212,22 +213,22 @@ def test_primary_horizon_per_tier():
 def test_llm_prompt_carries_horizon_contract(monkeypatch):
     """发给模型的 prompt 必须显式要求三个周期（否则模型只会给一个不分周期的结论）。"""
     instr = BD._horizon_instruction()
-    for cn in ("日内", "中期", "长期趋势"):
+    for cn in ("日内", "长期趋势"):   # [轮159] 两周期口径，中期档已删
         assert cn in instr, f"周期契约里缺 {cn}"
     assert "horizons" in instr and "confidence" in instr
 
 
 def test_parse_horizons_handles_missing_gracefully():
-    """模型不给 horizons ⇒ 三档标 unknown（不猜、也不崩）。"""
+    """模型不给 horizons ⇒ 每档标 unknown（不猜、也不崩）。"""
     hz = BD._parse_horizons('{"argument":"x","confidence":0.6}')
-    for k in ("intraday", "swing", "trend"):
+    for k in ("intraday", "trend"):
         assert hz[k]["stance"] == "unknown"
     hz2 = BD._parse_horizons(
         '{"argument":"x","horizons":{"intraday":{"stance":"short","confidence":0.8,'
         '"argument":"资金费拥挤"},"trend":{"stance":"long","confidence":0.7,"argument":"距EMA200正"}}}')
     assert hz2["intraday"]["stance"] == "short" and hz2["intraday"]["confidence"] == 0.8
     assert hz2["trend"]["stance"] == "long"
-    assert hz2["swing"]["stance"] == "unknown", "未给出的周期必须显式 unknown"
+    assert set(hz2.keys()) == {"intraday", "trend"}, "只应有两档（中期档已删）"
 
 
 def test_horizon_verdict_thresholds():

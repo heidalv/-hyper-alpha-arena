@@ -89,6 +89,8 @@ def test_每个task的template与required类型自洽():
     problems = []
     for task, spec in schemas.TASK_SCHEMAS.items():
         tpl = spec.get("template") or {}
+        if callable(tpl):   # [轮159] 支持可调用模板（周期档从 HORIZONS 派生）
+            tpl = tpl()
         for field, kind in (spec.get("required") or {}).items():
             if field not in tpl:
                 problems.append(f"{task}.{field}: required 声明了但 template 没给示例")

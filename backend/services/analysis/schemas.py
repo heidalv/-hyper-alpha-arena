@@ -43,6 +43,39 @@ COMMON_TEMPLATE: Dict[str, Any] = {
     "summary": "...",
 }
 
+
+def _mlto_debate_template() -> Dict[str, Any]:
+    """[轮159 2026-09-21] 辩论契约的模板，`horizons` **从 `brain_debate.HORIZONS` 派生**。
+
+    单一真源：周期档只在 `brain_debate.HORIZONS` 定义一次（当前两档：日内 / 长期趋势，
+    见 `backend/config/cycle_semantics.py` 的用户口径）。此前这里手写了一份三档，
+    于是"多出来的一档中期"被同时注入 system prompt —— 代码改一处、契约改另一处必然漂移。
+    """
+    try:
+        from backend.services.mlto.brain_debate import HORIZONS
+
+        _hz = {
+            k: {"stance": "long|short|neutral", "confidence": 0.5,
+                "argument": f"{cn}周期的核心论点"}
+            for k, cn, _scope in HORIZONS
+        }
+    except Exception:  # 导入失败也不阻断契约（退化为两档口径）
+        _hz = {
+            "intraday": {"stance": "long|short|neutral", "confidence": 0.5,
+                         "argument": "日内周期的核心论点"},
+            "trend": {"stance": "long|short|neutral", "confidence": 0.5,
+                      "argument": "长期趋势周期的核心论点"},
+        }
+    return {
+        "argument": "你的核心论点（一句话，锚定你所负责周期的证据）",
+        "confidence": 0.5,
+        "evidence": ["支持你论点的具体证据"],
+        "counterargument": "对对方论点的反驳（风控轮可省略）",
+        "weakness": "你论点的最大弱点（风控轮可省略）",
+        "horizons": _hz,
+    }
+
+
 TASK_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "daily_brief": {
         "required": {
@@ -288,7 +321,8 @@ TASK_SCHEMAS: Dict[str, Dict[str, Any]] = {
     # 契约（来自 debate_layer 的两个 prompt + brain_debate._horizon_instruction）：
     #   牛/熊：argument / confidence / evidence / counterargument / weakness，**外加** horizons；
     #   风控  ：argument / confidence（+ evidence，可省 counterargument/weakness）；
-    #   周期  ：horizons.{intraday,swing,trend}.{stance,confidence,argument}（辩论层硬要求）。
+    #   周期  ：horizons.<周期键>.{stance,confidence,argument} —— 键**从脑侧 HORIZONS 派生**
+    #           （当前两档：日内 / 长期趋势），不在此处再写一份，避免漂移。
     # 只把 argument/confidence 列为必填：horizons 是嵌套对象，缺它时辩论层有自己的
     # `_salvage_horizons` 容错，不该让整轮辩论在账本里变成 error。
     "mlto_debate": {
@@ -296,21 +330,7 @@ TASK_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "argument": "str",
             "confidence": "number:0:1",
         },
-        "template": {
-            "argument": "你的核心论点（一句话，锚定你所负责周期的证据）",
-            "confidence": 0.5,
-            "evidence": ["支持你论点的具体证据"],
-            "counterargument": "对对方论点的反驳（风控轮可省略）",
-            "weakness": "你论点的最大弱点（风控轮可省略）",
-            "horizons": {
-                "intraday": {"stance": "long|short|neutral", "confidence": 0.5,
-                             "argument": "日内（小时~1天）的核心论点"},
-                "swing": {"stance": "long|short|neutral", "confidence": 0.5,
-                          "argument": "中期（数天~两周）的核心论点"},
-                "trend": {"stance": "long|short|neutral", "confidence": 0.5,
-                          "argument": "长期趋势（数周~数月）的核心论点"},
-            },
-        },
+        "template": _mlto_debate_template,
     },
 }
 
@@ -427,6 +447,11 @@ def validate(task: str, obj: Any) -> Tuple[bool, List[str]]:
 def template_text(task: str) -> str:
     spec = TASK_SCHEMAS.get(task)
     tpl = spec["template"] if spec else COMMON_TEMPLATE
+    # [轮159 2026-09-21] 支持**可调用模板**：周期档这类会变的枚举只允许有一处定义
+    # （`brain_debate.HORIZONS`），模板在此惰性派生 —— 避免"schema 里写死一份、代码里改另一份"
+    # 的漂移（"多出一档中期"就是这么被放大到 system prompt 里的）。
+    if callable(tpl):
+        tpl = tpl()
     return json.dumps(tpl, ensure_ascii=False, indent=2)
 
 

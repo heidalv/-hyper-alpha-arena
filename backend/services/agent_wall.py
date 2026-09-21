@@ -239,8 +239,9 @@ NODES: List[Dict[str, Any]] = [
      "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"OWM llm×"},
      "deps": ["mlto_batch"]},
     {"id": "mlto_debate", "group": "G1", "size": "L", "label": "牛熊对抗辩论（分周期）",
-     "role": "**用户架构第 2 环**：日内 / 中期 / 长期趋势三档各自举证与裁决（proceed/reduce/reject），"
-             "标注周期冲突；裁决只记录 + 供风控官否决，**不写回门槛置信度**（轮136 教训）",
+     "role": "**用户架构第 2 环**：**两个周期**（日内 / 长期趋势，见 config/cycle_semantics.py）"
+             "各自举证与裁决（proceed/reduce/reject），标注周期冲突；"
+             "裁决只记录 + 供风控官否决，**不写回门槛置信度**（轮136 教训）",
      "cadence_label": "灰区 conviction 40~70 且过冷却",
      "source": {"kind": "file", "path": "logs/brain_subprocess.log", "filter": r"辩论 .*主周期="},
      "deps": ["mlto_context"]},
