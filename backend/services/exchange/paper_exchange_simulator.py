@@ -122,7 +122,10 @@ DEFAULT_EXCHANGE_RULES: Dict[str, PaperExchangeRules] = {
     "binance": PaperExchangeRules(
         "binance",
         maker_fee_rate=0.0002,
-        taker_fee_rate=0.0004,
+        # [2026-09-20 校准] 原为 0.0004：币安 USDⓈ-M 永续公开 VIP0 为 maker 0.02% / taker 0.05%，
+        # 本仓此前按 0.04% 记账、低估 1bp。用户已批准该口径变更（同批：资金费入账 + 出口补扣 + 账本统一）。
+        # 回滚：改回 0.0004 并重启（scripts\start-backend-noreload.cmd）；原件在 logs\_archive\20260920_funding\。
+        taker_fee_rate=0.0005,
         min_notional_usd=5.0,
         quantity_step=0.0001,
         maintenance_margin_rate=0.004,

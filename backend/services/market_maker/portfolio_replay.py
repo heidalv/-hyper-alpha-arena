@@ -115,6 +115,8 @@ def replay_portfolio(
     data = data or _load_all(symbols, venue)
 
     states = {s: SymbolState(symbol=s) for s in symbols}
+    # [F321] 缺少波动基准的标的（降级为 σ=0，但**记录下来**供调用方发现缺口）
+    missing_baseline: set = set()
     # [F213 2026-09-15] **窗口前历史回填**（与实盘 F109 的 `backfill_mid_hist` 同口径 ✓）。
     # 现场：回放从不回填 `mid_hist` ⇒ 窗口开始时它是空的 ⇒ `plan_tick` 里
     # `if len(_hist) >= frozen_lookback+1` 不成立 ⇒ `slow_move_bp = 0`
@@ -148,7 +150,14 @@ def replay_portfolio(
             _m = float((d["bb"][i] + d["ba"][i]) / 2)
             if _m > 0:
                 _mid_series[s].append(_m)
-    vol_baseline: Dict[str, float] = (dict(vol_baseline) if vol_baseline
+    # [F321 2026-09-17] **显式传入的基准一律采信，空字典也不例外**。
+    # 此前 `if vol_baseline` 把 `{}` 当 falsy ⇒ 静默回退到"从数据现算基准"，
+    # 而现算基准会跟着**所载窗口的近期波动**走 ⇒ σ 被静默改变（实测 σ≈0 占 63%，
+    # 与注册表锚定口径差 1.5 倍——这正是 F108c 记录过的陷阱）。
+    # 传 `{}` 的语义应该是"我没有基准"，而不是"请帮我现算"。
+    # 只有传 `None`（未提供）才允许回退。
+    _computed_baseline = vol_baseline is None
+    vol_baseline: Dict[str, float] = (dict(vol_baseline) if vol_baseline is not None
                                       else compute_vol_baselines(_mid_series))
     for s in symbols:
         states[s].vol_baseline_bp = float(vol_baseline.get(s) or 0.0)
@@ -274,8 +283,18 @@ def replay_portfolio(
                 st.mid_hist = st.mid_hist[-240:]
             # 波动归一（近 20 期**已实现波动**相对基准，与实盘 tick 同口径）
             vol_cur = realized_vol_bp(st.mid_hist, limits.vol_window)
-            sigma = (max(0.0, vol_cur / vol_baseline[s] - 1.0)
-                     if vol_baseline[s] > 0 else 0.0)
+            # [F321 2026-09-17] **缺失基准必须降级，不能 KeyError**。
+            # 现场：跑「在位宇宙 + 高可达候选（UNI/BTC/ETH）」的宇宙对照时，
+            # `vol_baseline` 只有车道 5 个标的的锚定值 ⇒ `vol_baseline['UNI']`
+            # 直接抛 KeyError，整个回放崩掉（对照做不成）。
+            # 这是「硬编码宇宙假设」的同类缺陷（与 F302 修的采集覆盖同源）：
+            # 任何未锚定基准的标的都会让回放不可用，而回放本应是通用工具。
+            # 语义按"无基准 ⇒ σ=0"（与 `st.vol_baseline_bp<=0` 的既有分支一致：
+            # 不臆造基准，但也不阻断）。同时计数以便调用方发现缺口。
+            _vb = float(vol_baseline.get(s) or 0.0)
+            if _vb <= 0:
+                missing_baseline.add(s)
+            sigma = (max(0.0, vol_cur / _vb - 1.0) if _vb > 0 else 0.0)
             half_spread = (float(d["ba"][i]) - float(d["bb"][i])) / 2.0
             # 缺口保护（同 F71）：间隔过大直接丢弃该币库存语义
             if int(d["ots"][i + 1]) - int(d["ots"][i]) > max_gap_ms:
@@ -557,4 +576,10 @@ def replay_portfolio(
         "win_empty": win_empty,
         "win_invisible": win_invisible,
         "tick_delay_ms": tick_delay_ms,
+        # [F321] 缺波动基准而降级为 σ=0 的标的（空 = 全部有锚定基准）。
+        # 调用方应据此判断"σ 闸是否真的生效"——σ=0 时 vol_pause 永不触发。
+        "missing_vol_baseline": sorted(missing_baseline),
+        # [F321] 基准是否由本函数**从数据现算**（= 调用方没传）。
+        # True 时 σ 口径会跟着所载窗口走，与实盘（注册表锚定）不可比 —— F108c 陷阱。
+        "vol_baseline_computed": _computed_baseline,
     }

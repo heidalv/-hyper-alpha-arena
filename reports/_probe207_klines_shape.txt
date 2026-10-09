@@ -1,0 +1,102 @@
+﻿列定义:
+   id                      integer
+   exchange                character varying
+   symbol                  character varying
+   market                  character varying
+   period                  character varying
+   timestamp               integer
+   datetime_str            character varying
+   environment             character varying
+   open_price              numeric
+   high_price              numeric
+   low_price               numeric
+   close_price             numeric
+   volume                  numeric
+   amount                  numeric
+   change                  numeric
+   percent                 numeric
+   created_at              timestamp without time zone
+
+period='1h' 且 symbol 含 BTC 的时间线:
+   BTC         asterdex    1h       6189  ts 1767704400..1789981200  str 2026-01-06 13:00:00..2026-09-21 09:00:00
+   BTC         hyperliquid 1h       6152  ts 1767834000..1789977600  str 2026-01-08 01:00:00..2026-09-21 08:00:00
+   BTC         binance     1h       6112  ts 1767981600..1789981200  str 2026-01-09 18:00:00..2026-09-21 09:00:00
+   BTC         okx         1h       6112  ts 1767981600..1789981200  str 2026-01-09 18:00:00..2026-09-21 09:00:00
+   BTC         bybit       1h       6111  ts 1767981600..1789977600  str 2026-01-09 18:00:00..2026-09-21 08:00:00
+   BTCDOM      asterdex    1h       3079  ts 1775840400..1789005600  str 2026-04-10 17:00:00..2026-09-10 02:00:00
+   BTCDOM      binance     1h         49  ts 1785574800..1789102800  str 2026-08-01 09:00:00..2026-09-11 05:00:00
+
+最近 12 行原始值（symbol like BTC, period 1h, 任一交易所中数据最新的那个）:
+   选定 exchange = asterdex
+   ts=1789981200       str=2026-09-21 09:00:00    BTC       asterdex   O=83711.700000 H=83943.300000 L=83659.000000 C=83842.400000
+   ts=1789977600       str=2026-09-21 08:00:00    BTC       asterdex   O=81691.200000 H=82551.700000 L=81690.500000 C=82545.800000
+   ts=1789974000       str=2026-09-21 07:00:00    BTC       asterdex   O=81610.100000 H=81651.400000 L=81440.000000 C=81543.500000
+   ts=1789970400       str=2026-09-21 06:00:00    BTC       asterdex   O=81519.000000 H=81848.000000 L=81363.500000 C=81596.700000
+   ts=1789966800       str=2026-09-21 05:00:00    BTC       asterdex   O=81361.900000 H=81765.100000 L=81269.700000 C=81506.100000
+   ts=1789963200       str=2026-09-21 04:00:00    BTC       asterdex   O=81404.000000 H=81481.300000 L=81201.500000 C=81405.000000
+   ts=1789959600       str=2026-09-21 03:00:00    BTC       asterdex   O=81279.200000 H=81542.100000 L=81204.500000 C=81405.000000
+   ts=1789956000       str=2026-09-21 02:00:00    BTC       asterdex   O=80962.300000 H=81481.400000 L=80914.500000 C=81247.000000
+   ts=1789952400       str=2026-09-21 01:00:00    BTC       asterdex   O=81566.000000 H=82069.000000 L=81225.400000 C=81244.900000
+   ts=1789948800       str=2026-09-21 00:00:00    BTC       asterdex   O=81147.000000 H=81806.500000 L=81131.300000 C=81665.500000
+   ts=1789945200       str=2026-09-20 23:00:00    BTC       asterdex   O=81177.500000 H=81299.900000 L=81087.200000 C=81143.700000
+   ts=1789941600       str=2026-09-20 22:00:00    BTC       asterdex   O=80901.700000 H=81257.300000 L=80731.000000 C=81174.400000
+
+MM 车道交易标的（lane_ledger 近 18h 去重）:
+.venv\Scripts\python.exe : Traceback (most recent call last):
+At line:1 char:129
++ ... ew($false); .venv\Scripts\python.exe scripts\_probe207_klines_shape.p ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedTable: ��ϵ "lane_ledger" ������
+LINE 1: ...eta_json::jsonb->>'symbol', '?') s, count(*) from lane_ledge...
+                                                             ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\001Alpha\Hyper-Alpha-Arena\scripts\_probe207_klines_shape.py", line 48, in <module>
+    rows = c.execute(text(
+           ^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_con
+nection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clause
+element
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_contex
+t
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_co
+ntext
+    self._handle_dbapi_exception(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_e
+xception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedTable) ��ϵ "lane_ledger" ������
+LINE 1: ...eta_json::jsonb->>'symbol', '?') s, count(*) from lane_ledge...
+                                                             ^
+[SQL: select coalesce(meta_json::jsonb->>'symbol', '?') s, count(*) from lane_ledger where lane_id='mm_asterdex' and ev
+ent='fill' and ts > now() - interval '18 hours' group by 1 order by 2 desc limit 10]
+(Background on this error at: https://sqlalche.me/e/20/f405)

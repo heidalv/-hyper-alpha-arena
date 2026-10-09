@@ -132,17 +132,120 @@ def hermes_genesis() -> Dict[str, Any]:
 def hermes_schedule() -> Dict[str, Any]:
     """四层(L1-L4)定时任务时间轴。
 
-    [2026-08-17] opencode_scheduler 已删除：Hermes 调度状态改由
-    hermes_orchestrator 自身报告（无 opencode 定时链后为静态时间轴）。
+    [2026-10-03 修复] 此前这里 `from backend.services.hermes_orchestrator import hermes_orchestrator`
+    —— 该模块**没有这个名字**（只有单例 `hermes = HermesOrchestrator()`），于是本接口永远返回
+    `{"error": "cannot import name 'hermes_orchestrator' …", "tasks": []}`（实测）。
+    现改为用真实单例，并在没有 schedule_status 时回落到 `task_run_log` 的真实运行记录 —— 
+    这样「驱动是否还在跑」这件事在界面上是**可观测**的（此前 L1-L4 自 2026-08-16 起停摆，
+    但接口一直返回 error，没人看得见）。
     """
     try:
-        from backend.services.hermes_orchestrator import hermes_orchestrator
-        fn = getattr(hermes_orchestrator, "schedule_status", None)
+        from backend.services.hermes_orchestrator import hermes as _orch
+
+        fn = getattr(_orch, "schedule_status", None)
         if callable(fn):
             return {"tasks": fn()}
-        return {"tasks": [], "note": "opencode_scheduler removed"}
+        # 回落：直接给出后端 APScheduler 注册的 Hermes 任务 + task_run_log 的真实最新运行时间
+        from backend.services.hermes_db import hermes_fetchall
+        rows = hermes_fetchall(
+            "SELECT job_id, last_status, last_finished_at, run_count, last_error "
+            "FROM task_run_log WHERE job_id LIKE 'hermes%' OR job_id LIKE 'opencode%' "
+            "ORDER BY last_finished_at DESC", (),
+        )
+        tasks = [dict(r) for r in rows]
+        live = []
+        try:
+            from backend.services.scheduler import task_scheduler
+            if task_scheduler.scheduler:
+                live = [j.id for j in task_scheduler.scheduler.get_jobs()
+                        if j.id.startswith("hermes_") or j.id.startswith("opencode_")]
+        except Exception:
+            pass
+        return {"tasks": tasks, "live_jobs": live,
+                "note": "opencode_scheduler 已删除；现由后端 APScheduler（start_hermes_scheduler）驱动 L1/L4，L2/L3 需 env 开启"}
     except Exception as e:
         return {"error": str(e), "tasks": []}
+
+
+@router.get("/task-log")
+def hermes_task_log(limit: int = 40) -> Dict[str, Any]:
+    """`task_run_log` 原始运行记录（[2026-10-03 补齐] 让"驱动停摆"可见）。
+
+    以前这个表只在 SQLite 里，界面上完全看不到 —— 于是 Hermes 四级自 2026-08-16 起不再运行
+    这件事，直到契约体检才被发现。现在直接暴露给前端。
+    """
+    try:
+        from backend.services.hermes_db import hermes_fetchall
+        rows = hermes_fetchall(
+            "SELECT job_id, last_status, last_finished_at, run_count, "
+            "last_run_duration_ms, last_error FROM task_run_log "
+            "ORDER BY last_finished_at DESC LIMIT ?", (int(limit),),
+        )
+        return {"tasks": [dict(r) for r in rows], "count": len(rows)}
+    except Exception as e:
+        return {"error": str(e), "tasks": []}
+
+
+# ───── L4 独立孵化通道（[2026-10-03 补齐] 见 services/hermes_incubation_channel.py 顶部证据） ─────
+
+@router.get("/genesis/incubation")
+def hermes_incubation_status() -> Dict[str, Any]:
+    """孵化通道真实状态：候选数 / 绑定策略数 / 活跃数 / 孵化账户 / 会话 / 阻塞原因。"""
+    from backend.database.connection import SessionLocal
+    from backend.services.hermes_incubation_channel import channel_status
+
+    db = SessionLocal()
+    try:
+        return channel_status(db)
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+@router.post("/genesis/incubation/repair")
+def hermes_incubation_repair(limit: int = Query(12, ge=1, le=100)) -> Dict[str, Any]:
+    """重建/改绑 incubating 候选的策略到**专用孵化账户**（不再借用用户账户 14）。"""
+    from backend.database.connection import SessionLocal
+    from backend.services.hermes_incubation_channel import repair_candidate_strategies
+
+    db = SessionLocal()
+    try:
+        return repair_candidate_strategies(db, limit)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        db.close()
+
+
+@router.post("/genesis/incubation/start")
+def hermes_incubation_start(limit: int = Query(12, ge=1, le=100)) -> Dict[str, Any]:
+    """启动孵化会话（**默认关闭**：需 HERMES_L4_INCUBATION_ENABLED=true；否则只回阻塞原因）。"""
+    from backend.database.connection import SessionLocal
+    from backend.services.hermes_incubation_channel import start_channel
+
+    db = SessionLocal()
+    try:
+        return start_channel(db, limit)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        db.close()
+
+
+@router.post("/genesis/incubation/stop")
+def hermes_incubation_stop() -> Dict[str, Any]:
+    """停止孵化会话（不影响候选状态）。"""
+    from backend.database.connection import SessionLocal
+    from backend.services.hermes_incubation_channel import stop_channel
+
+    db = SessionLocal()
+    try:
+        return stop_channel(db)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        db.close()
 
 
 _HERMES_RUN_HANDLERS = {
@@ -190,10 +293,15 @@ def hermes_accept_architecture(proposal_id: int) -> Dict[str, Any]:
 @router.post("/architecture/auto-accept-pending")
 def hermes_auto_accept_architecture_pending(
     limit: int = Query(20, ge=1, le=100),
+    dry_run: bool = Query(False, description="true=只预览将要通过的提案，不写库"),
 ) -> Dict[str, Any]:
-    """Paper 模式批量 accept L3 pending 提案（可多次调用直到 remaining=0）。"""
+    """Paper 模式批量 accept L3 pending 提案（可多次调用直到 remaining=0）。
+
+    [2026-10-03] `dry_run=true` 仅预览（返回 would_accept + preview 清单），**不落库**
+    —— 批量裁决会把提案直接置 implemented，属不可逆改动，先预览再执行。
+    """
     from backend.services.hermes_architecture_evolution_engine import architecture_evolution
-    return architecture_evolution.auto_accept_pending_paper(limit=limit)
+    return architecture_evolution.auto_accept_pending_paper(limit=limit, dry_run=dry_run)
 
 
 @router.post("/architecture/reconcile-implemented")
@@ -263,8 +371,17 @@ def hermes_prompts_diff() -> Dict[str, Any]:
 
 @router.get("/block-patterns")
 def hermes_block_patterns() -> Dict[str, Any]:
-    from backend.services.learning.backends.block_pattern_learning_backend import BlockPatternLearningBackend
-    return {"stats": BlockPatternLearningBackend.get_stats()}
+    """拦截模式统计。
+
+    [2026-10-03 补齐] 此前返回**永远为空**：该后端从未注册进 LearningLoop，且统计是纯内存。
+    现改为「内存计数（若有）+ 来自 decision_snapshots 的真实聚合」——
+    各车道决策/执行率、拦截层级、理由分类（含原样摘录）。
+    """
+    from backend.services.learning.backends.block_pattern_learning_backend import get_stats_persistent
+
+    real = get_stats_persistent()
+    # 保持旧字段 `stats` 兼容既有前端，同时给出结构化真数据
+    return {"stats": real.get("in_memory") or {}, **real}
 
 
 @router.get("/dashboard")

@@ -1,0 +1,44 @@
+{
+  "segments": [
+    {
+      "segment": "① 修复前",
+      "legs": 893,
+      "exits": 209,
+      "taker_exits": 208,
+      "maker_exits": 0,
+      "ofi_taker": 105,
+      "ofi_maker": 0,
+      "taker_share_of_exits": 0.9952,
+      "fee_bp_per_leg": -0.851,
+      "fee_usd": -9.94,
+      "net_usd": -12.37
+    },
+    {
+      "segment": "② 修复后·停摆前",
+      "legs": 121,
+      "exits": 29,
+      "taker_exits": 23,
+      "maker_exits": 6,
+      "ofi_taker": 0,
+      "ofi_maker": 6,
+      "taker_share_of_exits": 0.7931,
+      "fee_bp_per_leg": -0.727,
+      "fee_usd": -0.84,
+      "net_usd": -4.14
+    },
+    {
+      "segment": "③ 恢复后",
+      "legs": 81,
+      "exits": 14,
+      "taker_exits": 12,
+      "maker_exits": 2,
+      "ofi_taker": 0,
+      "ofi_maker": 2,
+      "taker_share_of_exits": 0.8571,
+      "fee_bp_per_leg": -0.494,
+      "fee_usd": -0.24,
+      "net_usd": -2.93
+    }
+  ],
+  "generated_at": "2026-09-29T10:27:03.149834"
+}

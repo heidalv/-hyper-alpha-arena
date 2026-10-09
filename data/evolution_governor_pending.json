@@ -1,0 +1,10 @@
+{
+ "param": "stop_taker_bp",
+ "old": 100.0,
+ "new": 80.0,
+ "applied_at": 1791370102.9553127,
+ "evidence_n": 172,
+ "reason": "盈亏比 0.40 且有大额穿透亏损 ⇒ 穿透硬兜底 100→80bp(砍灾难尾巴)",
+ "expected": "单笔最大亏损下降",
+ "before_pnl_per_leg": -0.006164448840821163
+}

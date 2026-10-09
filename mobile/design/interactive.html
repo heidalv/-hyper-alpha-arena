@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AlphaArena · 交互原型（高频▸实盘/模拟 · 交易▸实盘/模拟）</title>
+<style>
+:root{
+  --bg:246 248 251; --card:255 255 255; --card-2:241 245 249; --border:214 222 232;
+  --profit:5 150 105; --live:220 38 38; --paper:124 58 237; --primary:37 99 235;
+  --muted:100 116 139; --text:15 23 42; --warning:217 119 6;
+  --scrim:15 23 42; --scrim-a:.38; --shadow:0 1px 2px rgb(15 23 42 / .06), 0 1px 3px rgb(15 23 42 / .05);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+  --W:390px; --H:844px;
+}
+/* ── 夜间令牌：同一套名字，只换值 ── */
+.dark{
+  --bg:10 14 23; --card:17 24 39; --card-2:22 30 46; --border:31 41 55;
+  --profit:0 220 130; --live:239 68 68; --paper:139 92 246; --primary:59 130 246;
+  --muted:107 114 128; --text:249 250 251; --warning:245 158 11;
+  --scrim:0 0 0; --scrim-a:.64; --shadow:none;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:#eef2f7;color:#0f172a;font-family:var(--font);font-size:14px;line-height:1.45;
+  display:flex;align-items:center;justify-content:center;gap:24px;padding:20px;-webkit-font-smoothing:antialiased}
+.bezel{width:calc(var(--W) + 20px);height:calc(var(--H) + 20px);padding:10px;flex:0 0 auto;border-radius:30px;
+  background:linear-gradient(180deg,#1a2230,#0b0f18);border:1px solid #2b3648;position:relative;
+  box-shadow:0 30px 70px -28px rgb(15 23 42 / .55);transition:background .25s,border-color .25s}
+.bezel.is-light{background:linear-gradient(180deg,#e6ecf4,#d5dee9);border-color:#c3cfdd}
+.cam{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:9px;height:9px;border-radius:50%;background:#05070c;border:1px solid rgb(var(--border))}
+.phone{width:var(--W);height:var(--H);background:rgb(var(--bg));border-radius:22px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+
+.sysbar{flex:0 0 auto;height:30px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgb(var(--text) / .82);position:relative;z-index:7}
+.netstrip{flex:0 0 auto;margin:0 13px 7px;min-height:28px;border-radius:9px;display:flex;align-items:center;gap:7px;padding:0 10px;
+  background:rgb(var(--card) / .75);border:1px solid rgb(var(--border) / .7);font-size:11px;transition:border-color .2s,background .2s}
+.netstrip .src{color:rgb(var(--muted));font-family:var(--mono);font-size:10px}
+.netstrip .age{margin-left:auto;font-family:var(--mono)}
+.pausebtn{padding:2px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border));color:rgb(var(--text) / .8);font-size:10.5px;font-weight:600;cursor:pointer}
+.pausebtn.on{background:rgb(var(--warning) / .18);border-color:rgb(var(--warning) / .5);color:rgb(var(--warning))}
+.rate{padding:2px 7px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border));font-family:var(--mono);font-size:10px;color:rgb(var(--muted));cursor:pointer}
+.appbar{flex:0 0 auto;padding:0 14px 8px;display:flex;align-items:center;justify-content:space-between;gap:9px}
+.appbar .title{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.appbar .sub{font-size:11px;color:rgb(var(--muted));margin-top:1px}
+/* ★ 主题开关（三档） */
+.themebtn{display:flex;align-items:center;gap:5px;min-height:30px;padding:0 9px;border-radius:9px;cursor:pointer;
+  background:rgb(var(--card));border:1px solid rgb(var(--border));color:rgb(var(--text) / .82);
+  font-size:10.5px;font-weight:600;font-family:var(--font);box-shadow:var(--shadow);white-space:nowrap}
+.themebtn .lab{color:rgb(var(--muted));font-weight:500}
+/* 主题选择面板 */
+.topt{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:11px 12px;border-radius:10px;
+  border:1px solid rgb(var(--border));background:rgb(var(--card-2));cursor:pointer;margin-top:6px}
+.topt.on{border-color:rgb(var(--primary) / .5);background:rgb(var(--primary) / .07)}
+.topt .nm{font-size:12.5px;font-weight:650}
+.topt .ds{font-size:10.5px;color:rgb(var(--muted));margin-top:1px}
+.iconbtn{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:rgb(var(--text) / .75);background:rgb(var(--card) / .8);border:1px solid rgb(var(--border) / .7)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:rgb(var(--profit));animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ★ 第二级：环境切换（实盘 / 模拟） */
+.envtabs{flex:0 0 auto;margin:0 13px 9px;display:flex;background:rgb(var(--card-2) / .85);border:1px solid rgb(var(--border) / .8);border-radius:11px;padding:3px}
+.envtabs button{flex:1;min-height:44px;border:0;background:none;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  color:rgb(var(--muted));font-family:var(--font);cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.envtabs button .t{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:5px}
+.envtabs button .m{font-size:9px;font-family:var(--mono);opacity:.85}
+.envtabs button[data-env="live"].on{background:rgb(var(--live) / .16);color:rgb(var(--live));box-shadow:inset 0 0 0 1px rgb(var(--live) / .45)}
+.envtabs button[data-env="paper"].on{background:rgb(var(--paper) / .16);color:rgb(var(--paper));box-shadow:inset 0 0 0 1px rgb(var(--paper) / .45)}
+.envtabs .sep{width:1px;background:rgb(var(--border) / .9);margin:6px 0}
+
+.screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:0 13px 16px;scrollbar-width:none;position:relative}
+.screen::-webkit-scrollbar{display:none}
+.page{display:none} .page.on{display:block}
+.page > * + *{margin-top:11px}
+.tabbar{flex:0 0 auto;display:flex;background:rgb(13 18 30 / .96);border-top:1px solid rgb(var(--border) / .8);padding-bottom:7px}
+.tabbar button{flex:1;min-height:50px;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgb(var(--muted));font-family:var(--font);font-size:10.5px;font-weight:500;padding:6px 0 0;cursor:pointer}
+.tabbar button.on{color:rgb(var(--primary));font-weight:650}
+.gesture{flex:0 0 auto;height:21px;display:grid;place-items:center;background:rgb(13 18 30 / .96)}
+.gesture i{width:112px;height:4px;border-radius:99px;background:rgb(var(--text) / .30)}
+
+.card{background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);border-radius:12px;padding:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.row.tight{gap:6px}
+.stack{display:flex;flex-direction:column}
+.muted{color:rgb(var(--muted))} .dim{color:rgb(var(--text) / .66)}
+.profit{color:rgb(var(--profit))} .loss{color:rgb(var(--live))} .warn{color:rgb(var(--warning))} .vio{color:rgb(var(--paper))}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.h1{font-size:27px;font-weight:700;letter-spacing:-1px;line-height:1.15}
+.h2{font-size:20px;font-weight:680;letter-spacing:-.4px}
+.h3{font-size:15px;font-weight:650}
+.tiny{font-size:10.5px} .sm{font-size:12px}
+.lbl{font-size:11px;color:rgb(var(--muted))}
+.hr{height:1px;background:rgb(var(--border) / .8);margin:10px -12px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2.5px 7px;border-radius:5px;background:rgb(var(--muted) / .16);color:rgb(var(--muted));white-space:nowrap}
+.badge.p{background:rgb(var(--profit) / .15);color:rgb(var(--profit))}
+.badge.l{background:rgb(var(--live) / .15);color:rgb(var(--live))}
+.badge.w{background:rgb(var(--warning) / .16);color:rgb(var(--warning))}
+.badge.b{background:rgb(var(--primary) / .16);color:rgb(var(--primary))}
+.badge.v{background:rgb(var(--paper) / .18);color:rgb(var(--paper))}
+.badge.solid-l{background:rgb(var(--live));color:#fff}
+.badge.solid-v{background:rgb(var(--paper));color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.p{background:rgb(var(--profit));box-shadow:0 0 8px rgb(var(--profit) / .7)}
+.dot.l{background:rgb(var(--live))} .dot.w{background:rgb(var(--warning))} .dot.m{background:rgb(var(--muted))}
+.dot.b{background:rgb(var(--primary))} .dot.v{background:rgb(var(--paper))}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.stat{background:rgb(var(--card-2) / .7);border:1px solid rgb(var(--border) / .6);border-radius:9px;padding:8px 9px}
+.stat .k{font-size:10.5px;color:rgb(var(--muted));white-space:nowrap}
+.stat .v{font-size:15px;font-weight:650;margin-top:1px}
+.bar{height:5px;border-radius:99px;background:rgb(var(--border) / .9);overflow:hidden;display:flex}
+.bar > i{display:block;height:100%}
+.bar > i.p{background:rgb(var(--profit))} .bar > i.w{background:rgb(var(--warning))} .bar > i.l{background:rgb(var(--live))}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border) / .7);color:rgb(var(--text) / .8);cursor:pointer}
+.chip.on{background:rgb(var(--primary) / .16);border-color:rgb(var(--primary) / .45);color:rgb(var(--primary))}
+.kv{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4.5px 0}
+.v6{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.v6 > div{background:rgb(var(--bg) / .45);border-radius:8px;padding:7px 8px}
+.v6 .k{font-size:10px;color:rgb(var(--muted));white-space:nowrap}
+.v6 .v{font-size:14.5px;font-weight:650;margin-top:1px;font-variant-numeric:tabular-nums}
+.v6 .u{font-size:9.5px;color:rgb(var(--muted));font-weight:500}
+.srcnote{display:flex;gap:5px;align-items:center;font-size:9.5px;color:rgb(var(--muted));margin-top:7px;line-height:1.4}
+/* 持仓行 + 单条平仓（兜底能力） */
+.posrow{display:grid;grid-template-columns:1fr auto auto;gap:9px;align-items:center;padding:9px 0}
+.posrow + .posrow{border-top:1px solid rgb(var(--border) / .65)}
+.posrow .sym{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:6px;min-width:0}
+.posrow .sym .q{font-size:9.5px;color:rgb(var(--muted));font-weight:500}
+.posrow .pnl{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right}
+.closebtn{min-height:28px;padding:0 10px;border-radius:7px;background:rgb(var(--live) / .13);border:1px solid rgb(var(--live) / .45);color:rgb(var(--live));font-size:11px;font-weight:650;font-family:var(--font);cursor:pointer;white-space:nowrap}
+.closebtn.paper{background:rgb(var(--paper) / .13);border-color:rgb(var(--paper) / .45);color:rgb(var(--paper))}
+.closebtn:active{background:rgb(var(--live) / .26)}
+/* 悬浮确认窗 */
+.scrim{position:absolute;inset:0;background:rgb(var(--scrim) / var(--scrim-a));z-index:20;animation:fade .16s ease-out}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;z-index:21;background:rgb(var(--card));border:1px solid rgb(var(--border));border-radius:16px;padding:14px;animation:pop .2s cubic-bezier(.22,.9,.3,1);max-height:84%;overflow-y:auto;scrollbar-width:none;box-shadow:0 18px 44px -14px rgb(15 23 42 / .28)}
+.sheet::-webkit-scrollbar{display:none}
+.sheet.warnbox{border-color:rgb(var(--live) / .45);box-shadow:0 0 0 1px rgb(var(--live) / .18)}
+@keyframes pop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheetic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;margin-bottom:10px;background:rgb(var(--live) / .18);color:rgb(var(--live))}
+.sheetic.v{background:rgb(var(--paper) / .18);color:rgb(var(--paper))}
+.sheetlist{background:rgb(var(--bg) / .5);border-radius:9px;padding:9px 11px;margin-top:11px}
+.sheetlist .r{display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0}
+.sheetlist .r.tot{border-top:1px solid rgb(var(--border) / .7);margin-top:5px;padding-top:6px;font-weight:650}
+.cd{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:rgb(var(--warning))}
+.cd i{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgb(var(--warning) / .35);border-top-color:rgb(var(--warning));animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.live{background:rgb(var(--live));border-color:rgb(var(--live));color:#fff}
+.btn.paperbtn{background:rgb(var(--paper));border-color:rgb(var(--paper));color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn{min-height:42px;border-radius:8px;border:1px solid rgb(var(--border));background:transparent;color:rgb(var(--text));font-family:var(--font);font-size:13.5px;font-weight:650;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.btn.primary{background:rgb(var(--primary));border-color:rgb(var(--primary));color:#fff}
+.banner{border-radius:11px;padding:10px 11px;display:flex;gap:9px;align-items:flex-start;border:1px solid rgb(var(--live) / .38);background:linear-gradient(180deg,rgb(var(--live) / .16),rgb(var(--live) / .05))}
+.banner.ok{border-color:rgb(var(--profit) / .34);background:linear-gradient(180deg,rgb(var(--profit) / .14),rgb(var(--profit) / .04))}
+.banner.wr{border-color:rgb(var(--warning) / .38);background:linear-gradient(180deg,rgb(var(--warning) / .17),rgb(var(--warning) / .05))}
+.banner.vio{border-color:rgb(var(--paper) / .38);background:linear-gradient(180deg,rgb(var(--paper) / .16),rgb(var(--paper) / .05))}
+.banner .ic{width:27px;height:27px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;background:rgb(var(--live) / .22);color:rgb(var(--live))}
+.banner.ok .ic{background:rgb(var(--profit) / .2);color:rgb(var(--profit))}
+.banner.wr .ic{background:rgb(var(--warning) / .22);color:rgb(var(--warning))}
+.banner.vio .ic{background:rgb(var(--paper) / .22);color:rgb(var(--paper))}
+
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.node{border-radius:9px;padding:7px 8px;background:rgb(var(--card-2) / .6);border:1px solid rgb(var(--border) / .7);transition:opacity .3s}
+.node .nm{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:5px}
+.node .mt{font-size:9.5px;color:rgb(var(--muted));margin-top:3px;font-family:var(--mono)}
+.node.ok{border-left:2px solid rgb(var(--profit))}
+.node.stale{border-left:2px solid rgb(var(--warning))}
+.node.dead{border-left:2px solid rgb(var(--live));background:rgb(var(--live) / .09)}
+.node.disabled{border-left:2px solid rgb(var(--border));opacity:.55}
+
+.relwrap{margin-top:8px;overflow-x:auto;overflow-y:hidden;padding-bottom:3px;scrollbar-width:none}
+.relwrap::-webkit-scrollbar{display:none}
+.rel{display:flex;align-items:stretch;min-width:min-content}
+.rel .box{flex:0 0 auto;width:98px;border-radius:9px;padding:6px 7px;background:rgb(var(--card-2) / .75);border:1px solid rgb(var(--border) / .8)}
+.rel .box.sel{width:112px;border-color:rgb(var(--primary) / .6);background:rgb(var(--primary) / .10)}
+.rel .box .n{font-size:10.5px;font-weight:650;display:flex;align-items:center;gap:4px;line-height:1.3}
+.rel .box .s{font-family:var(--mono);font-size:9px;color:rgb(var(--muted));margin-top:2px}
+.rel .box.ok{border-left:2px solid rgb(var(--profit))}
+.rel .box.stale{border-left:2px solid rgb(var(--warning))}
+.rel .box.dead{border-left:2px solid rgb(var(--live))}
+.rel .edge{flex:0 0 42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px}
+.rel .edge .track{position:relative;width:100%;height:2px;background:rgb(var(--border));border-radius:2px;overflow:hidden}
+.rel .edge .track i{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%;background:rgb(var(--primary));box-shadow:0 0 7px rgb(var(--primary) / .9);animation:flow 2.1s linear infinite}
+.rel .edge .track i.c{background:rgb(var(--profit));box-shadow:0 0 7px rgb(var(--profit) / .9)}
+@keyframes flow{0%{left:-8%}100%{left:100%}}
+.rel .edge .el{font-size:8.5px;color:rgb(var(--muted));text-align:center;line-height:1.25;max-width:42px}
+.rel .edge.broken .track{background:repeating-linear-gradient(90deg,rgb(var(--live)) 0 4px,transparent 4px 8px)}
+.rel .edge.broken .track i{display:none}
+.rel .edge.ineff .track{background:repeating-linear-gradient(90deg,rgb(var(--warning) / .8) 0 3px,transparent 3px 7px)}
+.rel .edge.ineff .track i{display:none}
+
+.stream{background:rgb(12 17 27);border:1px solid rgb(var(--border) / .85);border-radius:11px;overflow:hidden}
+.stream .shead{display:flex;align-items:center;gap:7px;padding:8px 10px;background:rgb(var(--card-2) / .7);border-bottom:1px solid rgb(var(--border) / .7)}
+.stream .sbody{height:250px;overflow-y:auto;padding:4px 0;scrollbar-width:none;overscroll-behavior:contain}
+.stream .sbody::-webkit-scrollbar{display:none}
+.ln{display:grid;grid-template-columns:42px 1fr;gap:7px;padding:5px 10px;font-size:11px;line-height:1.5;border-left:2px solid transparent}
+.ln .t{font-family:var(--mono);font-size:9.5px;color:rgb(var(--muted));padding-top:2px}
+.ln .x{color:rgb(var(--text) / .9);word-break:break-word}
+.ln .x .src{color:rgb(var(--primary));font-weight:600}
+.ln.k-crit{border-left-color:rgb(var(--live));background:rgb(var(--live) / .07)}
+.ln.k-warn{border-left-color:rgb(var(--warning));background:rgb(var(--warning) / .06)}
+.ln.k-ok{border-left-color:rgb(var(--profit) / .6)}
+.ln.k-new{animation:flash 1s ease-out}
+@keyframes flash{from{background:rgb(var(--primary) / .22)}to{background:transparent}}
+.sfoot{display:flex;align-items:center;gap:7px;padding:6px 10px;border-top:1px solid rgb(var(--border) / .7);background:rgb(var(--card-2) / .5);font-size:9.5px;color:rgb(var(--muted))}
+.sfoot .rt{margin-left:auto;font-family:var(--mono)}
+.stream.frozen{position:relative}
+.stream.frozen::after{content:"已冻结 · 上新不自动滚动";position:absolute;left:0;right:0;bottom:34px;padding:5px 10px;font-size:9.5px;color:rgb(var(--warning));background:rgb(12 17 27 / .96);border-top:1px solid rgb(var(--warning) / .35)}
+
+/* 侧栏 */
+.side{width:340px;flex:0 1 auto;align-self:center}
+.side h1{font-size:19px;margin:0 0 8px;letter-spacing:-.3px}
+.side p{margin:0 0 14px;color:rgb(var(--muted));font-size:12.5px}
+.side h2{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:rgb(var(--muted));margin:18px 0 8px;font-weight:650}
+.side ul{margin:0;padding-left:17px;color:rgb(var(--muted));font-size:12px;line-height:1.85}
+.side li b{color:rgb(var(--text) / .85)}
+.side code{font-family:var(--mono);background:rgb(var(--card));padding:1px 5px;border-radius:4px;color:rgb(var(--text) / .8);font-size:11px}
+.tree{margin:0 0 14px;border-radius:11px;padding:11px 13px;border:1px solid rgb(var(--primary) / .3);background:rgb(var(--primary) / .07);font-size:12px;line-height:1.95}
+.tree b{color:rgb(var(--primary))}
+@media (max-width:1180px){ body{flex-direction:column;justify-content:flex-start;gap:16px;padding:14px} .side{width:calc(var(--W) + 20px);order:2} }
+</style>
+</head>
+<body>
+
+<div class="bezel"><div class="cam"></div>
+<div class="phone">
+
+  <div class="sysbar"><span id="clock">09:41</span><span class="right">
+    <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+    <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+  </span></div>
+
+  <div class="netstrip" id="netstrip">
+    <span class="dot p" id="netdot"></span><span id="nettext">ws 已连</span>
+    <span class="src" id="netsrc">learning_events</span>
+    <span class="age profit" id="netage">0.0s</span>
+    <span class="pausebtn" id="pausebtn">暂停</span>
+  </div>
+
+  <div class="appbar">
+    <div><div class="title" id="abTitle">仪表盘</div><div class="sub" id="abSub">全自动 · 会话 fa_c8f0899147</div></div>
+    <div class="row tight" style="gap:7px">
+      <span id="abBadge"></span>
+      <div class="themebtn" id="themebtn" title="外观"></div>
+    </div>
+  </div>
+
+  <!-- ★ 第二级环境切换：只在 高频 / 交易 模块出现 -->
+  <div class="envtabs" id="envtabs" style="display:none">
+    <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m" id="mLive">—</span></button>
+    <div class="sep"></div>
+    <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m" id="mPaper">—</span></button>
+  </div>
+
+  <div class="screen" id="screen">
+
+    <!-- ═══════ 仪表盘 ═══════ -->
+    <section class="page on" id="p-dash">
+      <div class="card" style="padding:11px;border-color:rgb(var(--warning) / .45)">
+        <div class="row"><span class="h3">链路健康</span><span class="badge w" id="healthNote">2 处需看</span></div>
+        <div class="g4" style="margin-top:8px">
+          <div><div class="lbl">ok</div><div class="mono h3 profit" id="cOk">31</div></div>
+          <div><div class="lbl">stale</div><div class="mono h3 warn" id="cStale">2</div></div>
+          <div><div class="lbl">dead</div><div class="mono h3 loss" id="cDead">1</div></div>
+          <div><div class="lbl">停用</div><div class="mono h3 muted">7</div></div>
+        </div>
+        <div class="bar" style="margin-top:9px"><i class="p" id="barOk" style="width:76%"></i><i class="w" style="width:5%"></i><i class="l" style="width:2.5%"></i></div>
+        <div class="row tiny muted" style="margin-top:5px"><span>38 节点 · 96 条边</span><span class="loss">1 条断链</span></div>
+      </div>
+
+      <div class="row" style="margin-top:12px"><span class="h3">高频</span><span class="tiny muted">mm_asterdex</span></div>
+      <div class="g2">
+        <div class="card" style="padding:10px;border-color:rgb(var(--live) / .4)">
+          <div class="row"><span class="badge solid-l">实盘</span><span class="mono sm profit">+$12.35</span></div>
+          <div class="mono" style="font-size:16px;font-weight:700;margin-top:6px">$1,238.4562</div>
+          <div class="tiny muted" style="margin-top:3px">可用 $892.44 · 持仓 $346.02</div>
+          <div class="tiny muted" style="margin-top:3px">手续费 -$4.2180 · 每腿 +0.31bp</div>
+        </div>
+        <div class="card" style="padding:10px;border-color:rgb(var(--paper) / .4)">
+          <div class="row"><span class="badge solid-v">模拟</span><span class="mono sm profit">+$18.64</span></div>
+          <div class="mono" style="font-size:16px;font-weight:700;margin-top:6px">$1,186.4000</div>
+          <div class="tiny muted" style="margin-top:3px">可用 $962.10 · 持仓 $224.30</div>
+          <div class="tiny muted" style="margin-top:3px">手续费 -$2.1040 · 每腿 +0.38bp</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px"><span class="h3">交易</span><span class="tiny muted">中长线 · 主循环</span></div>
+      <div class="g2">
+        <div class="card" style="padding:10px;border-color:rgb(var(--live) / .4)">
+          <div class="row"><span class="badge solid-l">实盘</span><span class="mono sm profit">+$412.60</span></div>
+          <div class="mono" style="font-size:16px;font-weight:700;margin-top:6px">$104,132.13</div>
+          <div class="tiny muted" style="margin-top:3px">可用 $71.2k · 持仓 4</div>
+          <div class="tiny muted" style="margin-top:3px">保证金 32% · 手续费 -$42.18</div>
+        </div>
+        <div class="card" style="padding:10px;border-color:rgb(var(--paper) / .4)">
+          <div class="row"><span class="badge solid-v">模拟</span><span class="mono sm profit">+$186.40</span></div>
+          <div class="mono" style="font-size:16px;font-weight:700;margin-top:6px">$10,186.40</div>
+          <div class="tiny muted" style="margin-top:3px">可用 $9.8k · 持仓 3</div>
+          <div class="tiny muted" style="margin-top:3px">回撤 0.8% · 手续费 -$18.40</div>
+        </div>
+      </div>
+
+      <!-- 节点四态：自带 3s 轮询演示 -->
+      <div class="card" style="padding:11px">
+        <div class="row"><span class="h3">决策链节点</span><span class="badge b" id="stateAge">2.8s 前</span></div>
+        <div class="ngrid" style="margin-top:8px" id="nodeGrid"></div>
+        <div class="tiny muted" style="margin-top:8px">节点状态每 3s 重新拉取，变化时高亮；<b>停用不算故障</b>。</div>
+      </div>
+
+      <!-- 流式日志：真实追加演示 -->
+      <div class="stream" id="streamDash">
+        <div class="shead">
+          <span class="dot p" id="streamDot"></span><span class="sm" style="font-weight:650">实时日志流</span>
+          <span class="badge" id="lineCount">0 行</span>
+          <span class="rate" id="rateBtn" style="margin-left:auto" title="点击切换速率">1×</span>
+        </div>
+        <div class="sbody" id="bodyDash"></div>
+        <div class="sfoot">
+          <span class="badge p" id="followBadge">自动滚动</span>
+          <span id="followHint">上滑即冻结</span>
+          <span class="rt" id="renderStat">0.0ms/批</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════ 高频 ═══════ -->
+    <section class="page" id="p-hft">
+      <div class="card" style="padding:12px" id="hftHead"></div>
+
+      <div class="stream" id="streamHft">
+        <div class="shead">
+          <span class="dot" id="hftDot"></span><span class="sm" style="font-weight:650" id="hftStreamTitle">报价与成交流</span>
+          <span class="badge p" id="hftLive">在流</span>
+        </div>
+        <div class="sbody" id="bodyHft" style="height:210px"></div>
+        <div class="sfoot"><span>闸门拒绝会以琥珀色显示 —— 那是设计目标，不是故障</span></div>
+      </div>
+
+      <div class="card" style="padding:11px" id="hftAcct"></div>
+      <div class="card" style="padding:11px" id="hftCost"></div>
+      <div class="card" style="padding:11px" id="hftLegs"></div>
+      <div class="card" style="padding:11px" id="hftJudgement"></div>
+    </section>
+
+    <!-- ═══════ 交易 ═══════ -->
+    <section class="page" id="p-trade">
+      <div id="trdBanner"></div>
+      <div class="card" style="padding:12px" id="trdHead"></div>
+      <div class="card" style="padding:11px" id="trdPos"></div>
+
+      <div class="stream" id="streamTrd">
+        <div class="shead">
+          <span class="dot" id="trdDot"></span><span class="sm" style="font-weight:650" id="trdStreamTitle">决策与成交流</span>
+          <span class="badge p" id="trdLive">在流</span>
+        </div>
+        <div class="sbody" id="bodyTrd" style="height:180px"></div>
+        <div class="sfoot"><span id="trdFoot">两侧同源决策，执行落点不同</span></div>
+      </div>
+
+      <div class="card" style="padding:11px" id="trdExtra"></div>
+
+      <!-- 决策链（环境中立） -->
+      <div class="card" style="padding:11px">
+        <div class="row"><span class="h3">决策链 · 中线执行</span><span class="tiny muted">← 横滑 →</span></div>
+        <div class="relwrap">
+          <div class="rel">
+            <div class="box ok"><div class="n"><span class="dot p"></span>论题库</div><div class="s">thesis_store</div></div>
+            <div class="edge"><div class="el">开仓权威</div><div class="track"><i class="c"></i></div></div>
+            <div class="box sel"><div class="n"><span class="dot b"></span>中线执行</div><div class="s">12s · ok</div></div>
+            <div class="edge"><div class="el">持仓管理</div><div class="track"><i></i></div></div>
+            <div class="box ok"><div class="n"><span class="dot p"></span>持仓管理</div><div class="s">ok</div></div>
+            <div class="edge ineff"><div class="el">未生效</div><div class="track"><i></i></div></div>
+            <div class="box disabled"><div class="n"><span class="dot m"></span>实验卡推进</div><div class="s">observe 短路</div></div>
+          </div>
+        </div>
+        <div class="tiny muted" style="margin-top:6px">实线流动 = 在传数据；黄虚线 = 链路存在但未生效；红虚线 = 断链。</div>
+      </div>
+      <div class="g2">
+        <button class="btn" data-toast="只看异常邻居">只看异常</button>
+        <button class="btn primary" data-toast="已提交 dry-run">跑一次 dry-run</button>
+      </div>
+    </section>
+
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="on" data-tab="dash"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+    <button data-tab="hft"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+    <button data-tab="trade"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+  </nav>
+  <div class="gesture"><i></i></div>
+  <div id="sheetwrap"></div>
+</div></div>
+
+<aside class="side">
+  <h1>AlphaArena 交互原型</h1>
+  <p>可点：底部 3 个业务模块、模块内的实盘/模拟切换、节点的 3s 状态轮询、以及真实追加的流式日志。</p>
+
+  <div class="tree">
+    <b>底部导航</b><br/>
+    　├── <b>仪表盘</b> — 2×2 总览 + 节点四态 + 实时流<br/>
+    　├── <b>高频</b> — ▸ <b>实盘</b> / <b>模拟</b><br/>
+    　└── <b>交易</b> — ▸ <b>实盘</b> / <b>模拟</b>
+  </div>
+
+  <h2>试着操作</h2>
+  <ul>
+    <li>点底部 <b>高频</b> → 出现「实盘 / 模拟」两段控件，点右侧切到模拟（整屏变紫）</li>
+    <li>切到 <b>交易</b> → 同样两段控件，实盘红 / 模拟紫，权益与文案跟着换</li>
+    <li>仪表盘往下滚 → 看<b>节点四态</b>（每 3s 有一次状态翻动）</li>
+    <li>日志流会真的往上滚；<b>上滑即冻结</b>，再点「自动滚动」恢复</li>
+    <li>点日志区右上角 <b>1×</b> 切换流速（1× / 4× / 停顿）</li>
+    <li>点顶部「暂停」→ 全局停流，状态点变灰</li>
+  </ul>
+
+  <h2>实现对照（前端照这个写）</h2>
+  <ul>
+    <li>环境切换 = 一个 <code>env</code> 状态（<code>'live' | 'paper'</code>），驱动身份色与数据源，<b>不复制组件</b></li>
+    <li>身份色：实盘 <code>#ef4444</code>、模拟 <code>#8b5cf6</code>，用于状态条 / 徽标 / 横幅 / 危险按钮</li>
+    <li>节点四态 ← <code>/api/agent-wall/state</code> 的 <code>nodes[].status</code></li>
+    <li>流式内容 ← <code>/api/agent-wall/tail?nodes=a,b</code>（≤12 节点，服务端游标增量）</li>
+    <li>实时推送 ← <code>ws /ws</code>，订阅 <code>subscribe_learning_events</code> 等 6 个 topic</li>
+    <li>渲染策略：缓冲 200 行、100ms 合帧、自动滚动 + 上滑冻结、点击看 raw</li>
+  </ul>
+</aside>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+
+/* ── 状态 ── */
+let state = { tab:'dash', env:'live', paused:false, rate:1, follow:true, buffers:{dash:[],hft:[],trd:[]} };
+
+/* ════════ 主题：三档（跟随系统 / 日间 / 夜间） ════════
+   与真实工程 mobile/app/hooks/useTheme.tsx 同构：
+   mode 是用户选择，resolved 是实际生效值；system 模式下监听 matchMedia 变化。 */
+const THEME_KEY = 'alphaarena_theme';
+const THEME_META = {
+  system: { label:'跟随系统',
+    icon:'<rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 20h8"/>',
+    desc:'随手机深色模式自动切换' },
+  light:  { label:'日间',
+    icon:'<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    desc:'始终浅色，白天户外更清楚' },
+  dark:   { label:'夜间',
+    icon:'<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>',
+    desc:'始终深色，夜间盯盘不刺眼' }
+};
+let themeMode = (()=>{ try{ const v=localStorage.getItem(THEME_KEY); return (v==='light'||v==='dark'||v==='system')?v:'system' }catch(e){ return 'system' } })();
+const mqLight = window.matchMedia('(prefers-color-scheme: light)');
+
+function resolvedTheme(){
+  if (themeMode === 'system') return mqLight.matches ? 'light' : 'dark';
+  return themeMode;
+}
+function applyTheme(){
+  const resolved = resolvedTheme();
+  document.documentElement.classList.toggle('dark', resolved === 'dark');
+  document.documentElement.classList.toggle('light', resolved === 'light');
+  document.querySelector('.bezel')?.classList.toggle('is-light', resolved === 'light');
+  document.body.dataset.theme = resolved;
+  renderThemeBtn(resolved);
+}
+function renderThemeBtn(resolved){
+  const btn = $('#themebtn'); if (!btn) return;
+  const m = THEME_META[themeMode];
+  // 跟随系统时，图标反映"此刻实际解析成什么"，否则用户无法判断跟随是否生效
+  const iconKey = themeMode === 'system' ? (resolved === 'light' ? 'light' : 'dark') : themeMode;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${THEME_META[iconKey].icon}</svg>
+    <span class="lab">${themeMode === 'system' ? '跟随系统' : m.label}</span>`;
+}
+function setTheme(mode){
+  themeMode = mode;
+  try{ localStorage.setItem(THEME_KEY, mode) }catch(e){}
+  applyTheme();
+}
+mqLight.addEventListener('change', ()=>{ if (themeMode === 'system') applyTheme(); });
+
+/* 主题选择面板 */
+function openThemePicker(){
+  const order = ['system','light','dark'];
+  openSheet(`
+    <div class="sheet">
+      <div class="row" style="margin-bottom:8px">
+        <span class="h3">外观</span>
+        <span class="badge b">当前 ${resolvedTheme()==='light'?'日间':'夜间'}</span>
+      </div>
+      ${order.map(k=>{
+        const m = THEME_META[k], on = themeMode === k;
+        return `<div class="topt ${on?'on':''}" data-theme="${k}">
+          <span class="row tight" style="gap:9px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${on?'rgb(var(--primary))':'rgb(var(--text) / .7)'}" stroke-width="2" stroke-linecap="round">${m.icon}</svg>
+            <span><span class="nm">${m.label}</span><div class="ds">${m.desc}</div></span>
+          </span>
+          ${k==='system' ? '<span class="badge p">推荐</span>' : on ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--primary))" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}
+        </div>`;
+      }).join('')}
+      <div class="tiny muted" style="margin-top:11px;line-height:1.6">
+        选择会记住。<b>跟随系统</b>时，看板随系统切换深色的瞬间一起切换，不需要重开。
+      </div>
+      <button class="btn primary" style="margin-top:12px" data-sheet-cancel="1">完成</button>
+    </div>`);
+}
+const MAXLINES = 200;
+
+/* ── 环境数据（mockup） ── */
+const ENV = {
+  live:  { label:'实盘', badge:'<span class="badge solid-l">LIVE</span>', color:'--live' },
+  paper: { label:'模拟', badge:'<span class="badge solid-v">PAPER</span>', color:'--paper' }
+};
+const HFTDATA = {
+  live:  {
+    eq:'$1,238.4562', avail:'$892.44', posVal:'$346.02', posN:'3',
+    today:'+$12.3456', realized:'+$8.9012', unreal:'+$3.4444', cum:'+$28.6140',
+    fee:'-$4.2180', feeTaker:'312', feeGross:'-$9.7340', feeLife:'-$51.2860', feeLifeTaker:'917',
+    funding:'-$0.8412', slip:'-$1.2044', net:'+$12.3456',
+    bp:'+0.31', trips:'1,284', rate:'16.4%', spread:'1.8bp', age:'2.1s', legs:'2.4',
+    bid:'101,418.0', ask:'101,447.5', qty:'0.42', queue:'34%',
+    legMeas:'$1.24k · +1.01%', quote:'2,964', reject:'1,712', fill:'144',
+    ready:'就绪 · API key 已配置 · 环境 mainnet'
+  },
+  paper: {
+    eq:'$1,186.4000', avail:'$962.10', posVal:'$224.30', posN:'2',
+    today:'+$18.6400', realized:'+$15.2200', unreal:'+$3.4200', cum:'+$186.4000',
+    fee:'-$2.1040', feeTaker:'180', feeGross:'-$5.1200', feeLife:'-$51.2860', feeLifeTaker:'917',
+    funding:'-$0.4120', slip:'-$0.6820', net:'+$18.6400',
+    bp:'+0.38', trips:'1,284', rate:'18.5%', spread:'1.8bp', age:'0.4s', legs:'2.4',
+    bid:'101,418.0', ask:'101,447.5', qty:'0.31', queue:'29%',
+    legMeas:'$1.18k · +1.86%', quote:'2,964', reject:'1,712', fill:'144',
+    ready:'虚拟撮合 · 不触达交易所'
+  }
+};
+const TRDDATA = {
+  live:  { name:'主账户 #1', eq:'$104,132.13', pnl:'+$412.60', pct:'+0.28%', note:'累计 +$4,132', k1:['可用','$71.2k'], k2:['持仓名义','$32.9k'], k3:['维持保证金率','312%'], occ:32, occNote:'保证金占用 32% · 强平缓冲 3.2x', meas:'$104.1k · +$413', open:14, close:11, veto:6, manual:0,
+    pos:[{sym:'BTC',side:'多 3x',pnl:'+$318.40',tone:'profit',qty:'0.0098 BTC'},
+         {sym:'SOL',side:'空 2x',pnl:'-$94.20', tone:'loss',  qty:'6.20 SOL'},
+         {sym:'ETH',side:'多 2x',pnl:'+$182.10',tone:'profit',qty:'0.184 ETH'},
+         {sym:'XRP',side:'多 4x',pnl:'+$6.30',  tone:'profit',qty:'412 XRP'}] },
+  paper: { name:'模拟账户 #14', eq:'$10,186.40', pnl:'+$186.40', pct:'+1.86%', note:'运行 4h12m', k1:['可用','$9.8k'], k2:['持仓','3'], k3:['影子成交','118'], occ:72, occNote:'虚拟资金占用 72% · 无强平风险', meas:'$10.2k · +$186', open:15, close:12, veto:6, manual:0,
+    pos:[{sym:'BTC',side:'多 5x',pnl:'+$142.10',tone:'profit',qty:'0.0049 BTC'},
+         {sym:'SOL',side:'空 3x',pnl:'-$44.30', tone:'loss',  qty:'6.20 SOL'},
+         {sym:'ETH',side:'多 2x',pnl:'+$88.60', tone:'profit',qty:'0.184 ETH'}] }
+};
+
+/* ── 日志语料（真实前端字段风格：中文叙述 + 来源） ── */
+const FEED = {
+  dash: {
+    live: [
+      ['实盘·中长线｜','开仓 BTC 0.0098 成交 @101,432.5 滑点 0.2bp','ok'],
+      ['实盘·高频｜','BTC bid=101,418 ask=101,447.5 挂宽 0.9bp',''],
+      ['风控官｜','放行 · 净敞口占用 68%','ok'],
+      ['牛熊辩论｜','周期=4h 多方 3 / 空方 2 裁决=偏多',''],
+      ['实盘·高频｜','平仓 tp_vwap net +2.4bp','ok'],
+      ['实盘·高频｜','闸门 ETH 跳过 点差 2.1bp &lt; 成本 2.6bp','warn'],
+      ['K线新鲜度守卫｜','BTC 1m age=1.2s 正常',''],
+      ['执行体检｜','1 笔成交价在市场不存在 · observe 记录','crit'],
+      ['长线复核｜','SOL 结论=继续持有 理由=趋势未破',''],
+      ['AI 选币｜','候选池刷新 23 币 · 新增 0 · 摘除 1',''],
+      ['主循环｜','tick 完成 tier=mid/long 耗时 412ms',''],
+      ['中线执行｜','ETH 阶段=gate 结论=skip 原因=点差过宽','warn']
+    ],
+    paper: [
+      ['模拟·中长线｜','开仓 BTC 0.0049 虚拟成交 @101,432.5','ok'],
+      ['模拟·高频｜','虚拟成交 BUY 0.31 @101,418.0',''],
+      ['风控官｜','放行 · 两侧同源裁决','ok'],
+      ['模拟出场｜','ETH 止盈触发 虚拟净 +3.1bp','ok'],
+      ['模拟·高频｜','闸门 PUMP 跳过 点差不足','warn'],
+      ['模拟执行｜','SOL 跳过 原因=已有同向持仓','']
+    ]
+  },
+  hft: {
+    live: [
+      ['报价｜','BTC bid=101,418.0 ask=101,447.5 挂宽 0.9bp',''],
+      ['成交｜','BUY 0.42 @101,418.0 队列前方 6.4k（34%）','ok'],
+      ['对冲｜','BTC 持仓归零，等待下一轮双边',''],
+      ['闸门｜','ETH 跳过 点差 2.1bp &lt; 成本 2.6bp','warn'],
+      ['平仓｜','BTC exit_path=tp_vwap net +2.4bp','ok'],
+      ['风控｜','库存偏斜 0.00 · 波动闸通过','']
+    ],
+    paper: [
+      ['报价｜','BTC bid=101,418.0 ask=101,447.5（虚拟）',''],
+      ['虚拟成交｜','BUY 0.31 @101,418.0 队列 29%','ok'],
+      ['虚拟平仓｜','tp_vwap net +2.6bp','ok'],
+      ['闸门｜','ETH 跳过 点差不足','warn'],
+      ['风控｜','库存偏斜 0.00 · 波动闸通过','']
+    ]
+  },
+  trd: {
+    live: [
+      ['实盘｜','开仓 BTC 0.0098 @101,432.5 滑点 0.2bp','ok'],
+      ['风控官｜','放行 · 净敞口 68%','ok'],
+      ['实盘｜','ETH 跳过 点差过宽','warn'],
+      ['实盘｜','SOL 止盈平仓 net +5.6bp','ok'],
+      ['执行体检｜','1 笔成交价异常 · observe 记录','crit'],
+      ['中线出场｜','SOL 退出触发 ExitPolicy=tp','']
+    ],
+    paper: [
+      ['模拟｜','开仓 BTC 0.0049 虚拟成交','ok'],
+      ['风控官｜','放行 · 同源裁决','ok'],
+      ['模拟｜','ETH 跳过 点差过宽','warn'],
+      ['模拟｜','SOL 止盈触发 虚拟净 +3.1bp','ok'],
+      ['模拟出场｜','ETH 退出触发 ExitPolicy=tp','']
+    ]
+  }
+};
+
+/* ── 节点四态（mockup，3s 轮询演示） ── */
+const NODES = [
+  {l:'中线主脑',s:'12s',st:'ok',g:'G1'},{l:'长线主脑',s:'4m',st:'ok',g:'G1'},
+  {l:'协调器',s:'28s',st:'ok',g:'G1'},{l:'论题库',s:'12s',st:'ok',g:'G1'},
+  {l:'风控官',s:'12s',st:'ok',g:'G1'},{l:'牛熊辩论',s:'12s',st:'ok',g:'G1'},
+  {l:'六分析师',s:'12s',st:'ok',g:'G1'},{l:'K线深度分析师',s:'6m',st:'stale',g:'G1'},
+  {l:'主循环',s:'3s',st:'ok',g:'G4'},{l:'中线执行',s:'12s',st:'ok',g:'G4'},
+  {l:'执行·模拟',s:'12s',st:'ok',g:'G4',env:'paper'},{l:'执行·实盘',s:'12s',st:'ok',g:'G4',env:'live'},
+  {l:'中线出场',s:'12s',st:'ok',g:'G4'},{l:'决策审计',s:'12s',st:'ok',g:'G4'},
+  {l:'timing',s:'dead',st:'dead',g:'G2'},{l:'短线车道',s:'已关停',st:'disabled',g:'G4'}
+];
+const DOT = {ok:'p',stale:'w',dead:'l',disabled:'m'};
+
+function renderNodes(){
+  $('#nodeGrid').innerHTML = NODES.map(n=>{
+    const border = n.env==='paper' ? 'style="border-left-color:rgb(var(--paper))"' : n.env==='live' ? 'style="border-left-color:rgb(var(--live))"' : '';
+    return `<div class="node ${n.st}" ${border}><div class="nm"><span class="dot ${DOT[n.st]}"></span>${n.l}</div><div class="mt">${n.g} · ${n.s} · ${n.st}</div></div>`;
+  }).join('');
+}
+
+/* 每 3s 让一个节点在 ok/stale 之间翻动 —— 演示"状态是活的" */
+let nodeTick = 0;
+function pollNodes(){
+  nodeTick++;
+  const okNodes = NODES.filter(n=>n.st==='ok');
+  const target = okNodes[nodeTick % okNodes.length];
+  const was = target.st;
+  target.st = 'stale'; target.s = '4m';
+  $('#stateAge').textContent = '0.0s 前';
+  renderNodes();
+  // 3s 后复原并改一个计数
+  setTimeout(()=>{
+    target.st = was; target.s = '12s';
+    renderNodes();
+    const stale = NODES.filter(n=>n.st==='stale').length;
+    const ok = NODES.filter(n=>n.st==='ok').length;
+    const dead = NODES.filter(n=>n.st==='dead').length;
+    $('#cOk').textContent = ok + 15; $('#cStale').textContent = stale; $('#cDead').textContent = dead;
+    $('#barOk').style.width = Math.round((ok+15)/38*100) + '%';
+  }, 2600);
+}
+
+/* ── 流式渲染器（buffer 上限 + 合帧 + 自动滚动/冻结） ── */
+function nowStr(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+}
+function pushLine(key, src, text, kind){
+  const buf = state.buffers[key];
+  buf.push({t:nowStr(), src, text, kind, fresh:true});
+  if (buf.length > MAXLINES) buf.splice(0, buf.length - MAXLINES);
+}
+const pending = { dash:false, hft:false, trd:false };
+function scheduleFlush(key){
+  if (pending[key]) return;
+  pending[key] = true;
+  // 100ms 合帧：高频事件不逐条打 DOM
+  setTimeout(()=>{ pending[key]=false; flush(key); }, 100);
+}
+let lastRenderMs = 0;
+function flush(key){
+  const map = { dash:['#bodyDash','#streamDash','#lineCount'], hft:['#bodyHft','#streamHft',null], trd:['#bodyTrd','#streamTrd',null] };
+  const [bodySel, streamSel, countSel] = map[key];
+  const body = $(bodySel); if (!body) return;
+  const t0 = performance.now();
+  const buf = state.buffers[key];
+  body.innerHTML = buf.map((l,i)=>{
+    const k = l.kind ? 'k-'+l.kind : '';
+    const fresh = l.fresh ? ' k-new' : '';
+    l.fresh = false;
+    return `<div class="ln ${k}${fresh}"><span class="t">${l.t}</span><span class="x"><span class="src">${l.src}</span>${l.text}</span></div>`;
+  }).join('');
+  if (countSel && $(countSel)) $(countSel).textContent = buf.length + ' 行';
+  lastRenderMs = performance.now() - t0;
+  const rs = $('#renderStat'); if (rs) rs.textContent = lastRenderMs.toFixed(1)+'ms/批';
+  if (state.follow) body.scrollTop = body.scrollHeight;
+}
+
+/* ── 生成器：按当前模块 + 环境取语料 ── */
+function feedFor(key){
+  const f = FEED[key]; if (!f) return null;
+  if (key === 'dash') return [...f.live, ...f.paper];
+  return f[state.env];
+}
+let feedIdx = { dash:0, hft:0, trd:0 };
+function emit(key){
+  const list = feedFor(key); if (!list || !list.length) return;
+  const item = list[feedIdx[key] % list.length]; feedIdx[key]++;
+  pushLine(key, item[0], item[1], item[2]);
+  scheduleFlush(key);
+}
+
+/* 主循环：一个 ticker 驱动所有流 */
+let acc = { dash:0, hft:0, trd:0 };
+function tick(dt){
+  if (state.paused) return;
+  const speed = state.rate;
+  const rates = { dash: 1.6*speed, hft: 3.2*speed, trd: 1.9*speed };  // 条/秒
+  for (const key of ['dash','hft','trd']){
+    if (key !== state.tab && key !== 'dash') continue;   // 只跑当前可见页 + 仪表盘
+    acc[key] += dt * rates[key];
+    while (acc[key] >= 1){ acc[key] -= 1; emit(key); }
+  }
+}
+
+/* ── 时钟 / 年龄 ── */
+let lastEvent = Date.now();
+setInterval(()=>{
+  const d = new Date();
+  $('#clock').textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  if (!state.paused){
+    const age = ((Date.now()-lastEvent)/1000).toFixed(1);
+    $('#netage').textContent = age + 's';
+    $('#netage').className = 'age ' + (age < 2 ? 'profit' : age < 4 ? 'warn' : 'loss');
+  }
+}, 200);
+
+/* ── 页面渲染 ── */
+function renderHft(){
+  const d = HFTDATA[state.env], isLive = state.env==='live';
+  $('#hftHead').style.borderColor = isLive ? 'rgb(var(--live) / .4)' : 'rgb(var(--paper) / .4)';
+  $('#hftHead').innerHTML = `
+    <div class="row"><span class="h3">今日表现</span><span class="badge ${isLive?'l':'v'}">${isLive?'真实成交':'虚拟成交'}</span></div>
+    <div class="g2" style="margin-top:8px">
+      <div><div class="lbl">今日净收益</div><div class="mono h2 profit" style="margin-top:2px">${d.today}</div><div class="tiny muted">${d.trips} 往返</div></div>
+      <div><div class="lbl">每腿净 bp</div><div class="mono h2 profit" style="margin-top:2px">${d.bp}</div><div class="tiny muted">名义加权 · 已扣全部成本</div></div>
+    </div>
+    <div class="hr" style="margin:11px -12px 9px"></div>
+    <div class="g4">
+      <div class="stat" style="padding:6px 7px"><div class="k">腿速</div><div class="v mono" style="font-size:13px">${d.legs}</div></div>
+      <div class="stat" style="padding:6px 7px"><div class="k">成交率</div><div class="v mono" style="font-size:13px">${d.rate}</div></div>
+      <div class="stat" style="padding:6px 7px"><div class="k">均点差</div><div class="v mono" style="font-size:13px">${d.spread}</div></div>
+      <div class="stat" style="padding:6px 7px"><div class="k">数据龄</div><div class="v mono ${isLive?'warn':'profit'}" style="font-size:13px">${d.age}</div></div>
+    </div>`;
+
+  /* ── 账户总览：V5 新增。回答「账户到底什么情况」── */
+  const teColor = isLive ? '' : 'profit';
+  $('#hftAcct').style.borderColor = isLive ? 'rgb(var(--live) / .35)' : 'rgb(var(--paper) / .35)';
+  $('#hftAcct').innerHTML = `
+    <div class="row">
+      <span class="h3">账户总览</span>
+      <span class="badge ${isLive?'solid-l':'solid-v'}">${d.eq.startsWith('$1,238')?'实盘账户 #1':'模拟账户 #14'}</span>
+    </div>
+    <div class="lbl" style="margin-top:8px">账户总权益</div>
+    <div class="mono h1 ${teColor}" style="margin-top:2px">${d.eq}</div>
+    <div class="row" style="margin-top:5px">
+      <span class="mono profit sm" style="font-weight:650">▲ 今日 ${d.today}</span>
+      <span class="tiny muted" style="margin-left:auto">本期累计 <span class="mono profit">${d.cum}</span></span>
+    </div>
+    <div class="srcnote">
+      <span class="dot ${isLive?'l':'v'}" style="width:5px;height:5px"></span>
+      口径 ${isLive?'可用 + 冻结 + 浮盈':'可用 + 冻结 + 浮盈（虚拟）'} · 账户表更新于 ${d.age} 前
+    </div>
+    <div class="hr" style="margin:10px -12px 4px"></div>
+    <div class="v6">
+      <div><div class="k">可用</div><div class="v">${d.avail}</div></div>
+      <div><div class="k">持仓价值 <span class="u">${d.posN} 个</span></div><div class="v">${d.posVal}</div></div>
+      <div><div class="k">已实现盈亏</div><div class="v profit">${d.realized}</div></div>
+      <div><div class="k">未实现盈亏 <span class="u">浮盈</span></div><div class="v profit">${d.unreal}</div></div>
+    </div>`;
+
+  /* ── 成本：手续费是第一成本项，必须显眼 ── */
+  $('#hftCost').innerHTML = `
+    <div class="row"><span class="h3">成本 · 本期</span><span class="badge w">手续费是第一成本项</span></div>
+    <div class="v6">
+      <div><div class="k">累计手续费 <span class="u">taker ${d.feeTaker} 笔</span></div><div class="v loss">${d.fee}</div>
+        <div class="tiny muted" style="margin-top:3px">按 ${isLive?'stats_since':'重置时刻'} 裁剪 · 与上方同处一个时代</div></div>
+      <div><div class="k">资金费</div><div class="v loss">${d.funding}</div>
+        <div class="tiny muted" style="margin-top:3px">结算周期按交易所</div></div>
+      <div><div class="k">滑点</div><div class="v loss">${d.slip}</div>
+        <div class="tiny muted" style="margin-top:3px">含逆选择 price_bp</div></div>
+      <div><div class="k">净额</div><div class="v profit">${d.net}</div>
+        <div class="tiny muted" style="margin-top:3px">逐行折算求和</div></div>
+    </div>
+    <div class="srcnote" style="margin-top:9px">
+      <span>全历史审计口径：手续费 <span class="mono loss">${d.feeLife}</span> · taker ${d.feeLifeTaker} 笔</span>
+    </div>
+    <div class="tiny muted" style="margin-top:6px">
+      若全按 taker 计会是 <span class="mono loss">${d.feeGross}</span> —— maker 免费才让这条线成立。
+      <b>带 S 标记的是「全历史」，与本期数字不是一个时代，不能相加。</b>
+    </div>`;
+
+  $('#hftStreamTitle').textContent = isLive ? '实盘报价与成交流' : '模拟报价与成交流';
+  $('#hftDot').className = 'dot ' + (isLive?'l':'v');
+  $('#hftLegs').style.borderColor = isLive ? 'rgb(var(--live) / .3)' : 'rgb(var(--paper) / .3)';
+  $('#hftLegs').innerHTML = `
+    <div class="row"><span class="h3">机器两腿</span><span class="badge ${isLive?'l':'v'}">${isLive?'真实挂单':'虚拟挂单'}</span></div>
+    <div class="stack" style="margin-top:8px;gap:8px">
+      <div class="row sm"><span class="badge p">BID</span><span class="mono">${d.bid}</span><span class="muted tiny">${d.qty}</span><span class="mono tiny">队列 ${d.queue}</span></div>
+      <div class="row sm"><span class="badge l">ASK</span><span class="mono">${d.ask}</span><span class="muted tiny">${d.qty}</span><span class="mono tiny">队列 ${parseInt(d.queue)+17}%</span></div>
+    </div>`;
+  $('#hftJudgement').innerHTML = `
+    <div class="row"><span class="h3">自动做出的判断</span><span class="tiny muted">近 1h</span></div>
+    <div class="g3" style="margin-top:8px">
+      <div><div class="lbl">报价</div><div class="mono h3" style="margin-top:1px">${d.quote}</div></div>
+      <div><div class="lbl">闸门拒绝</div><div class="mono h3 warn" style="margin-top:1px">${d.reject}</div></div>
+      <div><div class="lbl">成交</div><div class="mono h3 profit" style="margin-top:1px">${d.fill}</div></div>
+    </div>
+    <div class="kv" style="margin-top:8px"><span class="dim">${isLive?'实盘就绪度':'模拟撮合'}</span><span class="badge ${isLive?'p':'v'}">${d.ready}</span></div>
+    <div class="tiny muted" style="margin-top:6px">拒绝率高是设计目标（点差 &lt; 成本就不报价），不是故障。</div>`;
+}
+
+function renderTrade(){
+  const d = TRDDATA[state.env], isLive = state.env==='live';
+  $('#trdBanner').innerHTML = isLive
+    ? `<div class="banner"><div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+      <div><div class="sm" style="font-weight:650;color:rgb(var(--live))">真实资金 · 自动化正在下单</div>
+      <div class="tiny dim" style="margin-top:2px">今日开 ${d.open} / 平 ${d.close} / 被否决 ${d.veto} / 人工干预 ${d.manual}</div></div></div>`
+    : `<div class="banner vio"><div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M11 3 8 9l4 12 4-12-3-6"/><path d="M2 9h20"/></svg></div>
+      <div><div class="sm" style="font-weight:650;color:rgb(var(--paper))">虚拟资金 · 不影响真实账户</div>
+      <div class="tiny dim" style="margin-top:2px">用来验证策略改动值不值得上实盘；同决策命中率 94.2%。</div></div></div>`;
+
+  $('#trdHead').style.borderColor = isLive ? 'rgb(var(--live) / .4)' : 'rgb(var(--paper) / .4)';
+  $('#trdHead').innerHTML = `
+    <div class="row"><span class="lbl">${d.name} 权益</span><span class="badge ${isLive?'w':'p'}">${isLive?'全仓':'running'}</span></div>
+    <div class="mono h1 ${isLive?'':'profit'}" style="margin-top:4px">${d.eq}</div>
+    <div class="row" style="margin-top:6px"><span class="mono profit sm" style="font-weight:650">▲ ${d.pnl}</span><span class="mono profit tiny">${d.pct}</span><span class="tiny muted" style="margin-left:auto">${d.note}</span></div>
+    <div class="hr" style="margin:11px -12px 9px"></div>
+    <div class="g3">
+      <div><div class="lbl">${d.k1[0]}</div><div class="mono h3" style="margin-top:1px">${d.k1[1]}</div></div>
+      <div><div class="lbl">${d.k2[0]}</div><div class="mono h3" style="margin-top:1px">${d.k2[1]}</div></div>
+      <div><div class="lbl">${d.k3[0]}</div><div class="mono h3 profit" style="margin-top:1px">${d.k3[1]}</div></div>
+    </div>
+    <div class="bar" style="margin-top:9px"><i class="${isLive?'w':'p'}" style="width:${d.occ}%"></i></div>
+    <div class="row tiny muted" style="margin-top:5px"><span>${d.occNote}</span></div>`;
+
+  $('#trdPos').innerHTML = `
+    <div class="row"><span class="h3">自动仓位 · ${d.pos.length}</span><span class="tiny muted">由链路开仓 · 只可兜底平</span></div>
+    <div style="margin-top:2px">
+      ${d.pos.map((p,i)=>`
+        <div class="posrow">
+          <span class="sym"><span class="dot ${p.tone==='profit'?'p':'l'}"></span>${p.sym}
+            <span class="badge ${p.tone==='profit'?'p':'l'}">${p.side}</span>
+            <span class="q">${p.qty}</span>
+          </span>
+          <span class="pnl ${p.tone}">${p.pnl}</span>
+          <button class="closebtn ${isLive?'':'paper'}" data-close-pos="${i}">平仓</button>
+        </div>`).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:9px">
+      单条平仓 = 市价全平该仓位，走二次确认。自动化卡住时这是唯一的脱身路径，所以按钮常驻、不折叠。
+    </div>
+    <button class="btn ${isLive?'live':'paperbtn'}" style="margin-top:11px" data-close-all="1">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      ${isLive?'一键全平（'+d.pos.length+' 个仓位）':'一键全平 · 模拟（'+d.pos.length+' 个）'}
+    </button>`;
+
+  $('#trdStreamTitle').textContent = isLive ? '实盘决策与成交流' : '模拟决策与成交流';
+  $('#trdDot').className = 'dot ' + (isLive?'l':'v');
+  $('#trdFoot').textContent = isLive ? '断线 ≠ 停机：措辞必须如实' : '模拟成交不会触达交易所';
+
+  $('#trdExtra').innerHTML = isLive
+    ? `<div class="row"><span class="h3">资金与风险</span><span class="tiny muted">会话 fa_c8f0899147</span></div>
+       <div class="stack" style="margin-top:8px;gap:6px">
+         <div class="kv"><span class="dim">日亏熔断</span><span class="mono profit">-0.12% / -3.0%</span></div>
+         <div class="kv"><span class="dim">止损武装</span><span class="badge p">4 / 4</span></div>
+         <div class="kv"><span class="dim">兜底手动操作</span><span class="badge w">默认折叠 · 二次确认</span></div>
+       </div>`
+    : `<div class="row"><span class="h3">与实盘的偏差</span><span class="badge w">模拟偏乐观</span></div>
+       <div class="stack" style="margin-top:8px;gap:6px">
+         <div class="kv"><span class="dim">成交价偏差（中位）</span><span class="mono warn">+0.6bp</span></div>
+         <div class="kv"><span class="dim">成交率偏差</span><span class="mono warn">+2.1pp</span></div>
+         <div class="kv"><span class="dim">同决策命中率</span><span class="mono profit">94.2%</span></div>
+       </div>
+       <div class="g2" style="margin-top:9px">
+         <button class="btn" data-toast="模拟资金已重置">重置模拟资金</button>
+         <button class="btn" data-toast="配置已复制到实盘（需在实盘侧确认）">复制配置到实盘</button>
+       </div>`;
+}
+
+/* ── Tab / 环境切换 ── */
+const META = {
+  dash:  { t:'仪表盘', s:'全自动 · 会话 fa_c8f0899147', b:'' },
+  hft:   { t:'高频', s:'mm_asterdex · 全自动双边报价', b:'' },
+  trade: { t:'交易', s:'中长线全自动 · 人只做监督', b:'' }
+};
+function fmtSub(text, isLive, moduleName){
+  const envTag = isLive ? '<span class="loss">实盘</span>' : '<span class="vio">模拟</span>';
+  return `${text} · ${envTag}`;
+}
+function showTab(tab){
+  state.tab = tab;
+  $$('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  $$('.page').forEach(p=>p.classList.toggle('on', p.id==='p-'+tab));
+  $('#abTitle').textContent = META[tab].t;
+
+  const hasEnv = tab!=='dash';
+  $('#envtabs').style.display = hasEnv ? '' : 'none';
+  if (hasEnv){
+    const isLive = state.env==='live';
+    $('#abSub').innerHTML = fmtSub(META[tab].s, isLive);
+    $('#abBadge').innerHTML = isLive ? '<span class="badge solid-l">LIVE</span>' : '<span class="badge solid-v">PAPER</span>';
+    $$('#envtabs button').forEach(b=>b.classList.toggle('on', b.dataset.env===state.env));
+    $('#mLive').textContent = tab==='hft' ? HFTDATA.live.legMeas : TRDDATA.live.meas;
+    $('#mPaper').textContent = tab==='hft' ? HFTDATA.paper.legMeas : TRDDATA.paper.meas;
+    // 状态条随环境变色
+    const ns = $('#netstrip');
+    ns.style.borderColor = isLive ? 'rgb(var(--live) / .45)' : 'rgb(var(--paper) / .45)';
+    ns.style.background  = isLive ? 'rgb(var(--live) / .07)' : 'rgb(var(--paper) / .07)';
+    $('#netsrc').textContent = tab==='hft' ? (isLive?'深度 105ms':'虚拟撮合') : (isLive?'主账户 #1':'账户 #14');
+    if (tab==='hft') renderHft(); else renderTrade();
+  } else {
+    $('#abSub').innerHTML = META.dash.s;
+    $('#abBadge').innerHTML = '';
+    const ns = $('#netstrip');
+    ns.style.borderColor = ''; ns.style.background = '';
+    $('#netsrc').textContent = 'learning_events';
+  }
+  $('#screen').scrollTop = 0;
+}
+function setEnv(env){
+  state.env = env;
+  // 切换后重置该模块的流（模拟另一套数据源）
+  showTab(state.tab);
+  state.buffers.hft = []; state.buffers.trd = [];
+  flush('hft'); flush('trd');
+  for (let i=0;i<6;i++){ emit('hft'); emit('trd'); }
+}
+
+/* ── 平仓：单条（二次确认）+ 一键全平（悬浮确认窗 + 二次确认） ── */
+function closeSheet(){ $('#sheetwrap').innerHTML = ''; }
+function openSheet(html){
+  closeSheet();
+  $('#sheetwrap').innerHTML = '<div class="scrim" data-sheet-cancel="1"></div>' + html;
+}
+
+/** 单条精准平仓确认 */
+function confirmClosePos(idx){
+  const d = TRDDATA[state.env], isLive = state.env==='live', p = d.pos[idx];
+  if (!p) return;
+  openSheet(`
+    <div class="sheet ${isLive?'warnbox':''}">
+      <div class="sheetic ${isLive?'':'v'}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      </div>
+      <div class="h2" style="font-size:18px">${isLive?'确认平仓':'确认模拟平仓'} · ${p.sym}</div>
+      <div class="sm muted" style="margin-top:6px">
+        将以<b style="color:rgb(var(--text))">市价全平</b> ${p.sym} ${p.side} 的 <span class="mono">${p.qty}</span>，
+        立即成交，${isLive?'<b style="color:rgb(var(--live))">不可撤销</b>':'仅影响虚拟账本'}。
+      </div>
+      <div class="sheetlist">
+        <div class="r"><span class="muted">当前未实现盈亏</span><span class="mono ${p.tone}">${p.pnl}</span></div>
+        <div class="r"><span class="muted">预估平仓手续费</span><span class="mono">${isLive?'-$0.61':'-$0.18'}</span></div>
+        <div class="r"><span class="muted">平仓后保证金占用</span><span class="mono">${isLive?'21%':'54%'}</span></div>
+      </div>
+      <div class="g2" style="margin-top:13px">
+        <button class="btn" data-sheet-cancel="1">取消</button>
+        <button class="btn ${isLive?'live':'paperbtn'}" data-confirm-pos="${idx}">确认平仓</button>
+      </div>
+      <div class="tiny muted" style="text-align:center;margin-top:8px">平仓为市价单，实际成交价可能与显示略有偏差</div>
+    </div>`);
+}
+
+/** 一键全平：悬浮确认窗，必须再次点击才执行 */
+function confirmCloseAll(){
+  const d = TRDDATA[state.env], isLive = state.env==='live';
+  const total = isLive ? '+$412.60' : '+$186.40';
+  const nominal = isLive ? '$32,891' : '$2,240';
+  const rows = d.pos.map(p=>`<div class="r"><span class="muted">${p.sym} ${p.side} <span class="mono tiny">${p.qty}</span></span><span class="mono ${p.tone}">${p.pnl}</span></div>`).join('');
+  openSheet(`
+    <div class="sheet ${isLive?'warnbox':''}">
+      <div class="sheetic ${isLive?'':'v'}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      </div>
+      <div class="h2" style="font-size:18px">${isLive?'一键全平 · '+d.pos.length+' 个仓位':'一键全平 · 模拟 · '+d.pos.length+' 个'}</div>
+      <div class="sm muted" style="margin-top:6px">
+        将对 <b style="color:rgb(var(--text))">${d.pos.length} 个仓位全部市价平仓</b>，名义约
+        <span class="mono" style="color:rgb(var(--text))">${nominal}</span>。
+        ${isLive?'真实资金操作，<b style="color:rgb(var(--live))">不可撤销</b>；平仓后不再有新仓位产生，直到你恢复自动开仓。':'仅影响虚拟账本。'}
+      </div>
+      <div class="sheetlist">
+        ${rows}
+        <div class="r tot"><span>合计未实现盈亏</span><span class="mono profit">${total}</span></div>
+        <div class="r"><span class="muted">预估总手续费</span><span class="mono">${isLive?'-$2.41':'-$0.72'}</span></div>
+        <div class="r"><span class="muted">平仓后保证金占用</span><span class="mono profit">${isLive?'0%':'0%'}</span></div>
+      </div>
+      <div class="g2" style="margin-top:13px">
+        <button class="btn" data-sheet-cancel="1">取消</button>
+        <button class="btn ${isLive?'live':'paperbtn'}" id="btnAll" disabled data-confirm-all="1">
+          <span class="cd"><i></i><span id="cdTxt">${isLive?'3':'2'}s 后可确认</span></span>
+        </button>
+      </div>
+      <div class="tiny muted" style="text-align:center;margin-top:8px">
+        ${isLive?'真实资金：确认按钮有 3 秒冷静期，防止误触':'模拟盘：2 秒冷静期'}
+      </div>
+    </div>`);
+  // 冷静期：到期才允许确认，避免连点误触
+  const wait = isLive ? 3 : 2;
+  let left = wait;
+  const el = $('#btnAll'), txt = $('#cdTxt');
+  const timer = setInterval(()=>{
+    left--;
+    if (left <= 0){
+      clearInterval(timer);
+      if (!el.isConnected) return;
+      el.disabled = false;
+      el.innerHTML = isLive ? '确认全部平仓' : '确认全部平仓（模拟）';
+    } else if (txt && txt.isConnected){
+      txt.textContent = left + 's 后可确认';
+    }
+  }, 1000);
+}
+
+/* ── 事件绑定 ── */
+document.addEventListener('click', e=>{
+  const t = e.target.closest('#tabbar button');
+  if (t) return showTab(t.dataset.tab);
+  const eb = e.target.closest('#envtabs button');
+  if (eb) return setEnv(eb.dataset.env);
+  const to = e.target.closest('[data-toast]');
+  if (to) return toast(to.dataset.toast);
+  if (e.target.closest('#pausebtn')) return togglePause();
+  if (e.target.closest('#rateBtn')) return cycleRate();
+  if (e.target.closest('#followBadge') || e.target.closest('#followHint')) return setFollow(true);
+
+  // 平仓
+  const cp = e.target.closest('[data-close-pos]');
+  if (cp) return confirmClosePos(parseInt(cp.dataset.closePos, 10));
+  if (e.target.closest('[data-close-all]')) return confirmCloseAll();
+  // 主题
+  if (e.target.closest('#themebtn')) return openThemePicker();
+  const tm = e.target.closest('[data-theme]');
+  if (tm) return setTheme(tm.dataset.theme);
+  if (e.target.closest('[data-sheet-cancel]')) return closeSheet();
+  const okPos = e.target.closest('[data-confirm-pos]');
+  if (okPos){
+    const d = TRDDATA[state.env], p = d.pos[parseInt(okPos.dataset.confirmPos,10)];
+    closeSheet();
+    d.pos.splice(parseInt(okPos.dataset.confirmPos,10), 1);
+    renderTrade();
+    return toast((state.env==='live'?'真实':'模拟') + `平仓已提交 · ${p.sym}` + '（市价全平，等待成交回执）');
+  }
+  const okAll = e.target.closest('[data-confirm-all]');
+  if (okAll){
+    if (okAll.disabled) return;
+    const d = TRDDATA[state.env];
+    closeSheet();
+    // 在流里留一条可核对的记录
+    pushLine('trd', '兜底平仓｜', `一键全平 ${d.pos.length} 个仓位（人工干预）`, 'crit');
+    scheduleFlush('trd');
+    d.pos = [];
+    renderTrade();
+    return toast('已提交全部平仓 · ' + (state.env==='live'?'真实资金':'模拟') + '（成交后持仓归零，人工干预 +1）');
+  }
+});
+function togglePause(){
+  state.paused = !state.paused;
+  $('#pausebtn').textContent = state.paused ? '已暂停' : '暂停';
+  $('#pausebtn').classList.toggle('on', state.paused);
+  $('#netdot').className = 'dot ' + (state.paused ? 'm' : 'p');
+  $('#nettext').textContent = state.paused ? '流已暂停（本地）' : 'ws 已连';
+  ['#streamDot','#hftDot','#trdDot'].forEach(s=>{ const el=$(s); if(el) el.className = 'dot ' + (state.paused?'m':(s==='#streamDot'?'p':'l')); });
+  ['#streamHft','#streamTrd'].forEach(s=>{ const el=$(s); if(el) el.classList.toggle('frozen', state.paused); });
+}
+function cycleRate(){
+  state.rate = state.rate===1 ? 4 : state.rate===4 ? 0 : 1;
+  $('#rateBtn').textContent = state.rate===0 ? '停' : state.rate+'×';
+}
+function setFollow(on){
+  state.follow = on;
+  $('#followBadge').textContent = on ? '自动滚动' : '已冻结';
+  $('#followBadge').className = 'badge ' + (on ? 'p' : 'w');
+  $('#followHint').textContent = on ? '上滑即冻结' : '点此恢复跟随';
+  if (on) { $('#bodyDash').scrollTop = $('#bodyDash').scrollHeight; }
+}
+/* 上滑即冻结 */
+['#bodyDash','#bodyHft','#bodyTrd'].forEach(sel=>{
+  const el = $(sel); if (!el) return;
+  el.addEventListener('scroll', ()=>{
+    if (sel !== '#bodyDash') return;   // 只有主日志流控制 follow 状态
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+    if (!atBottom && state.follow) setFollow(false);
+    else if (atBottom && !state.follow) setFollow(true);
+  }, { passive:true });
+});
+
+/* Toast */
+function toast(msg){
+  const el = document.createElement('div');
+  el.style.cssText = 'position:absolute;left:13px;right:13px;bottom:82px;z-index:40;background:rgb(24 33 50 / .97);border:1px solid rgb(var(--border));border-left:3px solid rgb(var(--profit));border-radius:10px;padding:11px 13px;font-size:12.5px;box-shadow:0 14px 34px -12px rgb(0 0 0 / .8)';
+  el.textContent = msg;
+  $('.phone').appendChild(el);
+  setTimeout(()=>el.remove(), 2600);
+}
+
+/* ── 启动 ── */
+applyTheme();
+renderNodes();
+renderHft(); renderTrade();
+setTab('dash');
+function setTab(t){ showTab(t); }
+for (let i=0;i<26;i++) emit('dash');
+for (let i=0;i<14;i++) emit('hft');
+for (let i=0;i<14;i++) emit('trd');
+flush('dash'); flush('hft'); flush('trd');
+setFollow(true);
+
+let prev = performance.now();
+(function loop(now){
+  const dt = (now - prev)/1000; prev = now;
+  tick(dt);
+  if (!state.paused) lastEvent = Date.now();
+  requestAnimationFrame(loop);
+})(prev);
+
+setInterval(pollNodes, 3000);
+</script>
+</body>
+</html>

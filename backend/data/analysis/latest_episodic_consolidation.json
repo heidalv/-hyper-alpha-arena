@@ -1,33 +1,51 @@
 {
- "generated_at": "2026-09-14T21:30:00.159894+00:00",
+ "generated_at": "2026-10-08T21:30:12.192017+00:00",
  "days": 7,
  "rules": [
-  {
-   "tier": "long",
-   "regime": "ranging",
-   "vol_bucket": "low",
-   "direction": "long",
-   "n": 17,
-   "win_rate": 0.412,
-   "avg_pct": -0.82
-  },
   {
    "tier": "mid",
    "regime": "ranging",
    "vol_bucket": "low",
    "direction": "long",
-   "n": 12,
-   "win_rate": 0.333,
-   "avg_pct": -0.52
+   "n": 127,
+   "win_rate": 0.441,
+   "avg_pct": -0.18
+  },
+  {
+   "tier": "long",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "long",
+   "n": 40,
+   "win_rate": 0.45,
+   "avg_pct": 0.21
+  },
+  {
+   "tier": "long",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "short",
+   "n": 27,
+   "win_rate": 0.148,
+   "avg_pct": -2.2
   },
   {
    "tier": "mid",
    "regime": "ranging",
    "vol_bucket": "low",
    "direction": "short",
-   "n": 8,
-   "win_rate": 0.375,
-   "avg_pct": -0.56
+   "n": 26,
+   "win_rate": 0.231,
+   "avg_pct": -0.88
+  },
+  {
+   "tier": "mid",
+   "regime": "ranging",
+   "vol_bucket": "low",
+   "direction": "neutral",
+   "n": 11,
+   "win_rate": 0.545,
+   "avg_pct": 0.05
   },
   {
    "tier": "long",
@@ -39,6 +57,6 @@
    "avg_pct": -0.8
   }
  ],
- "lessons_text": "长线·震荡市·低波动·做多：17 笔 胜率41% 均盈-0.82%\n中线·震荡市·低波动·做多：12 笔 胜率33% 均盈-0.52%\n中线·震荡市·低波动·做空：8 笔 胜率38% 均盈-0.56%\n长线·趋势市·低波动·做多：3 笔 胜率33% 均盈-0.80%",
- "total_episodes": 46
+ "lessons_text": "中线·震荡市·低波动·做多：127 笔 胜率44% 均盈-0.18%\n长线·震荡市·低波动·做多：40 笔 胜率45% 均盈+0.21%\n长线·震荡市·低波动·做空：27 笔 胜率15% 均盈-2.20%\n中线·震荡市·低波动·做空：26 笔 胜率23% 均盈-0.88%\n中线·震荡市·低波动·中性：11 笔 胜率55% 均盈+0.05%\n长线·趋势市·低波动·做多：3 笔 胜率33% 均盈-0.80%",
+ "total_episodes": 241
 }

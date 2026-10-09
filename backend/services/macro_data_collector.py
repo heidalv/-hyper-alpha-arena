@@ -276,6 +276,13 @@ def _llm_extract_calendar(html: str, source: str) -> List[Dict[str, Any]]:
         from backend.services.llm_config_service import call_llm_api_sync, get_llm_config
         config = get_llm_config()
         if not config:
+            # [F384 2026-09-18 禁止静默退化] 原为裸 `return []`：调用方无法区分
+            # "确实没有事件" 与 "LLM 被拒后放弃"（多租户策略下这是**正常降级路径**，
+            # 实测 4.4 小时内该类拒绝 51 次，其中本文件 1 次）。只加日志，不改行为。
+            logger.warning(
+                "[MacroData] 无可用 LLM 配置（多租户拒绝公用默认）⇒ 日历抽取返回空列表，"
+                "调用方无法区分『无事件』与『未抽取』: source=%s", source,
+            )
             return []
         text = re.sub(r"<[^>]+>", " ", html or "")
         text = re.sub(r"\s+", " ", text)[:12000]

@@ -1,0 +1,33 @@
+{
+  "since": "2026-09-28T18:32:15+00:00",
+  "legs": 66,
+  "trips": 8,
+  "by_path": {
+    "stop_loss_taker": {
+      "n": 1,
+      "min": 138.250782,
+      "median": 138.250782,
+      "max": 138.250782
+    },
+    "ofi_flatten_maker": {
+      "n": 3,
+      "min": 321.671869,
+      "median": 1037.266361,
+      "max": 1112.843941
+    },
+    "timeout_hard_taker": {
+      "n": 3,
+      "min": 305.388349,
+      "median": 1466.945015,
+      "max": 2771.580596
+    },
+    "take_profit_taker": {
+      "n": 1,
+      "min": 259.156421,
+      "median": 259.156421,
+      "max": 259.156421
+    }
+  },
+  "ofi_min_age": 321.671869,
+  "verdict": "✓ 进程内 max_one_side_seconds ≈ 90（最小出场年龄 322s ≥ 45s×容差；若仍是 45 则下界应 ≈22.5s）"
+}

@@ -1,0 +1,51 @@
+{
+  "total": -393.27,
+  "equity": 262.23479700000007,
+  "verdict": [
+    {
+      "pct": 5.0,
+      "fired": 3,
+      "counterfactual_total": -155.47,
+      "pre_mean": -0.017993,
+      "post_mean": -0.015868,
+      "t": 0.281,
+      "verdict": "**尾部控制/保险**（触发前后每腿无显著差异 ⇒ 闸门只是切方差）"
+    },
+    {
+      "pct": 10.0,
+      "fired": 3,
+      "counterfactual_total": -230.51,
+      "pre_mean": -0.016852,
+      "post_mean": -0.015949,
+      "t": 0.13,
+      "verdict": "**尾部控制/保险**（触发前后每腿无显著差异 ⇒ 闸门只是切方差）"
+    },
+    {
+      "pct": 15.0,
+      "fired": 3,
+      "counterfactual_total": -289.94,
+      "pre_mean": -0.018804,
+      "post_mean": -0.012846,
+      "t": 0.941,
+      "verdict": "**尾部控制/保险**（触发前后每腿无显著差异 ⇒ 闸门只是切方差）"
+    },
+    {
+      "pct": 20.0,
+      "fired": 2,
+      "counterfactual_total": -331.47,
+      "pre_mean": -0.017438,
+      "post_mean": -0.008969,
+      "t": 1.898,
+      "verdict": "**尾部控制/保险**（触发前后每腿无显著差异 ⇒ 闸门只是切方差）"
+    },
+    {
+      "pct": 30.0,
+      "fired": 1,
+      "counterfactual_total": -405.09,
+      "pre_mean": -0.01299,
+      "post_mean": 0.014613,
+      "t": 2.017,
+      "verdict": "**状态依赖（反向）**（触发后腿反而更好）"
+    }
+  ]
+}

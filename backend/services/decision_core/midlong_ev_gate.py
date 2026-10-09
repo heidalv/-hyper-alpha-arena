@@ -152,6 +152,39 @@ class MidLongEvGate:
                 p_src = "fallback_const"
         p_win = max(0.01, min(0.99, float(p_win)))
 
+        # [2026-10-04 工作流⑤-b] 数据驱动 p_win（前向收益分桶 + 贝叶斯收缩）。
+        # 设计：docs/design/ev_gate_forward_pwin_20261004.md
+        #   · MIDLONG_P_WIN_SOURCE=calibrator（**默认**）⇒ 行为与今日逐字节一致
+        #   · MIDLONG_P_WIN_SHADOW=true ⇒ 两个 p_win 都算，**只记录不生效**（影子对比）
+        #   · MIDLONG_P_WIN_SOURCE=forward ⇒ 仅当分桶有数据（p_win>=0）才替换，否则沿用校准器
+        # 实测依据（12 天/7 天前向/n=335）：conf45→p_win 0.64（n=49）vs conf55→0.24（n=285），
+        # **置信度与胜率反相关**；master 车道无可标注样本 ⇒ 必然回退。
+        _pwin_mode = str(self._cfg("MIDLONG_P_WIN_SOURCE", "calibrator") or "calibrator").lower()
+        _pwin_shadow = str(self._cfg("MIDLONG_P_WIN_SHADOW", "false") or "false").lower() in (
+            "1", "true", "yes", "on",
+        )
+        if _pwin_mode == "forward" or _pwin_shadow:
+            try:
+                from backend.services.learning_core.forward_label import p_win_for
+
+                _lane_map = {
+                    "swing": ("swing_independent", "mid"),
+                    "trend_follow": ("trend_follow_independent", "long"),
+                    "position": ("trend_follow_independent", "long"),
+                }
+                _lane, _tier = _lane_map.get(str(nat_calib or nat or "swing"), ("swing_independent", "mid"))
+                _fw = p_win_for(_lane, _tier, float(score or 0.0))
+                logger.info(
+                    "[MidLongEvGate] %s p_win forward: mode=%s calibrator=%.4f forward=%.4f src=%s n=%s bucket=%s",
+                    symbol, _pwin_mode, float(p_win or 0), float(_fw.get("p_win") or -1),
+                    _fw.get("source"), _fw.get("n"), _fw.get("bucket"),
+                )
+                if _pwin_mode == "forward" and float(_fw.get("p_win") or -1) >= 0:
+                    p_win = float(_fw["p_win"])
+                    p_src = f"forward:{_fw.get('source')}:n={_fw.get('n')}"
+            except Exception as _fw_err:  # fail-open：数据层问题绝不改变闸门裁决
+                logger.debug("[MidLongEvGate] forward p_win 跳过: %s", _fw_err)
+
         # 往返成本（手续费 + 滑点，按 nature 取滑点档）
         try:
             from backend.services.fee_guard import fee_guard

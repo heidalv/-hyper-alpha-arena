@@ -1,4 +1,4 @@
-﻿# Heidalv-Alpha-Arena — AI驱动加密货币短线交易系统 项目Wiki
+# Heidalv-Alpha-Arena — AI驱动加密货币短线交易系统 项目Wiki
 
 > 生成日期: 2026-07-16 | 版本: v1.0
 
@@ -264,8 +264,8 @@ frontend-next/
 │   │   ├── globals.css            # 全局样式
 │   │   ├── dashboard/             # 仪表盘
 │   │   ├── scalp/                 # 短线(剥头皮)
-│   │   ├── mid/                   # 中线
-│   │   ├── long/                  # 长线
+│   │   ├── mid/                   # 中线（2026-10-01 起为跳转桩 → /strategy?cfg=mid）
+│   │   ├── long/                  # 长线（2026-10-01 起为跳转桩 → /strategy?cfg=long）
 │   │   ├── strategy/              # 策略
 │   │   ├── factors/               # 因子
 │   │   ├── risk/                  # 风控
@@ -275,7 +275,8 @@ frontend-next/
 │   │   ├── hyperliquid/           # HL专用
 │   │   ├── paper-trading/         # 模拟交易
 │   │   ├── charts/                # 图表
-│   │   ├── agent-monitor/         # AI Agent监控
+│   │   ├── agent-monitor/         # AI Agent监控（2026-10-01 并入原 Agent Wall，画布为第一个Tab）
+│   │   ├── agent-wall/            # 旧路由跳转桩 → /agent-monitor?tab=wall
 │   │   ├── intel/                 # 情报
 │   │   ├── prompts/               # 提示词
 │   │   ├── logs/                  # 日志

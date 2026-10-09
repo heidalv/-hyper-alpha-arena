@@ -190,6 +190,107 @@ class FactorDecayMonitor:
         self._save_status()
         return results
 
+    def apply_incremental_pnl(self, contributions: Dict[str, float],
+                              threshold: float = -0.002) -> Dict[str, int]:
+        """[统一策略 2026-09-18] 增量PnL归因桥 —— 因子战绩接入治理。
+
+        根因：SignalFeedbackTracker 的逐单增量归因（因子活跃期 avgPnL − 全局）能抓到
+        "IC 不差但实战持续亏钱"的因子（如 evo_3d51976a92a07bea -0.44%），而 IC 衰减
+        监视器抓不到 → 最差因子满权重跑实盘。本桥把持续负贡献写入衰减状态：
+        inc ≤ threshold*2 → retire（权重0），threshold~2× → reduce（权重≤0.3）。
+        只对已评估因子或明确负贡献的新键生效；evidence: 86432 样本归因。
+        """
+        from dataclasses import replace as _dc_replace
+
+        import os as _os
+
+        # [F336 2026-09-18 复查修复·断路器] 接线前的前置条件。
+        # 现场：`data/factor_decay_status.json` 实测 128 条里 **57 条（44.5%）已归零**
+        # （retire 且双确认命中），而该惩罚当前**只被已停用的短线车道消费** ⇒ 一旦把惩罚
+        # 接入中长线（`mlto/quant_layer.py:18`）就会按现状一次性砍掉 44.5% 的因子池。
+        # 本断路器：单轮"将归零"占比超过上限即**拒绝批量归零**（降级为 reduce/0.3）并留痕；
+        # 逃生阀 `FACTOR_DECAY_ALLOW_MASS_RETIRE=1`（默认关）。
+        try:
+            _max_share = float(_os.getenv("FACTOR_DECAY_MASS_RETIRE_MAX_SHARE", "0.30"))
+        except Exception:
+            _max_share = 0.30
+        _allow_mass = str(_os.getenv("FACTOR_DECAY_ALLOW_MASS_RETIRE", "0")).strip().lower() in (
+            "1", "true", "yes", "on")
+        try:
+            _retire_ic = float(self.DECAY_THRESHOLDS.get("retire_ic", 0.01))
+        except Exception:
+            _retire_ic = 0.01
+        # 新建档时播种的 historical_ic：**不得**低于 retire 阈值，否则"双确认"自动成立、
+        # 首次触发的因子会被直接归零（这正是 57 条归零的根因，见 :221-225 原实现）。
+        _seed_hist = max(_retire_ic * 2.0, 0.02)
+
+        # —— 阶段一：先规划（不落库），统计"本次将归零"的占比 ——
+        _plan = []
+        for fid, inc in (contributions or {}).items():
+            if not fid or inc > threshold:
+                continue
+            _new_rec = "retire" if inc <= threshold * 2 else "reduce"
+            _st = self._decay_status.get(fid)
+            _hist = _seed_hist
+            if _st is not None:
+                try:
+                    _hist = float(getattr(_st, "historical_ic", 0.0) or 0.0)
+                except Exception:
+                    _hist = 0.0
+            _zeroing = bool(_new_rec == "retire" and _hist < _retire_ic)
+            _plan.append({"fid": fid, "rec": _new_rec, "st": _st, "zero": _zeroing})
+
+        _pool = max(1, len(self._decay_status))
+        _zero_n = sum(1 for p in _plan if p["zero"])
+        _share = _zero_n / _pool
+        _blocked = bool(_zero_n > 0 and _share > _max_share and not _allow_mass)
+        if _blocked:
+            logger.warning(
+                "[DecayMonitor][断路器] 本轮将归零 %d/%d = %.1f%%（上限 %.0f%%）⇒ **拒绝批量归零**，"
+                "降级为 reduce(0.3)。确需批量归零请设 FACTOR_DECAY_ALLOW_MASS_RETIRE=1",
+                _zero_n, _pool, _share * 100, _max_share * 100)
+            for p in _plan:
+                if p["zero"]:
+                    p["rec"] = "reduce"
+                    p["zero"] = False
+                    # [F336 修正] 仅把 recommendation 降级为 reduce **不足以**产生惩罚：
+                    # `get_factor_weight_penalty` 的 reduce 分支算的是 current_ic/historical_ic，
+                    # 而这类因子 historical_ic=0.0 ⇒ 比值被 max(...,0.001) 放大、再被 F330 的
+                    # 1.0 上限截断 ⇒ **权重变成 1.0（完全无惩罚）**，断路器等于失效 ✗。
+                    # 故打上显式标记，由 get_factor_weight_penalty 固定返回 0.3（不改写 IC 证据）。
+                    p["breaker"] = True
+
+        # —— 阶段二：应用 ——
+        acted = {"retire": 0, "reduce": 0}
+        for p in _plan:
+            fid, new_rec, st = p["fid"], p["rec"], p["st"]
+            if st is not None:
+                if new_rec == "retire" and st.recommendation != "retire":
+                    acted["retire"] += 1
+                elif new_rec == "reduce" and st.recommendation not in ("retire", "reduce"):
+                    acted["reduce"] += 1
+                self._decay_status[fid] = _dc_replace(
+                    st, recommendation=new_rec,
+                    trend=("breaker_downgrade" if p.get("breaker")
+                           else ("dead" if new_rec == "retire" else st.trend)))
+            else:
+                # 未入衰减评估的因子（如 evo_/ai_gen 系）按战绩直接建档。
+                # [F336] `historical_ic` 播种为 _seed_hist（> retire 阈值）——原来播 0.0，
+                # 会让 `get_factor_weight_penalty` 的"双确认"自动成立 ⇒ 首触即归零。
+                self._decay_status[fid] = DecayStatus(
+                    factor_id=fid, current_ic=0.0, historical_ic=_seed_hist,
+                    decay_rate=0.0, half_life_days=0.0,
+                    trend="dead" if new_rec == "retire" else "declining",
+                    recommendation=new_rec)
+                acted[new_rec] += 1
+        if any(acted.values()):
+            self._save_status()
+            logger.warning(
+                "[DecayMonitor][增量PnL桥] 战绩治理生效: retire=%d reduce=%d（阈值%.2f%%）%s",
+                acted["retire"], acted["reduce"], threshold * 100,
+                "［断路器已降级批量归零］" if _blocked else "")
+        return acted
+
     def get_factor_weight_penalty(self, factor_id: str) -> float:
         """返回因子权重惩罚系数 (1.0=无惩罚, 0.0=完全淘汰)"""
         status = self._decay_status.get(factor_id)
@@ -203,7 +304,16 @@ class FactorDecayMonitor:
                 return 0.0
             return 0.3
         elif status.recommendation == "reduce":
-            return max(0.3, status.current_ic / max(status.historical_ic, 0.001))
+            # [F336] 断路器降级标记 ⇒ 固定 0.3（不改写 IC 证据；见 apply_incremental_pnl 内注释）
+            if getattr(status, "trend", "") == "breaker_downgrade":
+                return 0.3
+            # [F330 2026-09-18 复查修复] 原为 `return max(0.3, current_ic / max(historical_ic, 0.001))`
+            # —— **缺少 1.0 上限** ⇒ 当 historical_ic 落在地板 0.001 而 current_ic 较大时，
+            # 比值会 **>1**，被当作"惩罚系数"相乘 ⇒ **降权变成放大**。
+            # 实测（第 5 路复查）：`ai_gen_bsq` penalty=**12.4**、`supertrend`=**1.364**
+            # ⇒ 被判定"衰减需降权"的因子反被放大最多 12 倍，直接污染信号加权。
+            # 修法：加上限 1.0（惩罚系数语义 = 只降不升），下限保持 0.3。
+            return min(1.0, max(0.3, status.current_ic / max(status.historical_ic, 0.001)))
         else:
             return 1.0
 

@@ -65,6 +65,10 @@ class Position:
     trailing_activated: bool = False
     highest_since_entry: float = 0.0
     lowest_since_entry: float = float('inf')
+    # [F340 2026-09-18] 回测因子归因 phase 1：开仓当根的**因子方向票**（+1/-1/0）。
+    # 由 `LivePipelineBacktestEngine.run()` 从 `_factor_dir_series` / `_compute_factor_direction`
+    # 写入；用于把成交按因子方向分桶，回答"是哪些因子在赚/亏"（报告 §6.4 B4）。
+    factor_dir_at_entry: int = 0
 
 
 @dataclass
@@ -82,6 +86,8 @@ class TradeRecord:
     pnl_pct: float
     fee: float
     exit_reason: str
+    # [F340] 开仓当根的因子方向票（+1/-1/0）；phase 1 归因口径见报告 §6.4 B4
+    factor_dir_at_entry: int = 0
 
 
 @dataclass
@@ -105,6 +111,23 @@ class BacktestResult:
     bars_total: int = 0
     error: Optional[str] = None
     regime_performance: Dict[str, Dict] = field(default_factory=dict)
+    # [F340 2026-09-18] 回测因子归因 phase 1：按开仓因子方向分桶的统计
+    # {"+1": {"n": .., "win_rate": .., "avg_pnl": .., "avg_bp": ..}, "-1": {...}, "0": {...}}
+    # 由 `LivePipelineBacktestEngine.run()` 收尾计算；验收：Σ(桶 n×桶均值) == 总 PnL（容差内）。
+    factor_attr_by_dir: Dict[str, Dict] = field(default_factory=dict)
+    # [F342 2026-09-18] B4 phase 2：因子名级**覆盖度归因**（`attribute_trades_by_factor`）。
+    # ⚠️ 覆盖度而非增量 alpha（无对照/无反事实）；仅在 `BACKTEST_FACTOR_ATTR=1` 时填充。
+    factor_attr_by_name: Dict[str, Dict] = field(default_factory=dict)
+    # [F349 2026-09-18] 归因旁路覆盖率自检 {"needed","computed","covered"}。
+    # 为什么必须有：方向序列**磁盘缓存命中**时预计算循环空转，旁路会全空而
+    # `factor_attr_by_name` 变成 `{}` —— 旧实现**没有任何日志**，调用方会误以为
+    # "这套参数没有因子信息"。有了它，`by_name` 为空时能立刻分清是"真没有"还是"没算"。
+    factor_attr_coverage: Dict[str, int] = field(default_factory=dict)
+    # [F358 2026-09-18] 本次回放实际用到的**数据维度明细**
+    # {"rsi_macd": bool, "funding": bool, "fgi": bool, "factor_signal": bool}。
+    # 此前只在本地被 `sum()` 成一个 `data_completeness` 计数，明细被丢弃 ⇒
+    # 无法分辨"因子算了但因缺 funding/fgi 而结构性失效"（F355/F356 的假零根因）。
+    data_dims_used: Dict[str, bool] = field(default_factory=dict)
     funding_fees_total: float = 0.0
 
 

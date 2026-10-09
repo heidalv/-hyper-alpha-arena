@@ -8,7 +8,9 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 
-from backend.database.connection import get_db
+# [2026-09-17 修复] crypto_klines 表在 market 库（MARKET_DATABASE_URL=alpha_market），
+# 此前误用主库 get_db（alpha_arena 无此表）→ /api/ranking/* 恒 500。
+from backend.database.connection import get_market_db as get_db
 from backend.database.models import CryptoKline
 from backend.factors import compute_all_factors, compute_selected_factors, list_factors
 

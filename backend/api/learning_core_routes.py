@@ -136,6 +136,32 @@ def replay_stats():
     return replay_buffer.stats()
 
 
+@router.post("/replay/seed-real")
+def replay_seed_real(days: int = 180, limit: int = 1000):
+    """[2026-10-03 ③] 用**真实已平仓决策**补齐 RL 回放缓冲（去合成化）。
+
+    实测缓冲长期是 300/302 synthetic（真实仅 2 条）⇒ RL 几乎全在合成数据上训练。
+    本接口把 `decision_snapshots` 里 executed=true 且已回填 pnl 的真实成交转成 transition
+    （source=live、reward=真实 pnl_pct），可重复调用（按 symbol+action+reward 近似去重）。
+    """
+    from backend.services.learning_core.replay_seed import seed_from_real_decisions
+    return seed_from_real_decisions(days=days, limit=limit)
+
+
+@router.post("/backfill-decision-pnl")
+def backfill_decision_pnl_route(days: int = 90, limit: int = 2000, dry_run: bool = False):
+    """[2026-10-03] 把已平仓持仓的真实盈亏**回填到对应决策快照**（决策↔成交回填率修复）。
+
+    实测背景：`executed=229` 条快照里只有 17 条有 pnl（7.4%），回放缓冲因此长期缺真实样本。
+    根因两条：①主库 RLS 未注入 ⇒ 只看到 115/403 笔持仓；②匹配窗口是 `now-48h` 且候选歧义即跳过
+    ⇒ 引擎侧改为**以 opened_at 为中心的开仓窗口**；本接口用**两段窗口（±30min → ±6h，均要求唯一匹配）**
+    补齐历史缺口。实测 17 → **47**（20.5%），ambiguous=0（无错配）。
+    仍然匹配不上的主要是**持仓已被「完整重置」删除**（盈亏已不存在，不猜）。
+    """
+    from backend.services.decision_pnl_backfill import backfill_decision_pnl
+    return backfill_decision_pnl(days=days, limit=limit, dry_run=dry_run)
+
+
 # ══════════════════════════════════════════════════════════════
 #  RL 交易决策 agent（影子先行）
 # ══════════════════════════════════════════════════════════════
@@ -255,3 +281,35 @@ def get_status():
         "ledger": ledger.stats(),
         "flags": flags.all_flags(),
     }
+
+
+# ── [2026-10-04 工作流①②③] 证据报表接口（全部只读；样本不足时诚实输出，不产比率）──
+
+@router.get("/shadow/report")
+def shadow_report(limit: int = 500):
+    """②③ 影子 vs 真实管线对比报表。
+
+    数据源：账本 `evolution_lineage` 的 `rl_shadow` / `vol_target_shadow`（开仓时写入）。
+    样本 < `SHADOW_*_MIN_SAMPLES`（默认 30）时返回 `insufficient_samples` + 门槛 + 提示，
+    **不输出任何比率**（防"看着有报表、其实没数据"）。
+    """
+    from backend.services.learning_core.shadow_compare import combined
+    return combined(limit=limit)
+
+
+@router.get("/calibration/forward")
+def calibration_forward(days: int = 12, horizon_days: int = 7, include_hold: bool = False):
+    """① 前向收益标注 + 置信分桶校准表（只读）。
+
+    实测（2026-10-04，n=335，7 天前向）：40-50 桶胜率 77.5%（收缩 64.3%，期望 +0.0030）
+    vs 50-60 桶 23.9%（期望 -0.0387）⇒ **置信度与胜率在同车道内反相关**，
+    与 `ai_decision_calibrator` 的 `cold_linear` 单调兜底方向相反。
+    `include_hold=True` 会把 hold 反事实当看多（**不推荐**：master 车道 9,555 条 hold 的
+    direction 全是 'hold'，无方向观点，这样做会污染结论）。
+    """
+    from backend.services.learning_core.forward_label import label_decisions
+    res = label_decisions(days=days, horizon_days=horizon_days,
+                          include_hold=include_hold, limit=3000)
+    return {"labeled": res.get("labeled"), "skipped": res.get("skipped"),
+            "horizon_days": horizon_days, "buckets": res.get("buckets"),
+            "by_lane": res.get("by_lane")}

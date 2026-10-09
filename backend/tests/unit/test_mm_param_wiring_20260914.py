@@ -130,9 +130,20 @@ def _wired(field: str, is_limit: bool, p_base, l_base) -> bool:
     # （实测 vol_pause_sigma / stop_loss_bp / trend_pause_bp / ofi_flatten_* 都是 0）；
     # 此时 0 与 1e9 都等价于"关闭" ⇒ 两个极端输出相同 ⇒ 会把**已经接线**的闸门
     # 误判成死旋钮 ✗。极小正值能让"关闭 ⇒ 开启"的变化显形 ✓。
+    #
+    # [h405b 2026-09-27] 宽度族探针的中和器：F280 自适应模式（`spread_mult>0`）
+    # 时挂宽 = spread_mult × 半价差 ⇒ w_base_bp/k_vol/min_width_* **完全不参与**报价
+    # ⇒ 被误判成死旋钮 ✗（与 F193 同一类"上游闸门假死"教训，实况 spread_mult=0.9）。
+    # 探针在 spread_mult=0（关闭自适应）下验证宽度旋钮接线——只中和**遮盖层**，
+    # 被测字段仍只改一个 ✓。
+    _WIDTH_KNOBS = {"w_base_bp", "k_vol", "k_inv", "min_width_bp",
+                    "min_width_reduce_bp", "max_width_bp"}
     for extreme in (0.0, 1e-6, 1e9):
         if is_limit:
             p, l = p_base, replace(l_base, **{field: extreme})
+        elif field in _WIDTH_KNOBS:
+            p = replace(p_base, spread_mult=0.0, **{field: extreme})
+            l = l_base
         else:
             p, l = replace(p_base, **{field: extreme}), l_base
         for (name, a), r0 in zip(_scenarios(), ref):

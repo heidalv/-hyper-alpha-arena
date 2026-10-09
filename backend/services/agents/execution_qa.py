@@ -325,7 +325,16 @@ class ExecutionQAAgent(ObservationAgent):
             # 未配置 ledger 账户时 account_id 为 None，scope 用 all（全库口径）
             acct_scope = f"exec:{iss['account_id']}" if iss.get("account_id") is not None else "exec:all"
             if iss["type"] == "slippage":
-                worst = ", ".join(f"{w['symbol']}({w['avg_bp']}bp)" for w in (iss.get("worst") or [])[:3])
+                # [2026-09-19 修复] `worst_symbols` 的键是 `median_bp`（本文件 :215），
+                # 旧代码读 `w['avg_bp']` ⇒ 每次滑点告警必抛 KeyError('avg_bp')，
+                # advice 恒为空、实验卡永不产生；且被 base.py 的 ok 判定掩盖成 ok=true。
+                # 现场：`[Agent:execution_qa] advise 失败: 'avg_bp'`（09-18 与 09-19 两次）。
+                def _worst_one(w: Dict[str, Any]) -> str:
+                    bp = w.get("median_bp", w.get("avg_bp"))
+                    sym = w.get("symbol")
+                    return f"{sym}({bp}bp)" if bp is not None else str(sym)
+
+                worst = ", ".join(_worst_one(w) for w in (iss.get("worst") or [])[:3])
                 out.append(Advice(
                     action=ACTION_PROPOSE_EXPERIMENT,
                     target=f"account:{iss['account_id']}",

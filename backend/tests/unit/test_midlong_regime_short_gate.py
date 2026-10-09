@@ -18,7 +18,8 @@
 
 ## 契约
 
-1. `regime_gated`（默认）下：**只有 down regime 允许开空**；up/chop 拦；
+1. 总开关 `MIDLONG_OPEN_SHORT_ENABLED=true` 时默认 `regime_gated`：**只有 down regime
+   允许开空**；up/chop 拦；false 时返回 off（全停，显式回滚位）；
 2. 同一 regime 门对称生效：**down regime 禁止开多**（down-long t=-4.09）；
 3. 日线数据不可判 → 空头 fail-closed（不放行），多头 fail-open；
 4. 日内档（tier=short）豁免，不受本门限制；
@@ -35,13 +36,18 @@ MOD = "backend.services.full_auto.midlong_circuit_gate"
 
 def _fresh(monkeypatch, mode="regime_gated"):
     monkeypatch.setenv("MIDLONG_CIRCUIT_ENABLED", "true")
-    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    # [2026-09-27 用户指令] 撤销「禁止做空」封锁：总开关默认 true（部署口径），
+    # false 只作为显式回滚位（off）保留，见 test_master_switch_off。
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "true")
     monkeypatch.setenv("MIDLONG_SHORT_MODE", mode)
     monkeypatch.setenv("MIDLONG_DOWN_SHORT_MODE", "flat")  # 显式声明，避免环境漂移（生产默认 learned）
     monkeypatch.setenv("MIDLONG_CHOP_MODE", "long_only")
     # [M4 2026-09-14] 本文件契约锁的是 regime 门本身（hold 语义）；paper 探针
     # （缩仓放行）是独立政策，见 test_m4_gate_paper_probe_20260914.py。
     monkeypatch.setenv("MIDLONG_LEARNED_PAPER_PROBE", "false")
+    # [2026-09-29 全面执行] 本文件契约锁的是 regime 门本身；新入场边际闸（edge_gate）
+    # 会先于 regime 分支在真实行情下拦截 → 显式关闭隔离（同 test_midlong_circuit_gate）。
+    monkeypatch.setenv("MIDLONG_EDGE_GATE_ENABLED", "false")
     # [2026-09-09 第十六轮] 多头治理已独立（MIDLONG_LONG_MODE，生产默认 learned）；
     # 本文件契约基于「仅 down 拦」的多头口径，显式钉 regime_only（learned 分支
     # 契约见 test_midlong_long_learned_gate.py）。
@@ -122,6 +128,23 @@ def test_intraday_tier_exempt(monkeypatch):
     _stub_regime(m, monkeypatch, {"BTC": "up"})
     ok, reason = m.check_midlong_entry(14, "BTC", side="sell", tier="short")
     assert ok, reason
+
+
+def test_master_switch_off_blocks_all_shorts(monkeypatch):
+    """[2026-09-27 语义修正] 总开关 false = off（全停），true = 按 MIDLONG_SHORT_MODE 策略。
+
+    用户指令撤销「禁止做空」封锁后，false 只是显式回滚位，不再是部署默认。
+    """
+    m = _fresh(monkeypatch)
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    m = importlib.reload(m)
+    monkeypatch.setattr(m, "_STATE_FILE", os.path.join("data", "_test_circuit_state.json"))
+    monkeypatch.setattr(m, "_state", {})
+    monkeypatch.setattr(m, "_loaded", True)
+    assert m._short_mode() == "off"
+    _stub_regime(m, monkeypatch, {"BTC": "down"})
+    ok, reason = m.check_midlong_entry(14, "BTC", side="sell", tier="mid")
+    assert not ok and "midlong_short_off" in reason
 
 
 def test_off_mode_blocks_all_shorts(monkeypatch):

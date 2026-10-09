@@ -2,11 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Theme: Dark (default, RGB channels) ── */
+/* ── Theme: Dark (RGB channels) ──
+   [2026-09-28] 主题改为三档：跟随系统 / 日间 / 夜间。
+   令牌名一律不变，只换值；两个作用域都挂在 <html> 上（.light / .dark），
+   由 hooks/useTheme.tsx 的 applyThemeClass() 切换。 */
 :root,
 .dark {
   --terminal-bg: 10 14 23;
   --terminal-card: 17 24 39;
+  --terminal-card-2: 22 30 46;
   --terminal-border: 31 41 55;
   --terminal-profit: 0 220 130;
   --terminal-loss: 239 68 68;
@@ -14,19 +18,35 @@
   --terminal-muted: 107 114 128;
   --terminal-text: 249 250 251;
   --terminal-warning: 245 158 11;
+  --terminal-paper: 139 92 246;
+  --terminal-scrim: 0 0 0;
+  --terminal-scrim-alpha: 0.64;
+  --terminal-shadow: none;
 }
 
-/* ── Theme: Light (RGB channels) ── */
+/* ── Theme: Light ──
+   ⚠️ 浅色不是深色「减淡」，是按光环境重定对比度基准：
+     · profit 必须压深：#00dc82 在白底上几乎不可读 ⇒ #059669
+     · paper / live / warning 同理各压深一档
+     · 页面底用极浅灰蓝而非纯白（纯白刺眼，且卡片浮不起来）
+     · 遮罩浓度从 64% 降到 38%（浅色下重遮罩会把整屏压成灰板）
+     · 层次手段从「发光」换成「细边 + 极轻投影」
+   依据：design/light-mode.html —— 那里逐令牌给了取值理由。 */
 .light {
-  --terminal-bg: 241 245 249;
+  --terminal-bg: 246 248 251;
   --terminal-card: 255 255 255;
-  --terminal-border: 203 213 225;
+  --terminal-card-2: 241 245 249;
+  --terminal-border: 214 222 232;
   --terminal-profit: 5 150 105;
   --terminal-loss: 220 38 38;
   --terminal-primary: 37 99 235;
   --terminal-muted: 100 116 139;
   --terminal-text: 15 23 42;
   --terminal-warning: 217 119 6;
+  --terminal-paper: 124 58 237;
+  --terminal-scrim: 15 23 42;
+  --terminal-scrim-alpha: 0.38;
+  --terminal-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.05);
 }
 
 @layer base {
@@ -35,11 +55,28 @@
     -webkit-touch-callout: none;
   }
 
+  /* ⚠️ 曾经写成 `.light` 的兄弟选择器 `body`，导致 var() 在非 .light 祖先下
+     解析为初始值（透明）——浅色下整页失去背景。两个作用域都必须显式覆盖。 */
+  :root,
+  .dark,
+  .light {
+    color-scheme: light dark;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  .light {
+    color-scheme: light;
+  }
+
   body {
     @apply bg-terminal-bg text-terminal-text font-sans;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 200ms ease, color 200ms ease;
   }
 
   /* safe area padding for notch devices */
@@ -61,6 +98,7 @@
 @layer components {
   .card {
     @apply bg-terminal-card border border-terminal-border rounded-xl p-4;
+    box-shadow: var(--terminal-shadow);
   }
 
   .card-interactive {
@@ -117,7 +155,8 @@
 
   /* BottomSheet animation */
   .sheet-overlay {
-    @apply fixed inset-0 bg-black/60 z-40;
+    @apply fixed inset-0 z-40;
+    background: rgb(var(--terminal-scrim) / var(--terminal-scrim-alpha));
     animation: fadeIn 200ms ease-out;
   }
 

@@ -1,0 +1,58 @@
+{
+  "hours": 12.0,
+  "legs": 803,
+  "trips": 209,
+  "by_class": {
+    "OPEN": {
+      "n": 205,
+      "spread_bp": 0.424,
+      "price_bp": -0.119,
+      "fee_bp": 0.0,
+      "net_bp": 0.305,
+      "notional_usd": 25386.6,
+      "net_usd": 1.015,
+      "paths": {}
+    },
+    "REDUCE": {
+      "n": 243,
+      "spread_bp": 0.346,
+      "price_bp": -0.178,
+      "fee_bp": 0.0,
+      "net_bp": 0.167,
+      "notional_usd": 30469.6,
+      "net_usd": -2.178,
+      "paths": {}
+    },
+    "FLATTEN": {
+      "n": 204,
+      "spread_bp": -1.416,
+      "price_bp": -1.305,
+      "fee_bp": -3.529,
+      "net_bp": -6.251,
+      "notional_usd": 24416.3,
+      "net_usd": -13.449,
+      "paths": {
+        "ofi_flatten_taker": 105,
+        "timeout_hard_taker": 39,
+        "stop_loss_taker": 33,
+        "reversal_decay_taker": 9,
+        "trail_lock_taker": 8,
+        "ofi_flatten_maker": 6,
+        "take_profit_taker": 4
+      }
+    },
+    "ADD": {
+      "n": 151,
+      "spread_bp": 0.534,
+      "price_bp": -0.785,
+      "fee_bp": 0.0,
+      "net_bp": -0.251,
+      "notional_usd": 17404.6,
+      "net_usd": 0.181,
+      "paths": {}
+    }
+  },
+  "net_usd_total": -14.431,
+  "entry_spread_bp": 0.471,
+  "exit_spread_bp": -0.458
+}

@@ -1,0 +1,67 @@
+{
+  "boundary": "2026-09-11 10:19",
+  "days": 30,
+  "totals": {
+    "before": {
+      "n": 0,
+      "net": 0.0,
+      "avg": 0.0,
+      "wr": 0.0,
+      "hold": 0.0
+    },
+    "after": {
+      "n": 2,
+      "net": -0.4439881385487921,
+      "avg": -0.22199406927439605,
+      "wr": 0.0,
+      "hold": 19.613626201111114
+    }
+  },
+  "channels": {
+    "long_trend_v2": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 1,
+        "net": -0.3935318636187801,
+        "avg": -0.3935318636187801,
+        "wr": 0.0,
+        "hold": 0.02816933638888889
+      }
+    },
+    "sl": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 1,
+        "net": -0.050456274930012,
+        "avg": -0.050456274930012,
+        "wr": 0.0,
+        "hold": 39.199083065833335
+      }
+    }
+  },
+  "suppressed_exit_events": 0,
+  "suppressed_session_events": 0,
+  "shadow_channels": [
+    "mid|exit_policy",
+    "mid|midlong",
+    "mid|sl",
+    "mid|trend_broken",
+    "short|lifecycle_time_decay",
+    "short|max_hold_timeout",
+    "short|scalp_review_time_decay",
+    "short|sl",
+    "short|symbol_removed"
+  ]
+}

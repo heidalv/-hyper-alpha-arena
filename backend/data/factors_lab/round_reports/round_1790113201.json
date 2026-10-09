@@ -1,0 +1,152 @@
+{
+  "ok": true,
+  "round_ts": 1790113201.8097825,
+  "iso": "2026-09-22T21:40:01.809782+00:00",
+  "stages": {
+    "literature": {
+      "ok": false,
+      "fetched": 0,
+      "fed": 0,
+      "error": "HTTP Error 406: Not Acceptable"
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 3,
+      "rejected": 9
+    },
+    "engineer": {
+      "candidates": 6,
+      "unit_pass": 3
+    },
+    "backtest": {
+      "evaluated": 3,
+      "best_ic": 0.02877
+    },
+    "feedback": {
+      "stats": {
+        "pass": 1,
+        "reject": 2,
+        "fail": 3
+      },
+      "guidance": "存在通过候选：下一轮在通过机制的正交方向延伸（不同数据字段或不同窗口尺度），而非同族加密。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1790113270946_0",
+      "expr_id": "eb98550c13c09479",
+      "hyp": "h1790113269712_0",
+      "note": "20日上涨天数占比，衡量收益符号一致性",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.0257,
+      "icir": 0.1082,
+      "quantile_spread": 0.003954,
+      "turnover": 0.0747,
+      "ic_half_life_bars": null,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "crowded",
+        "reason": "与已接受因子 AST 相似 0.75 > 0.7"
+      }
+    },
+    {
+      "cand_id": "c1790113270964_1",
+      "expr_id": "d8b2d9135340223d",
+      "hyp": "h1790113269712_0",
+      "note": "20日上涨占比在40日内的时序排名，趋势延续",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.02877,
+      "icir": 0.1274,
+      "quantile_spread": 0.00618,
+      "turnover": 0.1268,
+      "ic_half_life_bars": null,
+      "reason": null,
+      "verdict": {
+        "verdict": "pass",
+        "mode": "pass",
+        "reason": "|RankIC|=0.0288 ICIR=0.1274 spread=0.00618"
+      }
+    },
+    {
+      "cand_id": "c1790113339049_0",
+      "expr_id": "949e8d532daddd02",
+      "hyp": "h1790113269719_1",
+      "note": "20日高低幅均值除以60日高低幅均值，衡量波动扩张比",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790113339057_1",
+      "expr_id": "f76ac42039ef53e2",
+      "hyp": "h1790113269719_1",
+      "note": "用EMA替代均值计算20日与60日高低幅之比，平滑波动扩张",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.01093,
+      "icir": 0.0414,
+      "quantile_spread": 0.001046,
+      "turnover": 0.0329,
+      "ic_half_life_bars": 4,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0109 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1790113357923_0",
+      "expr_id": "0356fcc52c5f1bf7",
+      "hyp": "h1790113269727_2",
+      "note": "20日成交量占比平方和，即HHI",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790113357994_1",
+      "expr_id": "b85ac5409eee5923",
+      "hyp": "h1790113269727_2",
+      "note": "HHI的20日时序排名，捕捉集中度上升",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 188.8
+}

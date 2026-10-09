@@ -992,6 +992,44 @@ class EvolutionScheduler:
             except Exception as _re:
                 logger.debug(f"[EvoScheduler] regime detection failed: {_re}")
 
+            # [2026-09-17 统一策略修复·断点3] factor_snapshot 此前恒传空 dict——LLM 生成
+            # 策略假设从未见过真实因子值。改为逐币取活跃因子集真实值（per-symbol API）。
+            try:
+                import pandas as pd
+
+                from backend.services.ai_decision_integration import build_factor_context
+                from backend.services.kline_data_service import kline_service
+
+                snap = {}
+                for sym in ("BTC", "ETH", "SOL"):
+                    rows = kline_service.get_klines_from_db(sym, "1h", count=200) or []
+                    if not rows:
+                        continue
+                    df = pd.DataFrame(rows)
+                    key = next((c for c in df.columns if "close" in str(c).lower()), None)
+                    if not key:
+                        continue
+                    fc = build_factor_context(sym, df, None)
+                    if fc is None:
+                        continue
+                    vals = []
+                    for k, v in (fc.factor_values or {}).items():
+                        try:
+                            vals.append((str(k), round(float(v), 4)))
+                        except (TypeError, ValueError):
+                            continue
+                    vals.sort(key=lambda kv: -abs(kv[1]))
+                    snap[sym] = {
+                        "regime": str(fc.market_regime),
+                        "top_factors": vals[:8],
+                        "selected": list(fc.selected_factors or [])[:8],
+                    }
+                if snap:
+                    context["factor_snapshot"] = snap
+                    logger.info("[EvoScheduler] factor_snapshot 已注入 %s", list(snap.keys()))
+            except Exception as _fe:
+                logger.warning("[EvoScheduler] factor_snapshot 构建失败（保持空）: %s", str(_fe)[:120])
+
             symbols = ["BTC", "ETH"]
             result = engine.run_full_cycle(context, symbols=symbols, db=db)
 

@@ -1,0 +1,44 @@
+{
+  "features": [
+    "mom_5",
+    "mom_20",
+    "rev_1",
+    "rev_3",
+    "vol_20",
+    "range_14",
+    "wobble_5",
+    "rsi_pct_14",
+    "volz_20",
+    "dd_20",
+    "close_z_60",
+    "turnover_20"
+  ],
+  "metrics": {
+    "n_rows": 14859,
+    "n_dates": 403,
+    "n_symbols": 40,
+    "valid_ndcg10": 0.7985,
+    "valid_rank_ic": -0.0313,
+    "valid_ic_days": 60,
+    "test_rank_ic": 0.037,
+    "test_ndcg10": 0.8115,
+    "test_ic_days": 61,
+    "best_iteration": 5,
+    "trained_at": 1789643737.894864
+  },
+  "ic_weights": {
+    "mom_5": 0.007899296997333043,
+    "mom_20": 0.0,
+    "rev_1": 0.17660950614484988,
+    "rev_3": 0.0,
+    "vol_20": 0.0,
+    "range_14": 0.0,
+    "wobble_5": 0.0,
+    "rsi_pct_14": 0.0,
+    "volz_20": 0.0,
+    "dd_20": 0.39498889295847256,
+    "close_z_60": 0.16179084897728138,
+    "turnover_20": 0.2587114549220631
+  },
+  "period": "1d"
+}

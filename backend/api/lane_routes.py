@@ -335,6 +335,93 @@ def lane_evolution_run(lane_id: str, window_days: float = 14.0) -> Dict[str, Any
     return evo.run_evolution_round(lane_id, window_days=float(window_days))
 
 
+@router.get("/lanes/{lane_id}/board")
+def lane_board(lane_id: str, symbols: Optional[str] = None,
+               depth: int = 20) -> Dict[str, Any]:
+    """[F247] L1 做市 · 实时深度看板（纵向价格梯）。
+
+    设计依据：`docs/MM_实时深度看板设计_F246补全.md`。
+
+    返回每币一张卡片：20 档真实深度（含累计量，前端直接画柱）、top-of-book、
+    中价/点差、**我方挂单及其队列前方量**、持仓浮盈、最近成交。
+
+    数据来源与实测：
+      · `asterdex_depth_snapshots` —— 20 档真实价量、p50 105ms、**仅 10 个币**
+        （BTC/ETH/SOL/XRP/ASTER/HYPE/ZEC/ARB/ONDO/SEI）、94 小时；
+        索引 `ix_adx_depth_sym_ts`，单币最新快照 <1ms。
+      · **无深度的币如实返回 `has_depth=false`，绝不画假深度**（F246 原设计原则）。
+
+    命名：对外一律**裸标的**（`ASTER`），内部拼 `USDT` 查深度表——两张表命名不一致
+    （深度表 `ASTERUSDT` / `market_orderbook_snapshots` 为裸标的），此处统一收口。
+    """
+    from backend.services import lane_registry as reg
+    from backend.services.market_maker.board import BoardService
+    from backend.services.market_maker.runner import get_runner
+
+    lane = reg.get_lane(lane_id)
+    if not lane:
+        raise HTTPException(status_code=404, detail=f"车道不存在: {lane_id}")
+
+    meta = lane.get("meta") or {}
+    if isinstance(meta, str):
+        try:
+            import json as _json
+            meta = _json.loads(meta)
+        except (ValueError, TypeError):
+            meta = {}
+    if symbols:
+        syms = [s.strip() for s in symbols.split(",") if s.strip()]
+    else:
+        syms = list(meta.get("symbols") or [])
+
+    # 引擎运行态（我方挂单/持仓）。车道未运行时给 None，看板仍能显示纯盘口。
+    status = None
+    try:
+        r = get_runner(lane_id)
+        if r is not None:
+            status = r.status()
+    except Exception as e:                      # 运行态取不到不能拖垮看板
+        logger.warning("[lane_routes] board 取运行态失败 %s: %s", lane_id, e)
+
+    # 最近成交（账本），按裸标的归组
+    recent: Dict[str, list] = {}
+    try:
+        from backend.database.connection import SessionLocal
+        from sqlalchemy import text as sa_text
+        with SessionLocal() as db:
+            rows = db.execute(
+                sa_text(
+                    "SELECT symbol, side, price, qty, net_bp, is_close, ts "
+                    "FROM lane_ledger WHERE lane_id = :lid "
+                    "ORDER BY ts DESC LIMIT 60"
+                ),
+                {"lid": lane_id},
+            ).fetchall()
+        for row in rows:
+            sym = str(row[0] or "").upper().replace("USDT", "")
+            if not sym:
+                continue
+            bucket = recent.setdefault(sym, [])
+            if len(bucket) < 5:
+                bucket.append({
+                    "ts": str(row[6]) if row[6] is not None else None,
+                    "side": row[1], "price": float(row[2]) if row[2] is not None else None,
+                    "qty": float(row[3]) if row[3] is not None else None,
+                    "net_bp": float(row[4]) if row[4] is not None else None,
+                    "is_close": bool(row[5]),
+                })
+    except Exception as e:
+        logger.warning("[lane_routes] board 取账本失败 %s: %s", lane_id, e)
+
+    try:
+        return BoardService().board(lane_id, syms, runner_status=status,
+                                    recent_fills=recent, depth_levels=depth)
+    except Exception as e:
+        logger.warning("[lane_routes] board 组装失败 %s: %s", lane_id, e)
+        return {"lane_id": lane_id, "cards": [], "error": str(e),
+                "as_of": datetime.now(timezone.utc).isoformat()}
+
+
 @router.get("/lanes/{lane_id}/shadow")
 def shadow_status(lane_id: str) -> Dict[str, Any]:
     """影子期实时状态：库存、挂单、本进程 tick/fill 计数。"""

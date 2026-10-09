@@ -545,6 +545,22 @@ class LearningLoopService:
                 "retired": sum(1 for s in results.values() if s.recommendation == "retire"),
                 "reduced": sum(1 for s in results.values() if s.recommendation == "reduce"),
             }
+            # [统一策略 2026-09-18·战绩桥] IC 衰减之外叠加逐单增量PnL归因：
+            # 抓"IC 不差但实战持续亏钱"的因子（86432 样本归因已在产出）。
+            try:
+                from backend.database.connection import SessionLocal
+                from backend.services.signal_feedback_tracker import signal_feedback_tracker
+
+                _db = SessionLocal()
+                try:
+                    _contrib = signal_feedback_tracker.analyze_factor_contribution(_db) or {}
+                finally:
+                    _db.close()
+                if _contrib:
+                    _acted = decay_monitor.apply_incremental_pnl(_contrib)
+                    extra["pnl_bridge"] = _acted
+            except Exception as _pb_err:
+                logger.warning(f"[LearningLoop] 增量PnL桥失败（不阻断IC衰减）: {_pb_err}")
         except Exception as e:
             success = False
             # 衰减评估失败必须可见（因子权重保护失效）

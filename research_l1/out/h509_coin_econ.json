@@ -1,0 +1,76 @@
+{
+  "hours": 72.0,
+  "rows": [
+    {
+      "sym": "BNB",
+      "legs": 1537,
+      "entries": 1414,
+      "net_bp": -0.773,
+      "t": -5.33,
+      "usd": -15.699,
+      "usd_per_h": -0.218,
+      "stop_rate": 0.0163,
+      "vol_15s_bp": 1.771,
+      "half_spread_bp": 0.391,
+      "noise_to_edge": 4.524,
+      "capture_bp": 0.122
+    },
+    {
+      "sym": "NEAR",
+      "legs": 480,
+      "entries": 347,
+      "net_bp": -0.389,
+      "t": -0.3,
+      "usd": -3.742,
+      "usd_per_h": -0.052,
+      "stop_rate": 0.2406,
+      "vol_15s_bp": 10.61,
+      "half_spread_bp": 3.248,
+      "noise_to_edge": 3.266,
+      "capture_bp": 1.058
+    },
+    {
+      "sym": "ARB",
+      "legs": 178,
+      "entries": 108,
+      "net_bp": -3.149,
+      "t": -1.62,
+      "usd": -8.904,
+      "usd_per_h": -0.1237,
+      "stop_rate": 0.1429,
+      "vol_15s_bp": 11.008,
+      "half_spread_bp": 3.417,
+      "noise_to_edge": 3.222,
+      "capture_bp": 1.204
+    },
+    {
+      "sym": "XRP",
+      "legs": 787,
+      "entries": 729,
+      "net_bp": 0.123,
+      "t": 0.39,
+      "usd": 3.263,
+      "usd_per_h": 0.0453,
+      "stop_rate": 0.0517,
+      "vol_15s_bp": 3.369,
+      "half_spread_bp": 0.63,
+      "noise_to_edge": 5.35,
+      "capture_bp": 0.169
+    },
+    {
+      "sym": "ENA",
+      "legs": 156,
+      "entries": 101,
+      "net_bp": -1.231,
+      "t": -0.51,
+      "usd": -1.996,
+      "usd_per_h": -0.0277,
+      "stop_rate": 0.2727,
+      "vol_15s_bp": 11.708,
+      "half_spread_bp": 2.896,
+      "noise_to_edge": 4.043,
+      "capture_bp": 1.161
+    }
+  ],
+  "verdict": "最差 BNB（-0.218$/h，净-0.77bp/腿 t=-5.33，止损率 1.6%，噪声/可赚 4.5） vs 最好 XRP（+0.045$/h，净+0.12bp/腿，止损率 5.2%）⇒ 币种间差异**不能**只用噪声/可赚解释，需再看微观结构"
+}

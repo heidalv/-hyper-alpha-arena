@@ -100,6 +100,156 @@ def _scale_plan_by_size_chain(plan, size_multiplier: float, *, respect_raw_sizin
     return sm
 
 
+def _price_plan_once(db, host, session, account_id, plan, decision, *,
+                     price: float, stop_loss, leverage, tier) -> float:
+    """[P1 大轮回 2026-09-27] 一次定价（§7.2）：名义 = 风险预算/止损距离，单币权重上限。
+
+    取代六层缩仓乘子链（乘子只作诊断不消费）。各层闸门的**否决**（allowed=False）
+    已在 evaluate 阶段生效；本函数只定价、不再打折。权益不可得/定价失败 → 回退旧链。
+    """
+    from backend.services.decision_core.risk_pricer import price_once
+    from backend.services.paper_trading_engine import paper_engine
+
+    _equity = 0.0
+    try:
+        _bal = paper_engine.get_balance(db, account_id)
+        _equity = float((_bal or {}).get("total_equity") or 0)
+    except Exception:
+        pass
+    if _equity <= 0:
+        return _scale_plan_by_size_chain(
+            plan, decision.get("size_multiplier"), respect_raw_sizing=False,
+        )
+    _floor = 0.0
+    try:
+        from backend.config.settings import MIDLONG_MIN_PROBE_NOTIONAL_USD
+        _floor = float(MIDLONG_MIN_PROBE_NOTIONAL_USD or 0)
+    except Exception:
+        _floor = 60.0
+    # [P6 bug 修复② 2026-09-28] plan/decision 都无 SL 时，用 finalize 同款默认档
+    # 做止损距离代理（swing 2.5% 等）——旧代码 stop=0 → 定价跌落 $400 地板、
+    # 风险预算公式失效（生产日志 stop=0.000% → 名义 $400 实证）。
+    _stop = _resolve_stop_for_price(plan, stop_loss)
+    if _stop is None:
+        try:
+            from backend.services.full_auto.paper_tp_sl import DEFAULT_TP_SL_BY_NATURE
+            _nature_stop = (decision or {}).get("trade_nature") or "swing"
+            _def_sl_pct, _ = DEFAULT_TP_SL_BY_NATURE.get(_nature_stop, (0.025, 0.060))
+            _is_long_stop = str((decision or {}).get("side") or "buy").lower() in ("buy", "long")
+            _stop = float(price) * (1 - _def_sl_pct) if _is_long_stop else float(price) * (1 + _def_sl_pct)
+            logger.info("[OnePrice] 无显式 SL → 用默认档 %.2f%% 做止损距离代理",
+                        _def_sl_pct * 100)
+        except Exception:
+            _stop = None
+    # [P4 大轮回 2026-09-27 §11.2] 学习后验乘子 m∈[0.5,1.5]（唯一允许的学习乘子）
+    _posterior_mult = 1.0
+    try:
+        _pm_on = (os.getenv("P4_POSTERIOR_MULT_ENABLED", "true") or "true"
+                  ).strip().lower() in ("1", "true", "yes", "on")
+        if _pm_on:
+            from backend.services.learning.bayes_posterior import lane_of as _pm_lane, posterior_multiplier
+            _pm_dir = "long" if str(side or "").lower() in ("buy", "long") else "short"
+            _pm_regime = str((decision or {}).get("market_regime") or "unknown")
+            _posterior_mult = posterior_multiplier(
+                db, lane=_pm_lane(tier), direction=_pm_dir,
+                symbol=str(decision.get("symbol") or ""), regime=_pm_regime,
+            )
+    except Exception as _pm_err:
+        logger.debug("[OnePrice] 后验乘子跳过: %s", _pm_err)
+    out = price_once(
+        equity=_equity, tier=tier, price=float(price), stop_loss=_stop,
+        leverage=leverage, notional_floor_usd=_floor,
+        posterior_mult=_posterior_mult,
+    )
+    if out["notional"] <= 0:
+        logger.info("[OnePrice] %s %s 定价失败（%s）→ 回退旧链",
+                    decision.get("symbol") or "?", tier, out.get("reason"))
+        return _scale_plan_by_size_chain(
+            plan, decision.get("size_multiplier"), respect_raw_sizing=False,
+        )
+    if getattr(plan, "action", "") in ("open", "close_and_open"):
+        plan.notional_usd = out["notional"]
+        plan.margin_usd = out["margin"]
+        plan.size_pct = round(out["notional"] / _equity, 6)
+    decision["_one_price"] = out
+    decision["_one_price_chain_mult"] = decision.get("size_multiplier")
+    logger.info(
+        "[OnePrice] %s %s lane=%s 权益=%.0f 风险预算=%.2f stop=%.3f%% → "
+        "名义 $%.0f 保证金 $%.0f %s（后验乘子 m=%.2f；旧链乘子 %.4f 不再消费）",
+        decision.get("symbol") or "?", side_of(decision), out["lane"], _equity,
+        out["risk_usd"], out["stop_pct"] * 100, out["notional"], out["margin"],
+        "【单币上限】" if out["capped"] else "", _posterior_mult,
+        float(decision.get("size_multiplier") or 1.0),
+    )
+    return 1.0
+
+
+def side_of(decision) -> str:
+    return str(decision.get("side") or "buy")
+
+
+def _resolve_stop_for_price(plan, decision_stop) -> "Optional[float]":
+    """[P6 bug 修复 2026-09-28] 一次定价的止损输入解析：plan 最终 SL 优先。
+
+    decision 的 stop_loss_price 常缺失（SL 由仓位管理器在 plan 上计算），
+    缺失时定价会 stop_pct=0 → 跌落名义地板、风险预算公式失效。
+    """
+    try:
+        _plan_sl = getattr(plan, "stop_loss_price", None)
+        if _plan_sl and float(_plan_sl) > 0:
+            return float(_plan_sl)
+    except (TypeError, ValueError):
+        pass
+    try:
+        _dec_sl = float(decision_stop or 0)
+        if _dec_sl > 0:
+            return _dec_sl
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def pullback_entry(*, decision, side: str, price, tier) -> "tuple[str, float]":
+    """[P3 大轮回 2026-09-27] 回踩限价入场（§6.1）纯决策。
+
+    日内车道（short/mid/scalp/intraday）→ limit @ μ±0.3σ：
+      - 多头：限价 = 现价 × (1 − 0.3σ)；空头：× (1 + 0.3σ)（挂到回调处，不追价）；
+      - σ 代理 = decision.volatility_pct（1h 尺度波动率），下限保护 0.001。
+    趋势车道 / 开关关闭 / 无价 → market（旧行为）。
+    未成交放弃由引擎 pending 限价单 TTL（PAPER_LIMIT_ENTRY_TTL_S=900）执行。
+    回滚：MIDLONG_PULLBACK_ENTRY_ENABLED=false。
+    """
+    try:
+        # 与旧「等回踩再市价」机制（pullback_entry.py 轮19，.env 已关 PCT=0）**不同开关**，
+        # 避免双语义：本实现 = 限价挂单 + TTL 放弃（§6.1 口径）。
+        enabled = (os.getenv("MIDLONG_PULLBACK_LIMIT_ENABLED", "true") or "true"
+                   ).strip().lower() in ("1", "true", "yes", "on")
+    except Exception:
+        enabled = True
+    if not enabled:
+        return "market", float(price or 0)
+    _t = str(tier or "").strip().lower()
+    _s = str(side or "").strip().lower()
+    if _t not in ("short", "mid", "scalp", "intraday"):
+        return "market", float(price or 0)
+    _long = _s in ("long", "buy")
+    if _s not in ("long", "buy", "short", "sell"):
+        return "market", float(price or 0)
+    try:
+        _px = float(price or 0)
+    except (TypeError, ValueError):
+        return "market", 0.0
+    if _px <= 0:
+        return "market", 0.0
+    try:
+        _vol = float((decision or {}).get("volatility_pct") or 0.015)
+    except (TypeError, ValueError):
+        _vol = 0.015
+    _off = 0.3 * max(_vol, 0.001)
+    _limit = round(_px * (1 - _off) if _long else _px * (1 + _off), 8)
+    return "limit", _limit
+
+
 def execute_paper_trade(
     db: Session,
     session,
@@ -294,12 +444,29 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             orchestrator_context=decision.get("_orchestrator_context"),
         )
 
-        # ── [轮154 2026-09-21·用户批准方案 C] 缩仓链乘子必须在 paper 生效 ──
-        # 背景：V5Gate/MTF/tranche/蒙特卡洛/位置闸/learned 六层只产出 size_multiplier，
-        # 而本模块此前从不读取它 ⇒ 风险链的"少买点"完全无效（live 路径读了，paper 没读）。
-        _sm_applied = _scale_plan_by_size_chain(
-            plan, decision.get("size_multiplier"), respect_raw_sizing=_respect_raw,
-        )
+        # ── [P1 大轮回 2026-09-27] 一次定价接管缩仓链 ──
+        # MIDLONG_ONE_PRICE_MODE=true 时：名义 = 风险预算/止损距离（§7.2），
+        # 六层乘子只作诊断（_one_price_chain_mult 记录旧链值）不再相乘。
+        # false = 回滚到旧链（轮154 方案 C 的 PAPER_APPLY_SIZE_MULTIPLIER 路径）。
+        try:
+            from backend.services.decision_core.risk_pricer import one_price_enabled
+            _one_price = one_price_enabled()
+        except Exception:
+            _one_price = False
+        if _one_price:
+            # [P6 bug 修复 2026-09-28] 止损距离优先取 **plan 最终 SL**（仓位管理器
+            # 计算出的实际附着止损，含 VolStopFloor），decision 的 stop_loss_price
+            # 常缺失 → 旧代码 stop=0 → 定价跌落 $400 地板、风险预算公式被绕过。
+            _sm_applied = _price_plan_once(
+                db, host, session, account_id, plan, decision,
+                price=price,
+                stop_loss=_resolve_stop_for_price(plan, stop_loss),
+                leverage=leverage, tier=timeframe_tier,
+            )
+        else:
+            _sm_applied = _scale_plan_by_size_chain(
+                plan, decision.get("size_multiplier"), respect_raw_sizing=_respect_raw,
+            )
         if _sm_applied < 0.999:
             logger.info(
                 "[SizeChain] %s %s 缩仓链生效 size_multiplier=%.4f → 名义 $%.2f 保证金 $%.2f "
@@ -586,6 +753,25 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
 
         # 开新仓
         quantity = plan.notional_usd / price if price > 0 else 0
+        # [2026-10-10 ⑫ 仓位放大] 计划名义放大倍率（权益锚近似；开关 MIDLONG_SIZE_BOOST）
+        try:
+            import os as _os_bo
+
+            _bv = _os_bo.getenv("MIDLONG_SIZE_BOOST")
+            if _bv is None or str(_bv).strip() == "":
+                from pathlib import Path as _Pbo
+
+                for _cb in (_Pbo(__file__).resolve().parents[3] / ".env", _Pbo.cwd() / ".env"):
+                    if _cb.exists():
+                        for _lb in _cb.read_text(encoding="utf-8", errors="replace").splitlines():
+                            if _lb.strip().startswith("MIDLONG_SIZE_BOOST="):
+                                _bv = _lb.split("=", 1)[1].strip().strip('"').strip("'")
+            _boost = float(_bv or 1.0)
+            if _boost > 1.0:
+                logger.info("[SizeBoost] %s 名义放大 x%.1f", symbol, _boost)
+                quantity = quantity * _boost
+        except Exception:
+            pass
         if quantity <= 0:
             host.append_event(session, "trade_skip",
                 f"{symbol}: 计算数量为0")
@@ -609,6 +795,8 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             plan_tp=plan.take_profit_price,
             is_auto_coin=_is_auto_coin,
             on_event=lambda et, msg: host.append_event(session, et, msg),
+            # [P3 §6.1] 波动止损下限输入：σ_1h 代理（决策层 volatility_pct）
+            volatility_pct=float((decision or {}).get("volatility_pct") or 0) if isinstance(decision, dict) else None,
         )
 
         _plan_hold_h = float(
@@ -617,6 +805,30 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
             or 0
         )
         host.recover_db_session(db, label="place_order")
+
+        # [P5 大轮回 2026-09-27 §13.2] 分车道日开仓配额（paper 侧强制）：
+        # 日内 6 笔/天、趋势 2 笔/天（runtime_tuning 唯一来源，前端/进化可热改）。
+        # 回滚：P5_DAILY_QUOTA_PAPER=false。
+        try:
+            _dq_on = (os.getenv("P5_DAILY_QUOTA_PAPER", "true") or "true"
+                      ).strip().lower() in ("1", "true", "yes", "on")
+            if _dq_on:
+                from backend.services.risk.daily_quota import check as _dq_check
+                _verdict = _dq_check(
+                    db, account_id, tier=timeframe_tier, trade_nature=_trade_nature,
+                )
+                if not _verdict.allowed:
+                    host.append_event(
+                        session, "daily_quota_block",
+                        f"⛔ {symbol} 日开仓配额已用尽: {_verdict.reason}",
+                    )
+                    logger.warning(
+                        "[DailyQuota] BLOCK %s %s %s", symbol, timeframe_tier,
+                        _verdict.reason,
+                    )
+                    return False
+        except Exception as _dq_err:
+            logger.warning("[DailyQuota] 跳过(fail-open): %s", _dq_err)
 
         _pos_meta = {}
         _env = (decision or {}).get("_agent_envelope")
@@ -636,6 +848,54 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                 _pos_meta[_tk] = _tv
         if (decision or {}).get("entry_source") and "entry_source" not in _pos_meta:
             _pos_meta["entry_source"] = (decision or {}).get("entry_source")
+        # [P0 2026-09-27 大轮回§2.2] 决策身份**开仓时**确定性写入 open_metadata：
+        # 平仓时直接回读做归因（decision_id 100% 覆盖），不再依赖平仓时刻的
+        # 快照启发式匹配（该匹配曾发生在 TradeOutcome 构建之后，导致归因键恒空）。
+        for _dk in ("_lane_decision_id", "proposal_id", "trace_id", "decision_id"):
+            _dv = (decision or {}).get(_dk)
+            if _dv and _dk not in _pos_meta:
+                _pos_meta[_dk] = str(_dv)[:80]
+
+        # [P3 大轮回 2026-09-27] 回踩限价入场（§6.1）：日内车道不再"信号即市价"，
+        # 改挂 μ±0.3σ 回踩限价单（15 分钟未成交由引擎 TTL 撤单 = 放弃）。
+        # <1h 秒亏 −96.29 的主因是追价；回踩挂单把成交放到回调处。
+        # 趋势车道保持市价。
+        # [P6 bug 修复④ 2026-09-28] 回踩在**新旧两条执行路径**都要生效：
+        # 此前只接在统一执行器（USE_UNIFIED_EXECUTOR 默认 false）→ 生产 0 次命中。
+        _entry_ot, _entry_px = pullback_entry(
+            decision=decision, side=side, price=price, tier=_sub_tier,
+        )
+        if _entry_ot == "limit":
+            logger.info(
+                "[PullbackLimit] %s %s 回踩限价入场: 市价 %.6f → 挂单 %.6f（σ=%.3f%%）",
+                symbol, side, float(price or 0), float(_entry_px or 0),
+                float((decision or {}).get("volatility_pct") or 0.015) * 100,
+            )
+
+        # [2026-10-09 用户指令] 空头改市价：限价等回踩久不成交（ETH limit sell pending 实证）
+        _mkt_short = False
+        try:
+            import os as _os_ps
+
+            _v = _os_ps.getenv("MIDLONG_SHORT_MARKET_ENTRY")
+            if _v is None or str(_v).strip() == "":
+                from pathlib import Path as _Pps
+
+                for _c in (_Pps(__file__).resolve().parents[3] / ".env", _Pps.cwd() / ".env"):
+                    if _c.exists():
+                        for _l in _c.read_text(encoding="utf-8", errors="replace").splitlines():
+                            if _l.strip().startswith("MIDLONG_SHORT_MARKET_ENTRY="):
+                                _v = _l.split("=", 1)[1].strip().strip('"').strip("'")
+            _mkt_short = str(_v or "false").strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            pass
+        if _mkt_short and side in ("sell", "short"):
+            if _entry_ot == "limit":
+                logger.info(
+                    "[ShortMarketEntry] %s %s 限价 %.6f -> 市价", symbol, side, float(_entry_px or 0)
+                )
+            _entry_ot = "market"
+            _entry_px = None
 
         # 阶段 3 统一执行器开关: USE_UNIFIED_EXECUTOR=true 时走 PaperExecutor
         # （封装 paper_engine + trace_id 注入 + 返回值标准化），否则走原路径
@@ -647,8 +907,8 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                order_type="market",
-                price=price,
+                order_type=_entry_ot,
+                price=_entry_px,
                 leverage=plan.leverage,
                 sl_price=_final_sl,
                 tp_price=_final_tp,
@@ -677,11 +937,11 @@ def _execute_paper_trade_inner(db: Session, session, strat, decision: dict, host
                 symbol=symbol,
                 side=side,
                 quantity=quantity,
-                price=price,
+                price=_entry_px,
                 leverage=plan.leverage,
                 sl_price=_final_sl,
                 tp_price=_final_tp,
-                order_type="market",
+                order_type=_entry_ot,
                 strategy_id=strat.strategy_id,
                 timeframe_tier=_sub_tier,
                 trade_nature=_trade_nature,

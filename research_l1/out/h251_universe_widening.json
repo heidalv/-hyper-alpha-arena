@@ -1,0 +1,205 @@
+{
+  "hours": 12.0,
+  "tick_sec": 15.0,
+  "notional": 250.0,
+  "rows": [
+    {
+      "symbol": "SEIUSDT",
+      "hs_p50": 9.7135,
+      "hit_pct": 42.159,
+      "cond_bp": 5.3616,
+      "usd_per_leg": 0.05651,
+      "current": false,
+      "tick_per_s": 0.81
+    },
+    {
+      "symbol": "PENDLEUSDT",
+      "hs_p50": 9.5128,
+      "hit_pct": 69.66,
+      "cond_bp": 13.0677,
+      "usd_per_leg": 0.22757,
+      "current": false,
+      "tick_per_s": 0.924
+    },
+    {
+      "symbol": "VIRTUALUSDT",
+      "hs_p50": 9.1107,
+      "hit_pct": 37.631,
+      "cond_bp": 9.6535,
+      "usd_per_leg": 0.09082,
+      "current": false,
+      "tick_per_s": 0.911
+    },
+    {
+      "symbol": "1000SHIBUSDT",
+      "hs_p50": 5.8348,
+      "hit_pct": 62.858,
+      "cond_bp": 3.5466,
+      "usd_per_leg": 0.05573,
+      "current": false,
+      "tick_per_s": 0.846
+    },
+    {
+      "symbol": "PUMPUSDT",
+      "hs_p50": 4.4326,
+      "hit_pct": 83.718,
+      "cond_bp": 1.4488,
+      "usd_per_leg": 0.03032,
+      "current": false,
+      "tick_per_s": 0.592
+    },
+    {
+      "symbol": "ARBUSDT",
+      "hs_p50": 4.3112,
+      "hit_pct": 69.421,
+      "cond_bp": 1.6199,
+      "usd_per_leg": 0.02811,
+      "current": false,
+      "tick_per_s": 0.744
+    },
+    {
+      "symbol": "ADAUSDT",
+      "hs_p50": 4.0469,
+      "hit_pct": 86.991,
+      "cond_bp": 2.2406,
+      "usd_per_leg": 0.04873,
+      "current": false,
+      "tick_per_s": 0.638
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "hs_p50": 3.8882,
+      "hit_pct": 73.419,
+      "cond_bp": 2.4569,
+      "usd_per_leg": 0.0451,
+      "current": false,
+      "tick_per_s": 0.718
+    },
+    {
+      "symbol": "NEARUSDT",
+      "hs_p50": 3.411,
+      "hit_pct": 96.925,
+      "cond_bp": -0.0899,
+      "usd_per_leg": -0.00218,
+      "current": false,
+      "tick_per_s": 0.766
+    },
+    {
+      "symbol": "WLDUSDT",
+      "hs_p50": 3.3523,
+      "hit_pct": 86.268,
+      "cond_bp": 1.3267,
+      "usd_per_leg": 0.02861,
+      "current": false,
+      "tick_per_s": 0.679
+    },
+    {
+      "symbol": "LITUSDT",
+      "hs_p50": 3.1235,
+      "hit_pct": 82.939,
+      "cond_bp": 0.6778,
+      "usd_per_leg": 0.01405,
+      "current": false,
+      "tick_per_s": 0.692
+    },
+    {
+      "symbol": "ENAUSDT",
+      "hs_p50": 3.093,
+      "hit_pct": 90.778,
+      "cond_bp": 0.1316,
+      "usd_per_leg": 0.00299,
+      "current": false,
+      "tick_per_s": 0.711
+    },
+    {
+      "symbol": "XLMUSDT",
+      "hs_p50": 3.0291,
+      "hit_pct": 88.834,
+      "cond_bp": 1.7028,
+      "usd_per_leg": 0.03782,
+      "current": false,
+      "tick_per_s": 0.618
+    },
+    {
+      "symbol": "UNIUSDT",
+      "hs_p50": 2.7675,
+      "hit_pct": 92.445,
+      "cond_bp": -1.0021,
+      "usd_per_leg": -0.02316,
+      "current": false,
+      "tick_per_s": 0.61
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "hs_p50": 2.6874,
+      "hit_pct": 83.451,
+      "cond_bp": 0.1682,
+      "usd_per_leg": 0.00351,
+      "current": false,
+      "tick_per_s": 0.532
+    },
+    {
+      "symbol": "LTCUSDT",
+      "hs_p50": 2.4981,
+      "hit_pct": 75.259,
+      "cond_bp": 1.1549,
+      "usd_per_leg": 0.02173,
+      "current": false,
+      "tick_per_s": 0.396
+    },
+    {
+      "symbol": "SUIUSDT",
+      "hs_p50": 2.4533,
+      "hit_pct": 94.101,
+      "cond_bp": 0.1647,
+      "usd_per_leg": 0.00388,
+      "current": false,
+      "tick_per_s": 0.718
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "hs_p50": 2.2821,
+      "hit_pct": 87.612,
+      "cond_bp": 0.169,
+      "usd_per_leg": 0.0037,
+      "current": false,
+      "tick_per_s": 0.799
+    },
+    {
+      "symbol": "XMRUSDT",
+      "hs_p50": 2.2577,
+      "hit_pct": 72.83,
+      "cond_bp": -0.2783,
+      "usd_per_leg": -0.00507,
+      "current": false,
+      "tick_per_s": 0.452
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "hs_p50": 2.1348,
+      "hit_pct": 97.859,
+      "cond_bp": -0.6374,
+      "usd_per_leg": -0.01559,
+      "current": false,
+      "tick_per_s": 0.893
+    },
+    {
+      "symbol": "TAOUSDT",
+      "hs_p50": 2.064,
+      "hit_pct": 97.648,
+      "cond_bp": -0.3401,
+      "usd_per_leg": -0.0083,
+      "current": false,
+      "tick_per_s": 0.9
+    },
+    {
+      "symbol": "LINKUSDT",
+      "hs_p50": 1.9355,
+      "hit_pct": 87.147,
+      "cond_bp": 0.3072,
+      "usd_per_leg": 0.00669,
+      "current": false,
+      "tick_per_s": 0.569
+    }
+  ]
+}

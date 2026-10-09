@@ -1,0 +1,21 @@
+{
+  "thr": 0.7,
+  "window": 20,
+  "m": 60.0,
+  "hours": 6.0,
+  "n": 5474,
+  "n_blocked": 1278,
+  "n_allowed": 4196,
+  "blocked": {
+    "hs_median": 0.682,
+    "gross": 1.8966,
+    "adv": 13.4464
+  },
+  "allowed": {
+    "hs_median": 0.4314,
+    "gross": 1.4779,
+    "adv": 9.672
+  },
+  "hours_blocked_better": 0,
+  "hours_compared": 7
+}

@@ -423,6 +423,19 @@ class FactorEngine:
             rows = load_factor_active_rows(
                 ActiveSetRole.TRADABLE, parse_expr=True, limit=50
             )
+            # [F323 2026-09-18 复查修复] 与 `midlong_active_factor_set.py:143`、
+            # 本文件 `:738-743`（allowlist 路径）**同口径**剔除 `seed_bootstrap` 占位种子：
+            # 它们的 icir/IC 是写死的占位值而非评估结果 ⇒ 若混进来，等于让"无证据占位符"
+            # 参与实盘信号合成（实测该桥接载入的 11 个 evo_* 里有 4 个是硬编码种子
+            # seed_rev5/10/20/50，其中 seed_rev10 的 icir 与真因子完全相同＝副本）。
+            _before_filter = len(rows)
+            rows = [r for r in rows
+                    if not str(r.get("source") or "").startswith("seed_bootstrap")]
+            if len(rows) != _before_filter:
+                logger.info(
+                    "[FactorEngine] evo 桥接剔除 %d 个 seed_bootstrap 占位种子（剩 %d）",
+                    _before_filter - len(rows), len(rows),
+                )
 
             for r in rows:
                 expr = r.get("expr")
@@ -756,10 +769,17 @@ class FactorEngine:
                     except Exception:
                         pass
                     allowlist = _ids if _ids else set()
-                    logger.info(
-                        "[FactorEngine] FACTOR_LIVE_ALLOWLIST_ONLY=true：%d 个受治理因子生效",
-                        len(_ids),
-                    )
+                    # [2026-10-08 治理刷屏] 这行每秒刷 1-2 次,把 backend.log 撑爆。
+                    # 改成每分钟最多打 1 次(节流),内容不变。
+                    import time as _t
+                    _now = _t.time()
+                    _last = getattr(self, "_allowlist_log_ts", 0.0)
+                    if _now - _last >= 60.0:
+                        logger.info(
+                            "[FactorEngine] FACTOR_LIVE_ALLOWLIST_ONLY=true：%d 个受治理因子生效",
+                            len(_ids),
+                        )
+                        self._allowlist_log_ts = _now
                 else:
                     _warn_key = ("allowlist_warn", str(market_data.get("symbol") if isinstance(market_data, dict) else "_"))
                     if _warn_key not in getattr(self, "_allowlist_warned", set()):

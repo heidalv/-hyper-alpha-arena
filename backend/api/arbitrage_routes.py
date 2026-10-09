@@ -9,6 +9,7 @@ Arbitrage API Routes — 套利系统独立 API
 
 import asyncio
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
 
@@ -48,12 +49,35 @@ def _get_orchestrator():
 
 @router.get("/status")
 async def get_arbitrage_status():
-    """套利引擎整体状态（含 V3 协调器状态）"""
+    """套利引擎整体状态（含 V3 协调器状态）。
+
+    [F327 2026-09-17] `engine_enabled` 此前**硬编码 True** —— 无论引擎是否真的在跑、
+    无论用户是否已停掉套利中心，前端永远看到"运行中"（本轮现场：车道已全停，
+    本端点仍报 true，用户据此认为"没停"）。
+    现在由 `ARBITRAGE_CENTER_ENABLED`（默认 **false** = 已停止）统一裁决，
+    与 `services/rebate_arb/arb_switches.get_arb_switch_status()` 同源，
+    避免"车道注册表"与"返佣引擎"两套状态互不知情。
+    """
+    _center_on = os.getenv("ARBITRAGE_CENTER_ENABLED", "false").strip().lower() in (
+        "1", "true", "yes", "on")
+    if not _center_on:
+        return {
+            "engine_enabled": False,
+            "mode": "stopped",
+            "tick_count": 0,
+            "active_positions": 0,
+            "scanner_scan_count": 0,
+            "cached_opportunities": 0,
+            "circuit_breaker_active": False,
+            "center_enabled_env": "ARBITRAGE_CENTER_ENABLED",
+            "note": "套利中心已停止（ARBITRAGE_CENTER_ENABLED 未开启）",
+        }
     result = {
         "engine_enabled": True,
         "mode": "paper",
         "tick_count": 0,
         "active_positions": 0,
+        "center_enabled_env": "ARBITRAGE_CENTER_ENABLED",
     }
     try:
         from backend.services.arbitrage.opportunity_scanner import opportunity_scanner

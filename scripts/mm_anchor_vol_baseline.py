@@ -71,12 +71,24 @@ def main() -> int:
     if args.dry_run:
         print(f"\n（dry-run）需更新 {len(changed)} 个币: {changed}")
         return 0
-    rb = dict(meta.get("replay_baseline") or {})
-    rb["vol_baseline_bp"] = {s: round(float(new.get(s) or 0.0), 6) for s in symbols}
-    rb["vol_baseline_anchored_at"] = __import__("datetime").datetime.now(
-        __import__("datetime").timezone.utc).isoformat()
-    rb["vol_baseline_source"] = f"compute_vol_baselines({args.days}d, median realized_vol_bp)"
-    meta["replay_baseline"] = rb
+    # ⚠️ [F249 2026-09-20] 必须**整体重建** `replay_baseline`，不能 `dict(旧块)`。
+    #
+    #   旧写法 `rb = dict(meta.get("replay_baseline") or {})` 会保留两类幽灵：
+    #     ① `vol_baseline_bp` 里**已移出宇宙**的币（实测 TAO/ZEC —— 宇宙换掉后
+    #        它们的键一直留着，读的人会以为宇宙里还有这两个币）；
+    #     ② 顶层陈旧键（`config`/`fills`/`coverage`/`flatten_share`/`penetration_bp`
+    #        —— 那是某次回放的产物，早已失效却仍被读出）。
+    #   宇宙是会被改的，所以任何"宇宙相关"的持久化块都必须**重建而非合并**。
+    _now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+    meta["replay_baseline"] = {
+        "vol_baseline_bp": {s: round(float(new.get(s) or 0.0), 6) for s in symbols},
+        "as_of": _now,
+        "symbols": len(symbols),
+        "window_days": float(args.days),
+        "source": f"compute_vol_baselines({args.days}d, median realized_vol_bp)",
+        "note": ("基准=0 会让 σ 恒为 0 ⇒ vol_pause 对该币永不触发。"
+                 "快照表无数据的币请改用 scripts/mm_anchor_vol_baseline_ticks.py"),
+    }
     ok = reg.update_meta(args.lane, meta)
     print(f"\n{'✅ 已写入注册表' if ok else '❌ 写入失败'}: {len(changed)} 个币更新")
     print("（实盘 runner 在下次重建时读取，需重启后端生效）")

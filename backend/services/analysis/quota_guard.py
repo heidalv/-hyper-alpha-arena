@@ -279,6 +279,13 @@ class QuotaGuard:
         本地传输（ollama）只做 token 上限检查，不受次数配额约束 —— 见 is_local_transport。
         """
         self._load()
+        # [2026-10-03 用户指令] 「随便调用，为什么多出个配额」⇒ **默认关闭配额**：
+        # `ANALYSIS_QUOTA_ENABLED=false`（默认）时预检恒放行，只保留用量记账（llm_quota_usage）
+        # 供观测。原因：默认值（deep 每日 6 / 5h 30 / 周 150）会在无人察觉时把正常调用
+        # 降级成"空响应"，实测 `daily_brief` 每天 07:00 必失败（`quota degrade:
+        # deepseek 5 小时窗已用 64/30`）。要恢复限流：设 ANALYSIS_QUOTA_ENABLED=true。
+        if _env_bool("ANALYSIS_QUOTA_ENABLED", False) is False:
+            return Decision("allow", "", remaining_today=-1)
         b = self.budget
         cls_ = task_class(task)
         if est_context_tokens > b.max_context_tokens:

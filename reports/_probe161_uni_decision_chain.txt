@@ -1,0 +1,161 @@
+﻿
+====================================================================================================
+① 审计：UNI 的 opened / open_attempt 行（今天）
+   今天 UNI 审计 56 行，其中 opened/open_attempt 0 行
+
+   每次开仓时刻前后 6 分钟的 skip 原因分布：
+
+====================================================================================================
+② 后端日志：开仓时刻前后的 UNI 决策行
+
+   ── 02:25~02:35 ──
+     （该时段无含 UNI 的决策行）
+
+   ── 03:05~03:15 ──
+     （该时段无含 UNI 的决策行）
+
+   ── 06:55~07:10 ──
+     （该时段无含 UNI 的决策行）
+
+====================================================================================================
+③ analytics：与 UNI 相关的最近行（row_to_json）
+
+   [mlto_thesis] 600 行里含 'UNI' 的 7 行
+     {"id": 2463, "thesis_id": "02099466-04b3-4820-9999-5ff415d2b442", "session_id": "fa_185f162052", "symbol": "UNI", 
+"tier": "short", "direction": "long", "thesis_summary": "日内波段（持仓4-12h）：UNI 现价 6.298-6.32 已回落至 4h 区间 6.17-6.836 下沿，24h -
+4.33% 的回调未跌破 6.17 支撑；近 1h 跌幅 -0.88% 小于 1h ATR 1.94%，下行动能降速，24h 多头清算 55.6 万 > 空头 22.4 万显示杠杆多头已先行清洗，资金费 0.0065-0.01%/8h 温
+和无过热，构成 1h 级别区间下沿支撑企稳的做多依据（日线缩量回调量z=-1.9 与 V2 L1=up 仅作方向背景，非开仓理由）。现价落在 entry_zone 6.21-6.33 内：1h/4h 收盘跌破 6.17（对应失效价 6.1
+6）无条件离场，止损约 2.2%；目标先看 4h EMA21≈6.39，延伸 6.49-6.55，止盈约 3.5%。FOMC 18:00 UTC 在预期持仓窗口之外，但临近重大宏观事件，若提前走弱立即离场。", "llm_convicti
+on": 55, "hub_composite": 0, "hub_adjusted": 0, "consistency": 0, "open_readiness": 0, "stable_since": "2026-0
+     {"id": 2452, "thesis_id": "7a58434f-c1b0-4ccf-95f2-1f301345b963", "session_id": "fa_185f162052", "symbol": "UNI", 
+"tier": "mid", "direction": "long", "thesis_summary": "周线反弹96%后EMA多头排列完好、日线守EMA21(6.29)维持突破回踩偏多结构；但4h EMA已转bearish且量z=+
+4.2放量滞涨、周RSI73.5超买、global_ls=1.55/top_ls=3.61拥挤、三周期背离，现价6.677已突破24h区间上沿6.503约0.28×ATR(1d)追高性价比差。结构上偏向回踩6.29-6.45再行评估，现价
+偏离入场区上沿约0.23美元≈0.36×ATR，按纪律等回踩不追。", "llm_conviction": 48, "hub_composite": 0, "hub_adjusted": 0, "consistency": 0, "ope
+n_readiness": 0, "stable_since": "2026-09-15T08:28:58.249647", "review_count": 51, "tranche_stage": 0, "regime_hash": "
+", "invalidation_json": "{\"price\": 6.05, \"condition\": \"4h收盘跌破6.05且伴随量能放大，则周/日线偏多结构作废\", \"direction\": nu
+     {"id": 2444, "thesis_id": "25e90489-4d1c-4053-95d8-4a69aba4e71d", "session_id": "fa_7e12e7a1b6", "symbol": "UNI", 
+"tier": "short", "direction": "short", "thesis_summary": "现价7.031处于1d/4h区间91%/85%极高位，1w/1d RSI 82严重超买，量z=-1.6/-0.8量价背离，
+4h RSI 47.7动能衰减且摆动止于LH——结构偏空（赔率向下3-16% vs 向上仅5%）；但日内波段缺1h/15m K线验证回踩深度、reflexion同向long 14d净亏且胜率0.25，现有空单论题历史n仅2且净亏-0.05
+，禁止裸追空。entry_zone上沿7.40已超现价+5.3%（超过0.5×ATR14_1d=4.17%门槛），现价相对入场区偏高追空风险大，recommend_open=false，等待4h回踩至7.20-7.00区间（EMA9/密集
+成交区）并出现4h看跌吞没/放量跌破6.94再行开仓。", "llm_conviction": 55, "hub_composite": 0, "hub_adjusted": 0, "consistency": 0, "open_read
+iness": 0, "stable_since": "2026-09-07T14:26:20.878965", "review_count": 15, "tranche_stage": 0, "regime_hash"
+     {"id": 2394, "thesis_id": "f334e61e-de71-441e-8427-48eb0ba86386", "session_id": "fa_7e12e7a1b6", "symbol": "UNI", 
+"tier": "long", "direction": "long", "thesis_summary": "UNI 大周期（1w/1d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8
+.863 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h/4h 短周期回调，资金费转正、global_ls=1.698/top_pos_ls=3.241
+ 显示多头拥挤度偏高，且本币 long 侧近 14 日 19 笔胜率仅 47%、连续多笔小亏。现价虽落在入场区上沿，但属追高位置，风险回报不佳，故不开新仓、等 4h 结构转强或回踩 8.6 附近再评估。", "llm_conviction
+": 28, "hub_composite": 0, "hub_adjusted": 0, "consistency": 0, "open_readiness": 0, "stable_since": "2026-09-05T11:07:
+06.864392", "review_count": 103, "tranche_stage": 0, "regime_hash": "", "invalidation_json": "{\"price\": 8.45
+
+   [mlto_debate_log] 600 行里含 'UNI' 的 44 行
+     {"id": 594, "debate_id": "d07cd2bc-1c3d-4913-ae98-0738fbdea7c6", "thesis_id": "982fc260-f1d4-400c-9f19-9cf054fcec3
+c", "round_num": 1, "side": "bear", "content_json": "{\"symbol\": \"UNI\", \"tier\": \"mid\", \"proposal\": {\"symbol\"
+: \"UNI\", \"tier\": \"mid\", \"direction\": \"long\", \"confidence\": 0.52}, \"verdict\": \"reduce\", \"net_sentiment\
+": 0.025, \"consensus_confidence\": 0.2075, \"used_llm\": true, \"arguments\": [\"{\\\"argument\\\":\\\"UNI 在 7d +35.68
+% / 30d +106% 的爆发性拉升后，多周期 RSI 与持仓结构已显著透支，任何追多的风险回报比都不对称。日内 pos24=70.7% 接近区间上沿，中期 1d RSI=75.9 严重超买，长期距 EMA200 高达 111.56%
+，均值回归概率远大于趋势延续。同时全局宏观 score=-0.075 偏空，技术面强势与战略面背离，long 仓位的安全边际极薄。\\\",\\\"confidence\\\":0.72,\\\"evidence\\\"
+     {"id": 593, "debate_id": "2b3ace84-91fd-486b-90cc-c8e543002e8b", "thesis_id": "982fc260-f1d4-400c-9f19-9cf054fcec3
+c", "round_num": 1, "side": "bull", "content_json": "{\"symbol\": \"UNI\", \"tier\": \"mid\", \"proposal\": {\"symbol\"
+: \"UNI\", \"tier\": \"mid\", \"direction\": \"long\", \"confidence\": 0.52}, \"verdict\": \"reduce\", \"net_sentiment\
+": 0.025, \"consensus_confidence\": 0.2075, \"used_llm\": true, \"arguments\": [\"UNI的多周期结构呈现典型的'中期趋势延续+短期动量过热+长期超买'组合。
+4h EMA仍维持bullish、technical信号强度0.59且置信度1.0，配合7d+35.68%/30d+106.11%的中期动量，说明趋势尚未结构性反转；资金费率多数交易所处于0.01%上下的中性区，未出现拥挤多头的极端读数，
+说明当前上涨并未由杠杆驱动，可持续性更强。\", \"{\\\"direction\\\":\\\"bull\\\",\\\"strength\\\":5,\\\"key_factors\\\":[\\\"1h/4h E
+     {"id": 580, "debate_id": "d0aa3370-ed80-438c-a17e-65b6147626eb", "thesis_id": "982fc260-f1d4-400c-9f19-9cf054fcec3
+c", "round_num": 1, "side": "bear", "content_json": "{\"symbol\": \"UNI\", \"tier\": \"mid\", \"proposal\": {\"symbol\"
+: \"UNI\", \"tier\": \"mid\", \"direction\": \"long\", \"confidence\": 0.47}, \"verdict\": \"reduce\", \"net_sentiment\
+": 0.0, \"consensus_confidence\": 0.2117, \"used_llm\": true, \"arguments\": [\"{\\\"argument\\\":\\\"UNI当前价位处于短期高位区间、R
+SI日线触及超买区（76），且30天涨幅超100%，均值回归与获利了结风险显著大于进一步上行的赔率，long置信度0.47是高估的。1h虽维持EMA看涨，但atr仅1.94%意味着波动已被压缩、缺乏突破动能；多周期指标间的背离（1h RS
+I 56.9中性 vs 1d RSI 76超买）表明散户在低位已先行做多，主力推升空间有限。\\\", \\\"confidence\\\":0.62, \\\"evidence\\\":[\\\"1d RSI=76.0
+     {"id": 579, "debate_id": "d8a5e352-f57b-4bb4-b8cb-7e540abce5b9", "thesis_id": "982fc260-f1d4-400c-9f19-9cf054fcec3
+c", "round_num": 1, "side": "bull", "content_json": "{\"symbol\": \"UNI\", \"tier\": \"mid\", \"proposal\": {\"symbol\"
+: \"UNI\", \"tier\": \"mid\", \"direction\": \"long\", \"confidence\": 0.47}, \"verdict\": \"reduce\", \"net_sentiment\
+": 0.0, \"consensus_confidence\": 0.2117, \"used_llm\": true, \"arguments\": [\"{\\\"argument\\\":\\\"UNI在多周期趋势结构上呈现高度一
+致的看涨对齐：日内EMA趋势bullish且资金费率全面温和正、中期4h趋势bullish叠加周/月级别两位数到三位数涨幅、长期价格远离EMA200达112%且站稳其上，量价技术面评分0.533(置信1.0)。综合证据链支持逢低做多的中线
+思路。\\\",\\\"confidence\\\":0.5,\\\"evidence\\\":[\\\"1h EMA趋势=bullish，RSI14=56.9处于健康中位，未现超买\\\", \\\"24h涨幅+2.1
+
+   [analyst_blend_shadow] 600 行里含 'UNI' 的 34 行
+     {"id": 639, "ts": "2026-09-21T09:44:33.215485", "symbol": "UNI", "tier": "long", "conviction_before": 28, "analyst
+_score": 0.1988, "gain": 0.15, "blended": 28.84, "would_change": true, "applied": false, "contributions_json": "{\"flow
+\": {\"score\": -0.261, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"scor
+e\": 1.0, \"conf\": 0.18, \"w\": 0.05, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"macro\": {\"score\": -0.075, \"conf
+\": 0.35, \"w\": 0.1, \"symbol\": \"*\", \"quality\": \"ok\"}, \"sentiment\": {\"score\": -0.05, \"conf\": 0.67, \"w\":
+ 0.2, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"technical\": {\"score\": 0.602, \"conf\": 1.0, \"w\": 0.3, 
+     {"id": 627, "ts": "2026-09-21T09:19:28.950696", "symbol": "UNI", "tier": "mid", "conviction_before": 52, "analyst_
+score": 0.2069, "gain": 0.15, "blended": 53.61, "would_change": true, "applied": false, "contributions_json": "{\"flow\
+": {\"score\": -0.322, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"score
+\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"macro\": {\"score\": -0.075, \"conf\"
+: 0.35, \"w\": 0.1, \"symbol\": \"*\", \"quality\": \"ok\"}, \"sentiment\": {\"score\": 0.0, \"conf\": 0.33, \"w\": 0.2
+, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"technical\": {\"score\": 0.59, \"conf\": 1.0, \"w\": 0.3, \"sym
+     {"id": 613, "ts": "2026-09-21T08:43:48.990004", "symbol": "UNI", "tier": "mid", "conviction_before": 47, "analyst_
+score": 0.1785, "gain": 0.15, "blended": 48.26, "would_change": true, "applied": false, "contributions_json": "{\"flow\
+": {\"score\": -0.323, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"score
+\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"macro\": {\"score\": -0.075, \"conf\"
+: 0.35, \"w\": 0.1, \"symbol\": \"*\", \"quality\": \"ok\"}, \"sentiment\": {\"score\": 0.0, \"conf\": 0.33, \"w\": 0.2
+, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"technical\": {\"score\": 0.533, \"conf\": 1.0, \"w\": 0.3, \"sy
+     {"id": 612, "ts": "2026-09-21T08:42:47.055369", "symbol": "UNI", "tier": "long", "conviction_before": 25, "analyst
+_score": 0.1785, "gain": 0.15, "blended": 25.67, "would_change": true, "applied": false, "contributions_json": "{\"flow
+\": {\"score\": -0.323, \"conf\": 0.75, \"w\": 0.25, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"kline_deep\": {\"scor
+e\": 1.0, \"conf\": 0.2, \"w\": 0.05, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"macro\": {\"score\": -0.075, \"conf\
+": 0.35, \"w\": 0.1, \"symbol\": \"*\", \"quality\": \"ok\"}, \"sentiment\": {\"score\": 0.0, \"conf\": 0.33, \"w\": 0.
+2, \"symbol\": \"UNI\", \"quality\": \"ok\"}, \"technical\": {\"score\": 0.533, \"conf\": 1.0, \"w\": 0.3, \"s
+
+   [ai_decision_logs] 600 行里含 'UNI' 的 34 行
+     {"id": 463313, "account_id": 0, "decision_time": "2026-09-21T09:44:33.033434", "reason": "UNI 大周期（1w/1d）多头结构完好、1d 
+ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.863 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h/4h 短周期回调
+，资金费转正、global_ls=1.698/top_pos_ls=3.241 显示多头拥挤度偏高，且本币 long 侧近 14 日 19 笔胜率仅 47%、连续多笔小亏。现价虽落在入场区上沿，但属追高位置，风险回报不佳，故不开新仓、等 
+4h 结构转强或回踩 8.6 附近再评估。", "operation": "buy", "symbol": "UNI", "prev_portion": 0.0, "target_portion": 0.0, "total_balance
+": 0.0, "executed": "false", "order_id": null, "prompt_snapshot": null, "reasoning_snapshot": "UNI 大周期（1w/1d）多头结构完好、1d 
+ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.863 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h
+     {"id": 463300, "account_id": 0, "decision_time": "2026-09-21T09:17:57.018024", "reason": "1w/1d 多头结构完好（EMA 全多头、ADX
+14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 75.9 超买，4h MACD 柱 -0.088、1h 转弱，属强趋势中的高位整理；现价 8.838 已贴近 24h 高
+点 9.01 与入场区上沿，且 UNI 近 14d 多头连续三笔 -1.77%~-1.96% 止损、相似情景 5 例中 2 例止损，故不追高，等回踩 8.62-8.87 再评估。", "operation": "buy", "symbol
+": "UNI", "prev_portion": 0.0, "target_portion": 0.0, "total_balance": 0.0, "executed": "false", "order_id": null, "pro
+mpt_snapshot": null, "reasoning_snapshot": "1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8
+、1d RSI 75.9 超买，4h MACD 柱 -0.088、1h 转弱，属强趋势中的高位整理；现价 8.838 已贴近 24h 高点 9.01 与入场区上沿，且 UNI 近 14d 多头连续三笔 -1.77%~-1
+     {"id": 463287, "account_id": 0, "decision_time": "2026-09-21T08:42:46.950155", "reason": "UNI 大周期（1w/1d）多头结构完好、1d 
+ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.849 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，4h MACD 柱转负、1h 与 4h 短周期
+回调，资金费转正、global_ls=1.669/top_pos_ls=3.229 显示多头拥挤度偏高，且本币 long 侧近 14 日 19 笔胜率仅 47%、连续多笔小亏。现价虽落在入场区上沿附近，但属区间上沿追多、风险回报不佳，故不
+开新仓，等回踩 8.62-8.70 或放量站稳 8.98 再评估。", "operation": "buy", "symbol": "UNI", "prev_portion": 0.0, "target_portion": 0.0, "t
+otal_balance": 0.0, "executed": "false", "order_id": null, "prompt_snapshot": null, "reasoning_snapshot": "UNI 大周期（1w/1
+d）多头结构完好、1d ADX14=49 强趋势、价格位于 90 期区间上沿附近，方向看多；但现价 8.849 已贴近 24h 高点 9.01 与阻力 8.98，1w RSI 71.8、1d RSI 76.0 超买，4h
+     {"id": 463286, "account_id": 0, "decision_time": "2026-09-21T08:42:46.334187", "reason": "1w/1d 多头结构完好（EMA 全多头、ADX
+14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1d RSI 76 超买，4h MACD 柱 -0.087、1h 转弱，属强趋势中的高位整理；现价 8.849 已贴近 24h 高点 
+9.01 与入场区上沿，且 UNI 近 14d 多头连续三笔 -1.77%~-1.96% 止损、相似情景 5 例中 3 例止损，故不追高，等回踩 8.62-8.85 再评估。", "operation": "buy", "symbol":
+ "UNI", "prev_portion": 0.0, "target_portion": 0.0, "total_balance": 0.0, "executed": "false", "order_id": null, "promp
+t_snapshot": null, "reasoning_snapshot": "1w/1d 多头结构完好（EMA 全多头、ADX14=49、距 EMA200 +112%、1w 20 期收益 +171%），但 1w RSI 71.8、1
+d RSI 76 超买，4h MACD 柱 -0.087、1h 转弱，属强趋势中的高位整理；现价 8.849 已贴近 24h 高点 9.01 与入场区上沿，且 UNI 近 14d 多头连续三笔 -1.77%~-1.96%
+
+====================================================================================================
+④ 分析输入里有没有'刚在该价位被止损 N 次'这类信息？（代码层搜索）
+   命中 126 处：
+      backend/api/account_routes.py:1518: recent_trades
+      backend/api/account_routes.py:1522: recent_trades
+      backend/api/account_routes.py:1523: recent_trades
+      backend/config/prompt_templates.py:256: recent_trades
+      backend/config/refresh_config.py:54: recent_trades
+      backend/services/agent_deep_context.py:274: recent_trades
+      backend/services/agent_deep_context.py:277: recent_trades
+      backend/services/agent_evidence_builder.py:56: recent_trades
+      backend/services/agent_evidence_builder.py:57: recent_trades
+      backend/services/agent_quant_feature_table.py:3: recent_loss
+      backend/services/agent_quant_feature_table.py:148: recent_trades
+      backend/services/agent_quant_feature_table.py:156: recent_trades
+      backend/services/agent_quant_feature_table.py:191: recent_trades
+      backend/services/agent_quant_feature_table.py:461: recent_trades
+      backend/services/agent_quant_feature_table.py:464: recent_trades
+      backend/services/agent_quant_feature_table.py:565: recent_trades
+      backend/services/agent_quant_feature_table.py:568: recent_trades
+      backend/services/agent_quant_feature_table.py:571: recent_trades
+      backend/services/agent_quant_feature_table.py:578: 亏损次数
+      backend/services/agent_quant_feature_table.py:630: recent_loss
+      backend/services/agent_quant_feature_table.py:650: 亏损次数
+      backend/services/ai_decision_service.py:1036: recent_trades
+      backend/services/ai_decision_service.py:1059: recent_trades
+      backend/services/ai_decision_service.py:1071: recent_trades
+      backend/services/ai_decision_service.py:1078: recent_trades
+      backend/services/ai_decision_service.py:1080: recent_trades
+      backend/services/ai_decision_service.py:1127: recent_trades
+      backend/services/ai_decision_service.py:1129: recent_trades
+      backend/services/ai_decision_service.py:1132: recent_trades
+      backend/services/ai_decision_service.py:1754: recent_trades
+
+

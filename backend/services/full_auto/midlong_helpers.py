@@ -17,6 +17,28 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
+def _mtf_veto_to_shrink() -> bool:
+    """用户授权：MTF 逆势否决降级为缩仓（.env 直读兜底）。"""
+    import os as _os_m
+
+    v = _os_m.getenv("MIDLONG_SHORT_MTF_VETO_TO_SHRINK")
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("MIDLONG_SHORT_MTF_VETO_TO_SHRINK="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v if v is not None else "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+
 def _keep0_float(v, default):
     """保留显式 0 的浮点配置读取。
 
@@ -242,6 +264,18 @@ def ai_pool_symbols(db: Session, session, tier: str, *, ttl: float = 60.0) -> se
     return set(syms)
 
 
+def _aistrat_provision_commit_enabled() -> bool:
+    """[2026-09-27 R4] 按需建的 AI 策略是否立即落库（默认 **true**）。
+
+    为什么要修：只 `flush` 不 `commit` ⇒ 执行侧的 fresh session 查不到该策略 ⇒
+    `ensure_bound_strategy` 返回 None ⇒ `策略对象无效或已 detach` ⇒ mid 开仓全丢
+    （实测 `ai_auto_*` 今日 0 行，车道整天空转）。
+    回滚：`MIDLONG_AISTRAT_PROVISION_COMMIT=false`（非法值 fail-closed = 不落库 = 旧行为）。
+    """
+    return (os.getenv("MIDLONG_AISTRAT_PROVISION_COMMIT", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 def count_ai_provisioned_today(db: Session) -> int:
     """今日已按需创建的策略数（按命名前缀计数）。**读失败按超限处理**（不建）。"""
     from backend.database.models import AIStrategy as _AIS
@@ -424,6 +458,27 @@ def provision_ai_strategy(db: Session, session, sym_u: str, tier: str,
     )
     db.add(row)
     db.flush()
+    # ── [2026-09-27 R4 用户指令·修"一直在空转"] 按需建的策略**必须落库** ──────────
+    # 现场（账户 14，2026-09-27 22:03，LINK mid）：本函数只 `flush` 不 `commit`，
+    # 于是执行侧的新会话（`paper_execution._execute_paper_trade_inner` 用 fresh session）
+    # 按 strategy_id 重查时 **查不到** ⇒ `ensure_bound_strategy` 返回 None ⇒
+    # `策略对象无效或已 detach` ⇒ 整条 mid 开仓中止。
+    # 实测后果：`ai_strategies` 里 `ai_auto_*` 今日 **0 行**（全都随事务蒸发），
+    # AI 选币选出的 HYPE/SEI/LINK/AAVE 等候选每天被评估、被缩仓、被抬底，
+    # 然后在最后一步静默丢掉 —— 这就是用户看到的"一直在空转"。
+    # 开关 `MIDLONG_AISTRAT_PROVISION_COMMIT`（默认 true）；回滚置 false = 退回只 flush。
+    if _aistrat_provision_commit_enabled():
+        try:
+            db.commit()
+        except Exception as _commit_err:  # noqa: BLE001
+            logger.warning(
+                "[AIStrat] %s tier=%s 新建策略落库失败(按未建处理): %s",
+                _sym, _tier, _commit_err)
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            return None
 
     # 让本会话立即认得它（与 resolve_independent_strategy 的跨账户分支同口径）
     try:
@@ -721,7 +776,7 @@ def try_execute_independent_agent_open(
             direction=_act,
             market_data=(market_summary or {}).get(_sym_u) if isinstance(market_summary, dict) else None,
         )
-        if _mtf.veto:
+        if _mtf.veto and not _mtf_veto_to_shrink():
             logger.info("[MidLongMTF] BLOCK %s %s: %s", _sym_u, _act, _mtf.reason)
             host.append_event(
                 session, "midlong_mtf_block",
@@ -729,6 +784,8 @@ def try_execute_independent_agent_open(
             )
             _audit_skip(f"midlong_mtf_block:{_mtf.reason}")
             return False
+        if _mtf.veto:
+            logger.info("[MidLongMTF] VETO->SHRINK %s %s: %s", _sym_u, _act, _mtf.reason)
         _mtf_size_mult = float(_mtf.size_multiplier or 1.0)
     except Exception as _mtf_err:
         logger.debug("[MidLongMTF] %s 约束跳过: %s", _sym_u, _mtf_err)
@@ -1300,6 +1357,8 @@ def try_execute_independent_agent_open(
         "invalidation_condition": invalidation_condition or "",
         "expected_hold_hours": float(expected_hold_hours or 0),
         "tranche_margin_pct": _tranche_mult,
+        # [2026-10-09 A1'-b] 试探标记下传：proposal_execution 的模板族豁免需要它
+        "_probe_entry": bool(probe_entry) or "",
         # [轮117 2026-09-19] 下传 sl_pct：缩仓链地板需要把"乘子乘积"换算成**名义**才能判断
         # 是不是"名义≈0 的废单"（乘子本身没有绝对含义 —— 六层叠乘下 0.0009 与 0.09% 名义
         # 是两回事）。proposal_execution 用它算 base = equity × risk / sl。
@@ -1491,6 +1550,7 @@ def try_execute_independent_agent_open(
                 dir_src=dir_src,
                 authority=authority,
                 session_id=str(getattr(session, "session_id", "") or ""),
+                tier=str(tier or ""),   # [2026-10-02] 补 tier：否则按 tier 过滤的漏斗恒 opened=0
             )
         except Exception as _aud_err:
             logger.debug("[MidLongAudit] open record skip: %s", _aud_err)

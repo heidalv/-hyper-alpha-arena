@@ -52,7 +52,64 @@ def build_proposal_execution_host(svc) -> ProposalExecutionHost:
     )
 
 
+def _num_env(name: str, default: float = 0.0) -> float:
+    """数值型开关：先 os.getenv，取不到则直读 .env（本仓库 .env 键不进进程）。"""
+    import os as _os_n
+
+    v = _os_n.getenv(name)
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _c in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _c.exists():
+                    continue
+                for _line in _c.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith(name + "="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    try:
+        return float(v if v is not None else default)
+    except Exception:
+        return float(default)
+
+
+logger.info("[Fingerprint] proposal_execution loaded v20261009-2143")
+
+
+def _flag_env(name: str, default: str = "false") -> bool:
+    """开关读取：先 os.getenv，取不到则**直读 .env**。
+
+    [2026-10-09] 实测本仓库 `.env` 的键**不会进入后端进程的 os.environ**
+    （同一问题导致 ANALYSIS_* 配额键、FWD_LABEL_TABLE 标注开关、以及本文件的
+    MIDLONG_PROBE_ALLOW_TEMPLATE_SOURCES 全部"名存实亡"）。
+    故凡是"开关必须可靠生效"的场合都走这里。
+    """
+    import os as _os_h
+
+    v = _os_h.getenv(name)
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("#") or "=" not in _s:
+                        continue
+                    if _s.startswith(name + "="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v if v is not None else default).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _mark_block(code: str, *, detail: str = "") -> None:
+    logger.info("[MarkBlock] code=%s detail=%s", code, (detail or "")[:60])
     """[§52] 把本层拒绝原因登记给漏斗审计（不改行为，失败静默）。"""
     try:
         from backend.services.mlto.open_block_reason import mark_open_block
@@ -176,8 +233,11 @@ def _evaluate_and_execute_proposal_inner(
         try:
             _ac = getattr(host, "auto_create_strategy", None)
             _mkt_i = (market_summary or {}).get(sym_u)
-            if callable(_ac) and isinstance(_mkt_i, dict):
-                _created = _ac(db, session, sym_u, dict(_mkt_i))
+            # [2026-10-09 A] 缺 market_summary 时也允许尝试补建（默认关；实测 HYPE/INJ/NEAR 从未尝试）
+            _allow_no_mkt = str(__import__('os').getenv('MIDLONG_AUTOCREATE_WITHOUT_MARKET','false')).strip().lower() in ('1','true','yes','on')
+            if callable(_ac) and (isinstance(_mkt_i, dict) or _allow_no_mkt):
+                _mkt_payload = dict(_mkt_i) if isinstance(_mkt_i, dict) else {'symbol': sym_u, '_no_market': True}
+                _created = _ac(db, session, sym_u, _mkt_payload)
                 if _created:
                     logger.info("[Agent独立] %s tier=%s 策略缺位已补建 %s", sym_u, tier, str(_created)[:18])
                     strat = host.resolve_independent_strategy(db, session, sym_u, tier)
@@ -207,7 +267,58 @@ def _evaluate_and_execute_proposal_inner(
         except Exception:
             _sbt, _lbt = True, True
         _sid_now = str(getattr(strat, "strategy_id", "") or "")
-        if _sid_now.startswith("tpl_"):
+        # [2026-10-04 用户指令 A1'-b] 试探仓豁免模板族来源封锁。
+        # 实测：近 3h 审计 446 行中 eval_false:long_template_source_block 占 59（执行阶段唯一硬拦点）；
+        # probe_entry:waiting_pullback 313 行只是标记（代码已放行 rec_open_false）⇒ 照字面做 A1 是空操作。
+        # 知情依据：该封锁源于 30 天实测 tpl_模板 long = 21 笔、净 -127.29、均 -6.06。
+        # 本豁免是在知情该亏损前提下按用户明确指令重开该格，因此严格限定：
+        #   仅试探仓生效（携带 probe 标记，或请求名义敞口 <= 试探下限），尺寸仍走 NIBBLE 最小档，
+        #   其余闸（位置/预算/组合/宪法/新鲜度）一条都不豁免。
+        # 开关 MIDLONG_PROBE_ALLOW_TEMPLATE_SOURCES（默认 false = 与今日行为一致）。
+        _probe_exempt = False
+        try:
+            import os as _os_a1
+
+            _a1_on = _flag_env("MIDLONG_PROBE_ALLOW_TEMPLATE_SOURCES", "false")
+            if _a1_on:
+                # [修正] 只引用本函数作用域内**确实存在**的名字（签名见 L136-145：
+                # db/session/proposal/market_summary/host/session_mode/strat）。
+                # 之前误引 dto/thesis/requested_notional ⇒ NameError 被 except 吞掉
+                # ⇒ 豁免恒为 False（功能为零却不报错）。
+                _a1_mark = str(
+                    getattr(proposal, "_probe_entry", "") or getattr(proposal, "probe_entry", "")
+                    or (getattr(proposal, "extra", None) or {}).get("_probe_entry", "") or ""
+                )
+                _a1_req = float(getattr(proposal, "notional_usd", 0)
+                                or getattr(proposal, "requested_notional", 0)
+                                or getattr(proposal, "size_usd", 0) or 0.0)
+                _a1_floor = float(_os_a1.getenv("MIDLONG_MIN_PROBE_NOTIONAL_USD", "60") or 60)
+                _probe_exempt = bool(_a1_mark) or (0 < _a1_req <= _a1_floor)
+                # 运行期证据：便于确认豁免是否真的生效（此前只有静态断言、无法验证）
+                try:
+                    _a1_keys = sorted(list(getattr(proposal, "__dict__", {}) or {}))[:16]
+                    _a1_dump = {
+                        _k: str(getattr(proposal, _k, ""))[:26]
+                        for _k in _a1_keys
+                        if any(_s in _k.lower() for _s in ("probe", "reason", "source", "notional", "size", "nature", "type", "tag"))
+                    }
+                except Exception:
+                    _a1_keys, _a1_dump = [], {}
+                logger.info(
+                    "[A1-b] 探针判定 sym=%s tier=%s mark=%r req=%.2f floor=%.1f exempt=%s keys=%s dump=%s",
+                    sym_u, tier, _a1_mark, _a1_req, _a1_floor, _probe_exempt, _a1_keys, _a1_dump,
+                )
+        except Exception:
+            _probe_exempt = False
+        try:
+            logger.info(
+                "[A1-b] probe-eval sid=%s tier=%s exempt=%s on=%s extra_repr=%s",
+                _sid_now[:16], tier, _probe_exempt, bool(_a1_on),
+                str(getattr(proposal, "extra", None))[:160],
+            )
+        except Exception:
+            pass
+        if _sid_now.startswith("tpl_") and not _probe_exempt:
             if action in ("sell",) and _sbt:
                 logger.info(
                     "[Agent独立] %s tier=%s 模板族策略禁止开空（sid=%s）",
@@ -228,6 +339,9 @@ def _evaluate_and_execute_proposal_inner(
                 )
                 _mark_block("long_template_source_block", detail=f"sid={_sid_now[:14]}")
                 return False
+        if _sid_now.startswith("tpl_") and _probe_exempt:
+            logger.info("[A1-b] %s tier=%s 试探仓豁免模板族封锁生效（sid=%s, action=%s）",
+                        sym_u, tier, _sid_now[:14], action)
 
     _trade_mode = host.session_trading_mode(session)
     account_id = int(getattr(session, "paper_account_id", None) or getattr(session, "account_id", None) or 0)
@@ -333,6 +447,17 @@ def _evaluate_and_execute_proposal_inner(
         logger.info(
             "[TrancheGate] DOWNSIZE symbol=%s tier=%s stage→size×%.2f", sym_u, tier, _tranche_mult,
         )
+    # [2026-10-09 利用率修复] 基础仓位无权益锚 + 分档×V5×MTF 三重连乘 ⇒ 实测 0.12×0.25=0.030
+    # < MIDLONG_MIN_SIZE_MULT(0.05)，每次中线开仓都撞 [SizeFloor] BLOCK（代码注释 reports/_probe117b.txt
+    # 记录了"中线因此冻结一整天"）。开关打开时给最终乘子设下限，避免连乘误杀。
+    try:
+        _floor = _num_env("MIDLONG_MIN_SIZE_MULT_FLOOR", 0.0)
+        _cur = float(dec.get("size_multiplier") or 1.0)
+        if _floor > 0 and _cur < _floor:
+            logger.info("[SizeFloorFix] %s tier=%s size×%.3f → 下限 %.3f（解除连乘误杀）", sym_u, tier, _cur, _floor)
+            dec["size_multiplier"] = _floor
+    except Exception:
+        pass
 
     # ── [轮108 2026-09-19] 缩仓链地板：多层独立缩仓相乘会把仓位压到"事实上不开" ──
     # 实测（13:00 线上）：`[V5Gate] ×0.25` → `[TrancheGate] stage→size×0.00`，
@@ -578,6 +703,27 @@ def _evaluate_and_execute_proposal_inner(
                         if _exp_hold > 0:
                             _exit_state["expected_hold_hours"] = _exp_hold
                         _exit_state["lifecycle_state"] = "initial"
+                        # [P0 2026-09-29 §10.9] 账面 regime 开仓快照（mid 层）：
+                        # 同向仓数（含本仓）+ z_btc + funding_z + m——为学习/复盘提供
+                        # 入场时刻的账面环境，与 edge_gate 判定同源。
+                        try:
+                            if str(getattr(_pos, "timeframe_tier", "") or "").strip().lower() == "mid":
+                                import time as _t_bs
+                                from backend.services.full_auto import edge_gate as _eg
+                                _z_btc = _eg.z_btc_mom(_t_bs.time())
+                                _snap = {"ts": int(_t_bs.time()), "z_btc": _z_btc}
+                                _snap["same_dir_open"] = _eg._open_same_dir(
+                                    int(account_id or 0), str(action or "long"), "mid")
+                                _zf = _eg.funding_z(sym_u, _t_bs.time())
+                                _snap["funding_z"] = _zf
+                                _is_long = str(action or "").lower() in ("long", "buy")
+                                if _z_btc is not None and _zf is not None and _is_long:
+                                    _snap["m"] = (_z_btc + _zf) / (2 ** 0.5)
+                                elif _z_btc is not None and not _is_long:
+                                    _snap["m"] = abs(_z_btc)   # 空头假设：funding 权重 0
+                                _exit_state["book_snapshot"] = _snap
+                        except Exception as _bs_err:
+                            logger.debug("[S2-5] book_snapshot 写入跳过: %s", _bs_err)
                         # [M1-A 2026-08-21] 落库 entry_source：出场分流据此识别
                         # 因子仓（factor_route 仓禁方向复查碎平）。历史仓无键
                         # → unknown，保持现有复查行为不变。

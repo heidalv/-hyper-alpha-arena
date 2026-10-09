@@ -1,0 +1,57 @@
+{
+  "started_at": "2026-09-28T18:33:15.457988+00:00",
+  "by_path": [
+    {
+      "path": "(入场腿)",
+      "legs": 116,
+      "net_bp": 1.255798275862069,
+      "fee_bp": 0.0,
+      "notional": 10016.41452039788
+    },
+    {
+      "path": "timeout_hard_taker",
+      "legs": 17,
+      "net_bp": -3.609052941176471,
+      "fee_bp": -4.0,
+      "notional": 1606.98887851096
+    },
+    {
+      "path": "ofi_flatten_maker",
+      "legs": 8,
+      "net_bp": -2.7357125,
+      "fee_bp": 0.0,
+      "notional": 720.3989996910469
+    },
+    {
+      "path": "stop_loss_taker",
+      "legs": 6,
+      "net_bp": -69.30401666666667,
+      "fee_bp": -4.0,
+      "notional": 435.9261801391368
+    },
+    {
+      "path": "take_profit_taker",
+      "legs": 3,
+      "net_bp": 38.48036666666666,
+      "fee_bp": -2.6666666666666665,
+      "notional": 355.40861936300917
+    },
+    {
+      "path": "trail_lock_taker",
+      "legs": 1,
+      "net_bp": -30.628700000000002,
+      "fee_bp": -4.0,
+      "notional": 71.17532490666933
+    },
+    {
+      "path": "reversal_decay_taker",
+      "legs": 1,
+      "net_bp": -42.571799999999996,
+      "fee_bp": -4.0,
+      "notional": 47.2896
+    }
+  ],
+  "taker_legs": 28,
+  "total_legs": 152,
+  "heartbeat_with_new_label": 78
+}

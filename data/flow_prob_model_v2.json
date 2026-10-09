@@ -1,0 +1,80 @@
+{
+  "ts": 1791103100.6842194,
+  "horizon_sec": 90.0,
+  "hours": 8,
+  "cost_bp": 6.0,
+  "report": [
+    {
+      "symbol": "NEAR",
+      "n": 1874,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 0,
+      "edge_cal_bp": null,
+      "brier_raw": 0.1735,
+      "brier_cal": 0.1654
+    },
+    {
+      "symbol": "PENGU",
+      "n": 1874,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 17,
+      "edge_cal_bp": null,
+      "brier_raw": 0.2086,
+      "brier_cal": 0.1767
+    },
+    {
+      "symbol": "CBRS",
+      "n": 1870,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 168,
+      "edge_cal_bp": -5.968910660864382,
+      "brier_raw": 0.248,
+      "brier_cal": 0.2289
+    },
+    {
+      "symbol": "RESOLV",
+      "n": 1874,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 1,
+      "edge_cal_bp": null,
+      "brier_raw": 0.1316,
+      "brier_cal": 0.1248
+    },
+    {
+      "symbol": "1000SHIB",
+      "n": 1859,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 0,
+      "edge_cal_bp": null,
+      "brier_raw": 0.1454,
+      "brier_cal": 0.1209
+    },
+    {
+      "symbol": "COIN",
+      "n": 1874,
+      "n_abs": 0,
+      "edge_abs_bp": null,
+      "n_rel": 0,
+      "edge_rel_bp": null,
+      "n_cal": 0,
+      "edge_cal_bp": null,
+      "brier_raw": 0.0704,
+      "brier_cal": 0.0649
+    }
+  ]
+}

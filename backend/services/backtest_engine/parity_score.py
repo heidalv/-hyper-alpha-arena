@@ -149,7 +149,14 @@ class ParityScoreResult:
     n_bt_trades: int
     symbols: List[str] = field(default_factory=list)
     available: bool = False
-    score: float = 1.0
+    # [F350 2026-09-18] 默认值由 1.0 改为 None。
+    # 旧默认 1.0 + 两条 `available=False` 的提前 return **都不传 score** ⇒
+    # "样本不足/回测无交易、根本没比对"被写成 **score=1.0（满分）**，落进
+    # `data/parity_score_history.jsonl` 与周报。实测 2026-09-12：5 条 nature 里
+    # 4 条是这种"没比对=1.0"，唯一真比对的 swing 是 0.0 ⇒ 报表上"满分"与"零分"
+    # 并存，而满分那几条其实什么都没测。与同文件 63-72 行那处**已知并记录**的
+    # 常数基准缺陷不同：这一处没有任何注释、也没有被作者识别，属fail-open 读数。
+    score: Optional[float] = None
     metrics: List[ParityMetric] = field(default_factory=list)
     alert: bool = False
     frozen: bool = False
@@ -160,7 +167,12 @@ class ParityScoreResult:
             "nature": self.nature, "tier": self.tier, "lookback_days": self.lookback_days,
             "computed_at": self.computed_at, "n_live_trades": self.n_live_trades,
             "n_bt_trades": self.n_bt_trades, "symbols": self.symbols,
-            "available": self.available, "score": round(self.score, 4),
+            "available": self.available,
+            # [F350] 未比对 ⇒ score 必须是 None，不能是数字（否则"没测"读成"满分"）。
+            # 附加 score_measured 便于消费方显式判断，且不改变 available=True 时的数值口径。
+            "score": (round(self.score, 4)
+                      if (self.available and self.score is not None) else None),
+            "score_measured": bool(self.available and self.score is not None),
             "metrics": [vars(m) for m in self.metrics],
             "alert": self.alert, "frozen": self.frozen, "reason": self.reason,
         }
@@ -360,6 +372,13 @@ def _run_backtest_side(
             continue
         try:
             engine = LivePipelineBacktestEngine(initial_capital=10000)
+            # [F353 2026-09-18 口径披露] 参考回放用的是 **DEFAULT_PIPELINE_PARAMS**，
+            # 而实盘侧用的是各车道真实参数（中线 SL/TP 来自主脑论题的动态 SL/TP）。
+            # ⇒ 两侧**参数不同**，"live 27% vs bt 57% 胜率"这类差值因此是
+            # 「参数差 + 执行差」的混合，不能单独归因于执行/过拟合。
+            # 历史报告里的 reason 与逐指标表**没有披露这一点**，读者会误读为
+            # "同一套策略实盘更差"。此处只加口径注释（不改行为）；要真正可比，
+            # 需要把实盘当窗参数回填进回放（待办，见报告 §17.7）。
             result = engine.run(bars, DEFAULT_PIPELINE_PARAMS, tier=tier)
         except Exception as e:
             logger.warning(f"[ParityScore] {sym} 回测回放异常: {e}")
@@ -627,9 +646,11 @@ def run_parity_score_pipeline(
             continue
 
         results[nature] = r.to_dict()
+        # [F350] score 在未比对时为 None ⇒ 日志必须自己兜住（旧写法 `{r.score:.3f}` 会 TypeError）
+        _score_txt = f"{r.score:.3f}" if r.score is not None else "n/a(未比对)"
         logger.info(
             f"[ParityScore] nature={nature} available={r.available} "
-            f"score={r.score:.3f} live_trades={r.n_live_trades} bt_trades={r.n_bt_trades} reason={r.reason}"
+            f"score={_score_txt} live_trades={r.n_live_trades} bt_trades={r.n_bt_trades} reason={r.reason}"
         )
         try:
             with open(HISTORY_PATH, "a", encoding="utf-8") as f:

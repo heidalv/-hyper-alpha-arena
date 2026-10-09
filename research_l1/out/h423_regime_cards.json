@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-10-09T16:45:15.328275+00:00",
+  "window_hours": 12.0,
+  "recheck_hours": 6.0,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "PUMP",
+    "PLAY"
+  ],
+  "cards": [
+    {
+      "symbol": "PLAY",
+      "gate": "A_against_f60",
+      "day": "2026-10-10",
+      "breaks": [
+        "flow_streak",
+        "spread_jump"
+      ],
+      "n": 329,
+      "mean_bp": 2.726,
+      "t": 4.12,
+      "flag": "against_f60 闸边际失负"
+    },
+    {
+      "symbol": "PLAY",
+      "gate": "C_with_f120",
+      "day": "2026-10-10",
+      "breaks": [
+        "flow_streak",
+        "spread_jump"
+      ],
+      "n": 978,
+      "mean_bp": -2.109,
+      "t": -4.42,
+      "flag": "流律 with 桶失正"
+    },
+    {
+      "symbol": "PLAY",
+      "gate": "C_with_f60",
+      "day": "2026-10-10",
+      "breaks": [
+        "flow_streak",
+        "spread_jump"
+      ],
+      "n": 978,
+      "mean_bp": -1.736,
+      "t": -4.83,
+      "flag": "流律 with 桶失正"
+    }
+  ]
+}

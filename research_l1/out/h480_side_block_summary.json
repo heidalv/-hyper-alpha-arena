@@ -1,0 +1,90 @@
+{
+  "samples": 81,
+  "verdict": "**不可判读（方法无效）**：无标记仓位在 0–30s 的加仓侧存在率只有 0%（n=6）⇒ 加仓侧缺失由**其它闸门**（trend/ofi/model）主导，无法归因于超期闸。 对照 P45 仓位 0–30s 存在率 83% (n=6) ⇒ 口径本身有区分度，但**无标记子集**在构造上就是『被其它闸门压住』的仓位。",
+  "table": {
+    "P1|120-300": {
+      "n": 10,
+      "add_side_present": 0
+    },
+    "P1|0-30": {
+      "n": 3,
+      "add_side_present": 1
+    },
+    "P1|45-60": {
+      "n": 3,
+      "add_side_present": 1
+    },
+    "P1|30-45": {
+      "n": 2,
+      "add_side_present": 1
+    },
+    "P1|60-75": {
+      "n": 3,
+      "add_side_present": 0
+    },
+    "P1|75-90": {
+      "n": 1,
+      "add_side_present": 0
+    },
+    "P1|90-120": {
+      "n": 3,
+      "add_side_present": 0
+    },
+    "P45|0-30": {
+      "n": 6,
+      "add_side_present": 5
+    },
+    "P45|30-45": {
+      "n": 2,
+      "add_side_present": 1
+    },
+    "P45|45-60": {
+      "n": 3,
+      "add_side_present": 2
+    },
+    "P45|60-75": {
+      "n": 3,
+      "add_side_present": 1
+    },
+    "P45|75-90": {
+      "n": 2,
+      "add_side_present": 1
+    },
+    "无标记|0-30": {
+      "n": 6,
+      "add_side_present": 0
+    },
+    "P45|90-120": {
+      "n": 6,
+      "add_side_present": 2
+    },
+    "无标记|30-45": {
+      "n": 3,
+      "add_side_present": 1
+    },
+    "P45|120-300": {
+      "n": 27,
+      "add_side_present": 7
+    },
+    "无标记|45-60": {
+      "n": 3,
+      "add_side_present": 0
+    },
+    "无标记|60-75": {
+      "n": 3,
+      "add_side_present": 0
+    },
+    "无标记|75-90": {
+      "n": 3,
+      "add_side_present": 0
+    },
+    "无标记|90-120": {
+      "n": 6,
+      "add_side_present": 0
+    },
+    "无标记|120-300": {
+      "n": 24,
+      "add_side_present": 0
+    }
+  }
+}

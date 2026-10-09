@@ -379,6 +379,149 @@ def _run_account(db, account_id: int, tg: Dict[str, Any], rules, do_exec: bool) 
                             db.commit()
                         except Exception:
                             db.rollback()
+                # ══════════════════════════════════════════════════════════════════
+                # [2026-09-24 用户指令 · 止损归一之二] E1 车道的**统一保本提升**。
+                # 与 decide_long 的 P0 同阈值同口径（峰值 ≥2% → SL 推保本；峰值 ≥3% → 锁峰值利润 1/3），
+                # 开关 LONG_SL_UNIFY（默认 true）。修的是"ETH/SOL 峰值 +6% 以上却一直挂在 −3%"。
+                # 峰值口径：取 DB peak_pnl_pct（小数、无杠杆价格%）与
+                # peak_unrealized_pnl/(entry×size) 反推值中的**较大者**（防单侧口径失真）。
+                # 单调：只上移（paper 引擎自身也有"只收紧不放宽"守卫，双保险）。
+                # 回滚：.env 置 LONG_SL_UNIFY=false。
+                # ══════════════════════════════════════════════════════════════════
+                try:
+                    from backend.services.long_tier_manager import (
+                        _BREAKEVEN_PEAK_PCT as _BE_PCT,
+                        lock_profit_frac as _lock_frac_fn,
+                        _LOCK_PROFIT_PEAK_PCT as _LOCK_PCT,
+                    )
+                    # [第15轮] 锁利比例走开关 LONG_LOCK_PEAK_FRAC（默认 1/3；设 0.5 = V4 候选）
+                    _LOCK_FRAC = _lock_frac_fn()
+                    _unify_on = str(os.getenv("LONG_SL_UNIFY", "true")).strip().lower() in (
+                        "1", "true", "yes", "on")
+                    _entry_u = float(p.get("entry_price") or 0)
+                    if _unify_on and _entry_u > 0:
+                        # [2026-09-24 修] peak 口径：**以 DB 列为准**（小数、无杠杆价格%，引擎每 tick 更新），
+                        # 仅在列为空/为 0 时才用 peak_unrealized_pnl/(entry×size) 反推——
+                        # 后者在**分批减仓后会被放大**（size 变小 ⇒ 同一美元峰值反推出更大百分比，
+                        # 实测 BTC 11.5%→23.1%、XRP 14.2%→29.4%，会把锁利线推到市价上方）。
+                        # get_positions 的 dict 里该字段是百分数（×100），>1.5 折成小数。
+                        _peak_u = float(p.get("peak_pnl_pct") or 0)
+                        if _peak_u > 1.5:
+                            _peak_u = _peak_u / 100.0
+                        if _peak_u <= 0:
+                            try:
+                                _notion_u = _entry_u * float(p.get("size") or 0)
+                                if _notion_u > 0:
+                                    _peak_u = float(p.get("peak_unrealized_pnl") or 0) / _notion_u
+                            except Exception:
+                                pass
+                        _cand_u = None
+                        if _peak_u >= _LOCK_PCT:
+                            _cand_u = _entry_u * (1.0 + _peak_u * _LOCK_FRAC)
+                        elif _peak_u >= _BE_PCT:
+                            _cand_u = _entry_u
+                        if _cand_u is not None and _cand_u > cur_sl + 1e-9:
+                            _act(actions, "breakeven_sl" if do_exec else "would_breakeven_sl",
+                                 symbol=p.get("symbol"), position_id=p.get("id"),
+                                 old_sl=cur_sl, new_sl=round(float(_cand_u), 8),
+                                 peak_pct=round(_peak_u, 4))
+                            if do_exec:
+                                paper_engine.update_position_tp_sl(
+                                    db, int(p.get("id") or 0), sl_price=float(_cand_u),
+                                    sl_source="profit_lock")
+                                try:
+                                    db.commit()
+                                except Exception:
+                                    db.rollback()
+                                logger.info(
+                                    "[E1][保本提升] %s 峰值 %.2f%% → SL %.4f→%.4f",
+                                    p.get("symbol"), _peak_u * 100, cur_sl, _cand_u)
+                except Exception as _be_e:
+                    logger.debug("[E1][保本提升] 跳过: %s", _be_e)
+                # ══════════════════════════════════════════════════════════════════
+                # [2026-09-24 用户指令 · 长线动态止盈] E1 车道分档止盈执行化。
+                # 根因：E1 长线仓（account 14 现有 4 仓全部 is_e1=True）只由本日任务管理，
+                # 而本任务原先**只有 Chandelier 收紧**、没有任何止盈 ⇒ 峰值 +6.4%~+14.2%
+                # 全程无锁定、回吐 ≈$100（用户实盘观测："长线基本上没有止盈"）。
+                # 语义（与 decide_long 同档位同开关 LONG_STAGED_TP_EXEC）：
+                #   收盘 ≥ entry×1.08 → 减 50%（占当前仓）；≥1.15 → 再减 50%；
+                #   ≥1.25 → 清剩余；每次触发后 SL 推保本；幂等标记 exit_state_json.staged_tp_done。
+                # 每天最多触发一档（break），避免同一天连续减仓。
+                # 回滚：.env 置 LONG_STAGED_TP_EXEC=false。
+                # ══════════════════════════════════════════════════════════════════
+                try:
+                    from backend.services.long_tier_manager import _staged_tp_exec_enabled as _stp_on
+                    if _stp_on():
+                        _es_e1 = _exit_state(p)
+                        _done_e1 = []
+                        try:
+                            _done_e1 = [int(x) for x in (_es_e1.get("staged_tp_done") or [])]
+                        except Exception:
+                            _done_e1 = []
+                        _entry_e1 = float(p.get("entry_price") or 0)
+                        # [2026-09-24 修 · 逐笔验收发现] 触发必须**同时**满足：
+                        #   ① 日线收盘 ≥ 档位（信号面）；② **当前市价 ≥ 档位**（执行面）。
+                        # 只用日线收盘会出事：E1 的 as_of_bar 有 1 天以上滞后，
+                        # 实测 AVAX 日线收 11.242（+9.8%）而实时价只有 10.20 ⇒ 按日线触发
+                        # 会在**亏损价**上减仓（oid 24196 成交 −$0.48）。加市价确认后不会。
+                        _mark_e1 = float(p.get("mark_price") or 0)
+                        if _entry_e1 > 0 and close > 0:
+                            for _i, (_sp, _ratio) in enumerate(((8.0, 0.5), (15.0, 0.5), (25.0, 1.0))):
+                                if (_i + 1) in _done_e1:
+                                    continue
+                                _thr_e1 = _entry_e1 * (1.0 + _sp / 100.0)
+                                if close >= _thr_e1 and (_mark_e1 <= 0 or _mark_e1 >= _thr_e1):
+                                    _qty_e1 = float(p.get("size") or 0) * _ratio
+                                    _act(actions, "staged_tp" if do_exec else "would_staged_tp",
+                                         symbol=p.get("symbol"), position_id=p.get("id"),
+                                         stage=_i + 1, ratio=_ratio, quantity=_qty_e1,
+                                         entry=_entry_e1, close=close)
+                                    if do_exec and _qty_e1 > 0:
+                                        paper_engine.close_position(
+                                            db, account_id, p.get("symbol"), "long",
+                                            reason=f"trend_e1:staged_tp{_i + 1}",
+                                            quantity=_qty_e1, strategy_id=p.get("strategy_id"),
+                                            position_id=int(p.get("id") or 0) or None)
+                                        try:
+                                            paper_engine.update_position_tp_sl(
+                                                db, int(p.get("id") or 0),
+                                                sl_price=_entry_e1, sl_source="staged_tp")
+                                            _set_structural_stop(db, int(p.get("id") or 0), _entry_e1)
+                                        except Exception as _sl_e1:
+                                            logger.debug("[E1][staged_tp] 推保本失败: %s", _sl_e1)
+                                        try:
+                                            import json as _json_e1
+                                            from backend.database.models import PaperPosition as _PPe1
+                                            _row_e1 = db.query(_PPe1).filter(
+                                                _PPe1.id == int(p.get("id") or 0)).first()
+                                            if _row_e1 is not None:
+                                                _d_e1 = _json_e1.loads(_row_e1.exit_state_json or "{}") \
+                                                    if isinstance(_row_e1.exit_state_json, str) \
+                                                    else (_row_e1.exit_state_json or {})
+                                                if not isinstance(_d_e1, dict):
+                                                    _d_e1 = {}
+                                                _l_e1 = _d_e1.get("staged_tp_done")
+                                                if not isinstance(_l_e1, list):
+                                                    _l_e1 = []
+                                                if (_i + 1) not in _l_e1:
+                                                    _l_e1.append(_i + 1)
+                                                _d_e1["staged_tp_done"] = _l_e1
+                                                _row_e1.exit_state_json = _json_e1.dumps(
+                                                    _d_e1, ensure_ascii=False)
+                                        except Exception as _mk_e1:
+                                            logger.debug("[E1][staged_tp] 幂等标记写入失败: %s", _mk_e1)
+                                        try:
+                                            db.commit()
+                                        except Exception:
+                                            db.rollback()
+                                        logger.info(
+                                            "[E1][staged_tp] %s 第%d档触发：close=%.4f ≥ entry×%.2f，"
+                                            "减 %.0f%% 并推保本 SL→%.4f",
+                                            p.get("symbol"), _i + 1, close, 1 + _sp / 100.0,
+                                            _ratio * 100, _entry_e1)
+                                    break  # 一天只触发一档
+                except Exception as _stp_e:
+                    logger.debug("[E1][staged_tp] 跳过: %s", _stp_e)
                 # 权重超目标（相对 rebalance_tol）→ 减仓到目标；低于目标不追加（金字塔另议，避免追高）
                 aw = _notional(p) / equity if equity > 0 else 0.0
                 tw_acct = tw * bucket_fraction()

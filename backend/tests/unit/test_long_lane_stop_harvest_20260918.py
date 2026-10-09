@@ -459,10 +459,15 @@ def test_fast_path_consults_the_verdict_before_closing():
 
 
 def test_mid_trailing_config_is_widened():
-    """`.env`：中车道追踪激活 1.0→2.5、回调 0.5→1.2（治"涨 1.5% 回吐 0.5% 就走"）。"""
+    """`.env`：中车道追踪 1.0/0.5 → 2.5/1.2（09-18）→ **5.0/2.5（2026-09-24 第1轮）**。
+
+    [2026-09-24] 按用户「09-15 之前样本作废」规则重验：`cf_mid_trail_grid.py --days 9`
+    （n=114 中线已平仓，双价源）追踪 5.0/2.5 Δ期望 +1.027pp(kline)/+1.078pp(agg)，
+    前半 +1.450/+1.605、后半 +0.604/+0.559 全部非负，尾部与基线持平 ⇒ 落地为 5.0/2.5。
+    """
     env = (ROOT / ".env").read_text(encoding="utf-8", errors="replace")
-    assert "EXIT_POLICY_MID_TRAILING_ACTIVATION_PCT=2.5" in env
-    assert "EXIT_POLICY_MID_TRAILING_CALLBACK_PCT=1.2" in env
+    assert "EXIT_POLICY_MID_TRAILING_ACTIVATION_PCT=5.0" in env
+    assert "EXIT_POLICY_MID_TRAILING_CALLBACK_PCT=2.5" in env
     # 生效值不得含编码损坏字符
     for line in env.splitlines():
         s = line.strip()

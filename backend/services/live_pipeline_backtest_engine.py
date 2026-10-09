@@ -10,6 +10,7 @@
 import logging
 import math
 import os
+import threading
 import time
 import uuid
 import numpy as np
@@ -50,6 +51,126 @@ logger = logging.getLogger(__name__)
 # （见 strategy_evolver._load_bars）与 TTL 提升，每轮预计算次数 8 → 1。
 _FACTOR_DIR_CACHE: Dict[tuple, tuple] = {}  # (symbol, timeframe, ts0, n) -> (written_at, series)
 _FACTOR_DIR_TTL = int(os.getenv("PIPELINE_FACTOR_DIR_TTL_SEC", str(12 * 3600)))
+# [F341 2026-09-18 · B4 phase 2 step 1] 因子归因（因子名级）开关，**默认关**：
+# 开启后 `_compute_factor_direction_windowed` 会为每根 bar 旁路保存**全因子值**，
+# 内存与耗时随 bars 线性增长（而该函数正跑在预计算循环里，见 §6.4 B4 的 phase 2 规格）。
+_FACTOR_ATTR_ENABLED = os.getenv("BACKTEST_FACTOR_ATTR", "0").strip().lower() in (
+    "1", "true", "yes", "on")
+
+
+def attribute_trades_by_factor(trades: List[Any], sidecar: Dict[int, Dict[str, float]]
+                               ) -> Dict[str, Dict[str, float]]:
+    """[F342 2026-09-18 · B4 phase 2 step 2] 因子名级**覆盖度归因**（可单测的纯函数）。
+
+    ⚠️ 口径声明（重要，避免重犯第 4 路审计指出的错误）：这是**覆盖度归因，不是增量 alpha**——
+    它比较"该因子在开仓 bar 上活跃（v>0 / v<0）的那批交易"的盈亏，**没有对照组、无反事实、无加性分解**。
+    审计已实证 `SignalFeedbackTracker` 的同类口径会让 1,474 个因子名只产生 238 个不同取值。
+    因此：字段名用 `coverage_attr`，不得当作"因子贡献"对外表述；真增量归因需反事实（见报告 §6.4 phase 2 后续）。
+
+    返回 {factor_id: {"n_long","n_short","pnl_long","pnl_short","avg_bp_long","avg_bp_short",
+                      "coverage"}}；coverage = 该因子在开仓 bar 上有值（非 0）的交易占比。
+    """
+    out: Dict[str, Dict[str, float]] = {}
+    total = 0
+    for t in trades or []:
+        bar_i = int(getattr(t, "entry_bar", -1) or -1)
+        vals = sidecar.get(bar_i) if isinstance(sidecar, dict) else None
+        if not vals:
+            continue
+        total += 1
+        pnl = float(getattr(t, "pnl", 0.0) or 0.0)
+        notional = abs(float(getattr(t, "quantity", 0.0) or 0.0)
+                       * float(getattr(t, "entry_price", 0.0) or 0.0))
+        for fid, v in vals.items():
+            try:
+                v = float(v)
+            except Exception:
+                continue
+            b = out.setdefault(str(fid), {"n_long": 0, "n_short": 0, "pnl_long": 0.0,
+                                          "pnl_short": 0.0, "bp_long": 0.0, "bp_short": 0.0,
+                                          "coverage": 0.0})
+            if v > 0:
+                b["n_long"] += 1
+                b["pnl_long"] += pnl
+                b["bp_long"] += (pnl / notional * 1e4) if notional > 0 else 0.0
+            elif v < 0:
+                b["n_short"] += 1
+                b["pnl_short"] += pnl
+                b["bp_short"] += (pnl / notional * 1e4) if notional > 0 else 0.0
+    for fid, b in out.items():
+        n_l, n_s = int(b["n_long"]), int(b["n_short"])
+        b["avg_bp_long"] = round(b.pop("bp_long") / n_l, 4) if n_l else 0.0
+        b["avg_bp_short"] = round(b.pop("bp_short") / n_s, 4) if n_s else 0.0
+        b["pnl_long"] = round(b["pnl_long"], 8)
+        b["pnl_short"] = round(b["pnl_short"], 8)
+        b["coverage"] = round((n_l + n_s) / total, 4) if total else 0.0
+    return out
+
+
+# ── [F343 2026-09-18 · B4 phase 2 step 3] 归因结果落盘（append-only JSONL，免 schema 迁移） ──
+# 为什么用 JSONL 而不是建表：本仓库对"append-only 证据链"的既有纪律就是 JSONL
+# （`data/mm_trials.jsonl`、`factors_lab/rounds_index.jsonl`、`data/promotion_gate_decisions.jsonl`），
+# 免迁移即可落地、可 diff、可回溯；等 phase 2 稳定后再考虑入库（报告 §6.4）。
+_FACTOR_ATTR_PATH_DEFAULT = "data/backtest_factor_attr.jsonl"
+
+
+def factor_attr_path() -> str:
+    return os.getenv("BACKTEST_FACTOR_ATTR_PATH", _FACTOR_ATTR_PATH_DEFAULT)
+
+
+def persist_factor_attr(*, run_id: str, symbol: str = "", tier: str = "",
+                        by_dir: Optional[Dict[str, Dict]] = None,
+                        by_name: Optional[Dict[str, Dict]] = None,
+                        extra: Optional[Dict] = None) -> Optional[str]:
+    """把一次回测的因子归因追加到 JSONL（返回写入路径；失败返回 None，不影响回测）。
+
+    ⚠️ 口径：`by_name` 是**覆盖度归因**（见 `attribute_trades_by_factor` docstring），不是增量 alpha。
+    """
+    try:
+        import json as _json
+        import time as _time
+
+        path = factor_attr_path()
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        rec = {"run_id": str(run_id), "symbol": str(symbol or ""), "tier": str(tier or ""),
+               "ts": _time.time(), "by_dir": by_dir or {}, "by_name": by_name or {},
+               "attr_note": "by_name=coverage attribution (NOT incremental alpha)"}
+        if extra:
+            rec.update(extra)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+        return path
+    except Exception as e:      # 落盘失败不得影响回测本身
+        logger.warning("[PipelineBT] 因子归因落盘失败(忽略): %s", e)
+        return None
+
+
+def load_factor_attr(run_id: Optional[str] = None, limit: int = 50) -> List[Dict]:
+    """读回归因记录（按 run_id 过滤；返回最近 limit 条，时间升序）。只读、异常返回空。"""
+    try:
+        import json as _json
+
+        path = factor_attr_path()
+        if not os.path.exists(path):
+            return []
+        out: List[Dict] = []
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = _json.loads(line)
+                except Exception:
+                    continue
+                if run_id and str(rec.get("run_id")) != str(run_id):
+                    continue
+                out.append(rec)
+        return out[-max(1, int(limit)):]
+    except Exception:
+        return []
 
 
 # ═══════════ [2026-09-11 F38e] 因子方向序列磁盘缓存 ═══════════
@@ -77,12 +198,45 @@ def _factor_dir_mode_tag() -> str:
     return "gov" if _v in ("1", "true", "yes", "on") else "full"
 
 
+#: [F359 2026-09-18] 方向序列的**语义版本**。凡改动方向计算/因子集合口径，必须 +1。
+#:
+#: 为什么必须有：缓存键原为 `(symbol, timeframe, ts0, n)` + `gov|full`，**不含任何
+#: 计算语义标识**。实测后果（本次）：我在 F349 重构中途有一个版本把 `FactorValue`
+#: 对象误降级成 float 再喂 `generate_signals`，那一版跑出的方向序列被**写进磁盘缓存
+#: （10:46）**；改回正确实现后，缓存命中的回测仍复用那份**旧语义**序列
+#: ⇒ 同一个命令（BTC 4h 30d mid）在不同时刻给出不同的 `factor_dir_at_entry`
+#: 分桶（`1:6/-1:2/0:2` vs `1:5/-1:2/0:3`），且**没有任何告警**。
+#: 版本号进入文件名与文件内容双重校验 ⇒ 语义变更后旧缓存一律作废重算。
+_FACTOR_DIR_SERIES_VERSION = "v2-20260918"
+
+
+_DIR_CACHE_VER_WARNED: set = set()
+_DIR_CACHE_VER_GUARD = threading.Lock()
+
+
+def _log_dir_cache_version_mismatch_once(p, cached_ver: str) -> None:
+    """旧的/异版本的缓存被忽略时留一条日志（不删文件，便于排查）。"""
+    key = str(p)
+    with _DIR_CACHE_VER_GUARD:
+        if key in _DIR_CACHE_VER_WARNED:
+            return
+        _DIR_CACHE_VER_WARNED.add(key)
+    logger.warning(
+        "[PipelineBT] 因子方向磁盘缓存语义版本不匹配，已忽略并重算: %s（缓存 ver=%r，当前 ver=%r）",
+        p.name, cached_ver or "<无>", _FACTOR_DIR_SERIES_VERSION,
+    )
+
+
 def _factor_dir_disk_path(sym: str, tf: str) -> _Path:
-    return _FACTOR_DIR_DISK_DIR / f"{sym}_{tf}_{_factor_dir_mode_tag()}.json"
+    return _FACTOR_DIR_DISK_DIR / f"{sym}_{tf}_{_factor_dir_mode_tag()}_{_FACTOR_DIR_SERIES_VERSION}.json"
 
 
 def _factor_dir_disk_load(sym: str, tf: str):
-    """读磁盘缓存（未过期），返回 (tss, series) 或 None。"""
+    """读磁盘缓存（未过期），返回 (tss, series) 或 None。
+
+    [F359] 版本双重校验：文件名带版本，文件**内容**也带版本；
+    两者任一不匹配即视为缓存作废（旧文件不删，便于排查）。
+    """
     if not _FACTOR_DIR_DISK_ENABLED:
         return None
     try:
@@ -92,6 +246,10 @@ def _factor_dir_disk_load(sym: str, tf: str):
         if time.time() - p.stat().st_mtime > _FACTOR_DIR_DISK_TTL:
             return None
         data = _json.loads(p.read_text(encoding="utf-8"))
+        cached_ver = str(data.get("ver") or "")
+        if cached_ver != _FACTOR_DIR_SERIES_VERSION:
+            _log_dir_cache_version_mismatch_once(p, cached_ver)
+            return None
         tss = data.get("tss") or []
         series = data.get("series") or []
         if len(tss) == len(series) and tss:
@@ -137,7 +295,9 @@ def _factor_dir_disk_save(sym: str, tf: str, tss, series) -> None:
                 pass
         tmp = p.with_suffix(".tmp")
         tmp.write_text(
-            _json.dumps({"tss": tss, "series": series, "updated": time.time()},
+            # [F359] 写入时带语义版本：改名/换实现后旧文件想被复用也会被内容校验拦下
+            _json.dumps({"ver": _FACTOR_DIR_SERIES_VERSION, "tss": tss, "series": series,
+                         "updated": time.time()},
                         separators=(",", ":")),
             encoding="utf-8",
         )
@@ -323,6 +483,54 @@ def replay_rule_decision(confirm_action: str, confirm_dir: int,
     return "hold"
 
 
+def factor_dimension_inert(p: Dict, funding_rates: Optional[Dict] = None,
+                           fgi_map: Optional[Dict] = None) -> bool:
+    """[F358 2026-09-18] 因子维度是否**结构性失效**（纯函数，便于单测）。
+
+    机制（`_pipeline_signal`）：因子方向唯一的作用路径是影响 `tech_dir`，而 `tech_dir`
+    要真正决定方向，必须先过 `replay_confirmation(tech_dir, flow_dir, sent_dir, min_dims)`：
+    **至少 `confirmation_min_dims` 个维度非零且同向**。其中：
+      - `tech_dir` 由 RSI/MACD 决定（K 线存在即可有值）；
+      - `flow_dir` 由资金费率决定 ⇒ 不传 `funding_rate_series` 时**恒为 0**；
+      - `sent_dir` 由恐贪指数决定 ⇒ 不传 `fgi_series` 时**恒为 0**。
+
+    因此当 `factor_signal_weight>0`（因子通道开着、甚至已付出预计算代价）而
+    funding/fgi 都缺时，非因子维度最多只有 tech 一个 ⇒ 永远凑不齐 `min_dims`
+    ⇒ 确认恒为 HOLD ⇒ 方向退化为 `mid_bias` ⇒ **因子无论怎么变都不影响任何决策**。
+
+    这正是 F355 的"假零"与 F356 的"看起来通道死了"的共同根因；
+    此前它**完全静默**（`data_dims_used` 只被汇总成一个计数，明细被丢弃）。
+    """
+    try:
+        if float(p.get("factor_signal_weight", 0.3) or 0) <= 0:
+            return False        # 本来就关着，不算"失效"
+        _min_dims = int(p.get("confirmation_min_dims", 2) or 2)
+        non_factor_dims = 1 + int(bool(funding_rates)) + int(bool(fgi_map))
+        return non_factor_dims < _min_dims
+    except Exception:
+        return False
+
+
+_FACTOR_INERT_WARNED: set = set()
+_FACTOR_INERT_GUARD = threading.Lock()
+
+
+def _warn_factor_inert_once(symbol: str, timeframe: str, tier: str) -> None:
+    """同一 (symbol, timeframe) 只告警一次，避免进化循环刷屏。"""
+    key = (str(symbol or "-"), str(timeframe or "-"))
+    with _FACTOR_INERT_GUARD:
+        if key in _FACTOR_INERT_WARNED:
+            return
+        _FACTOR_INERT_WARNED.add(key)
+    logger.warning(
+        "[PipelineBT] 因子维度**结构性失效**（symbol=%s tf=%s tier=%s）："
+        "factor_signal_weight>0 但未传 funding_rate_series/fgi_series ⇒ flow_dir=sent_dir=0 "
+        "⇒ replay_confirmation 永远凑不齐 min_dims ⇒ 因子方向无法影响任何决策（结果会与"
+        "factor_signal_weight=0 逐位相同）。要让因子真正参与，请传这两条序列。",
+        symbol or "-", timeframe or "-", tier,
+    )
+
+
 # ═══════════════════ 引擎主体 ═══════════════════
 
 
@@ -412,6 +620,12 @@ class LivePipelineBacktestEngine:
             bars_per_8h = 8
 
         data_dims_used = {"rsi_macd": True, "funding": bool(funding_rates), "fgi": bool(fgi_map), "factor_signal": float(p.get("factor_signal_weight", 0.3)) > 0}
+        # [F358] 明细必须随结果带出去：此前 `data_dims_used` 只被 `sum(...)` 成
+        # `data_completeness` 一个计数（:884），"funding/fgi 缺失导致因子维度结构性失效"
+        # 这一关键事实被丢掉 ⇒ 调用方无法分辨"因子算了但没用"与"因子真的没用"。
+        result.data_dims_used = dict(data_dims_used)
+        if factor_dimension_inert(p, funding_rates, fgi_map):
+            _warn_factor_inert_once(symbol, timeframe, tier)
 
         # [M0-P2v2] 预取/预计算因子方向序列：整轮 NSGA-II 数千次 fitness 共用
         # 同一批 K 线窗口。方向只依赖 K 线（与 genome 无关），一次性算好冻结，
@@ -688,6 +902,15 @@ class LivePipelineBacktestEngine:
                         leverage=lev, entry_bar=_entry_bar, entry_time=_fill_bar.dt_str,
                         sl_price=sl, tp_price=tp,
                         highest_since_entry=_fill_bar.h, lowest_since_entry=_fill_bar.l,
+                        # [F340 2026-09-18 · B4 phase 1] 因子方向票（候选 A：预先算好的整条序列；
+                        # 缺失时退回实时窗口计算，两者语义相同）。`factor_signal_weight=0` 时为 0。
+                        factor_dir_at_entry=int(
+                            (self._factor_dir_series[i] if (
+                                getattr(self, "_factor_dir_series", None) is not None
+                                and i < len(self._factor_dir_series)
+                                and self._factor_dir_series[i] is not None)
+                             else self._compute_factor_direction(i, bars, p))
+                            or 0),
                     )
 
             equity_curve.append(self._mark_equity(equity, position, bar))
@@ -707,6 +930,49 @@ class LivePipelineBacktestEngine:
         result.total_trades = len(trades)
         result.funding_fees_total = total_funding_fees
         result.duration_seconds = time.time() - t0
+
+        # [F340 2026-09-18 · B4 phase 1] 因子归因（方向级）：按开仓当根的因子方向票分桶。
+        # 口径与验收（报告 §6.4 B4）：
+        #   ① 三桶 n 之和 == total_trades；② Σ(桶 n×桶均值) == 总 PnL（容差内）；③ 同输入可复现。
+        # `factor_signal_weight=0` 时全部落在 "0" 桶（预期），此时本块仍提供总口径校验。
+        try:
+            _buckets: Dict[str, Dict[str, float]] = {}
+            for _t in trades:
+                _k = str(int(getattr(_t, "factor_dir_at_entry", 0) or 0))
+                _b = _buckets.setdefault(_k, {"n": 0, "wins": 0, "pnl": 0.0, "notional": 0.0})
+                _b["n"] += 1
+                _b["wins"] += 1 if float(getattr(_t, "pnl", 0.0) or 0.0) > 0 else 0
+                _b["pnl"] += float(getattr(_t, "pnl", 0.0) or 0.0)
+                _b["notional"] += abs(float(getattr(_t, "quantity", 0.0) or 0.0)
+                                      * float(getattr(_t, "entry_price", 0.0) or 0.0))
+            for _k, _b in _buckets.items():
+                _n = int(_b["n"]) or 1
+                _b["win_rate"] = round(_b["wins"] / _n, 4)
+                _b["avg_pnl"] = round(_b["pnl"] / _n, 8)
+                _b["avg_bp"] = round((_b["pnl"] / _b["notional"] * 1e4)
+                                     if _b["notional"] > 0 else 0.0, 4)
+                _b["pnl"] = round(_b["pnl"], 8)
+                _b["notional"] = round(_b["notional"], 4)
+                _b.pop("wins", None)
+            result.factor_attr_by_dir = _buckets
+            # [F342 · B4 phase 2 step 2] 因子名级**覆盖度归因**（仅当 sidecar 有数据时）。
+            # 字段名刻意用 coverage_attr：它**不是**增量 alpha（口径声明见函数 docstring）。
+            # [F349] 先把"开仓 bar"补进旁路——方向序列磁盘缓存命中时预计算循环整体空转，
+            # 旁路会全空（实跑实测），必须按需补算而不是静默给出 {}。
+            _attr_cov = self._ensure_attr_sidecar(bars, trades)
+            result.factor_attr_coverage = dict(_attr_cov)
+            _side = getattr(self, "_factor_attr_sidecar", None)
+            if _FACTOR_ATTR_ENABLED and _side:
+                result.factor_attr_by_name = attribute_trades_by_factor(trades, _side)
+            # [F343 · B4 phase 2 step 3] 归因结果落盘（仅在开关打开时，避免默认写入无用数据）
+            if _FACTOR_ATTR_ENABLED:
+                result.factor_attr_path = persist_factor_attr(
+                    run_id=result.run_id, symbol=symbol or "", tier=tier,
+                    by_dir=result.factor_attr_by_dir, by_name=result.factor_attr_by_name,
+                    extra={"coverage_stat": dict(_attr_cov)})
+        except Exception as _attr_err:      # 归因失败不得影响回测结果本身
+            logger.warning("[PipelineBT] 因子归因(方向级)失败: %s", _attr_err)
+            result.factor_attr_by_dir = {}
 
         if not hasattr(result, 'data_completeness'):
             result.data_completeness = sum(1 for v in data_dims_used.values() if v)
@@ -865,29 +1131,127 @@ class LivePipelineBacktestEngine:
         self._cached_factor_dir = _d
         return _d
 
-    def _compute_factor_direction_windowed(self, i: int, bars: List[Bar]) -> int:
-        """原慢路径：对以 i 结尾的 30 根窗口跑全因子引擎并合成方向。"""
-        try:
-            from backend.services.factor_engine import factor_engine, FactorSignalGenerator
+    def _factor_values_at(self, i: int, bars: List[Bar]) -> Optional[Dict[str, Any]]:
+        """[F349 2026-09-18] 以第 i 根 bar 结尾的 30 根窗口的**原始全因子值**（无值返回 None）。
 
-            # 使用最近 30 根 K 线作为计算窗口
+        ⚠️ 返回的是 `factor_engine.compute_all_factors` 的**原样** dict —— 值是
+        `FactorValue` 对象（含 `.value` / `.has_data` / `.is_directional`），**不是 float**。
+        这正是 F349 的第二个坑：B4 phase 2 初版旁路用 `isinstance(v, (int, float))` 过滤，
+        而值永远是对象 ⇒ 过滤后恒为空 ⇒ 因子名级归因恒为 `{}`（实跑实测），
+        且单测全绿（单测直接喂 float dict，**没经过真实 compute_all_factors**）。
+        要 float 请用 `_floats_of()`。
+
+        抽成独立方法的另一个原因：方向序列**磁盘缓存命中**时预计算循环整体空转，
+        `_compute_factor_direction_windowed` 一次都不调用 ⇒ 旁路永远为空。
+        """
+        try:
+            from backend.services.factor_engine import factor_engine
+
             window_start = max(0, i - 29)
             window_bars = bars[window_start:i + 1]
             if len(window_bars) < 15:
-                return 0
-
-            # 构建 DataFrame
+                return None
             import pandas as pd
             klines_df = pd.DataFrame([{
                 'open': b.o, 'high': b.h, 'low': b.l,
                 'close': b.c, 'volume': b.v,
                 'timestamp': b.timestamp,
             } for b in window_bars])
-
-            # 计算因子值
             factor_values = factor_engine.compute_all_factors(klines_df)
+            return dict(factor_values) if factor_values else None
+        except Exception as exc:      # 因子计算失败不打断回测（与旧行为一致）
+            logger.debug("[PipelineBT] _factor_values_at(%d) 失败: %s", i, exc)
+            return None
+
+    @staticmethod
+    def _floats_of(factor_values: Optional[Dict[str, Any]]) -> Dict[str, float]:
+        """把 `compute_all_factors` 的原始 dict 转成 {因子名: float}，供归因旁路使用。
+
+        规则（每条都影响归因正确性）：
+          - `FactorValue` 取 `.value`；已经是数值的原样用；
+          - `has_data is False` 的**跳过**：管线对它们权重置 0、`_aggregate` 直接 continue，
+            把它们记成"活跃"会虚增覆盖率（把"没数据"算成"投过票"）；
+          - 非有限值（NaN/Inf）跳过，避免污染 bp 统计。
+        """
+        import math
+        out: Dict[str, float] = {}
+        for k, v in (factor_values or {}).items():
+            if getattr(v, "has_data", True) is False:
+                continue
+            raw = getattr(v, "value", v)
+            try:
+                f = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(f):
+                continue
+            out[str(k)] = f
+        return out
+
+    def _ensure_attr_sidecar(self, bars: List[Bar], trades: List[Any]) -> Dict[str, int]:
+        """[F349] 保证"开仓 bar"都在归因旁路里；缺的**按需补算**（成本 ∝ 交易数，不随 bars 增长）。
+
+        返回 {"needed","computed","covered"} —— 覆盖率必须可读，**不允许静默为空**：
+        旧实现下磁盘缓存命中会产出 `by_name={}` 而**没有任何日志**，调用方会以为"这套参数
+        没有因子信息"，实际是数据源压根没被访问。
+        """
+        stat = {"needed": 0, "computed": 0, "covered": 0}
+        if not _FACTOR_ATTR_ENABLED:
+            return stat
+        try:
+            needed = {int(getattr(t, "entry_bar", -1) or -1) for t in (trades or [])}
+            needed = {i for i in needed if i >= 0}
+            stat["needed"] = len(needed)
+            side = getattr(self, "_factor_attr_sidecar", None)
+            if side is None:
+                side = {}
+                self._factor_attr_sidecar = side
+            missing = sorted(i for i in needed if i not in side)
+            for i in missing:
+                vals = self._floats_of(self._factor_values_at(i, bars))
+                if vals:
+                    side[int(i)] = vals
+                    stat["computed"] += 1
+            stat["covered"] = sum(1 for i in needed if i in side)
+            if stat["needed"] and stat["covered"] < stat["needed"]:
+                logger.warning(
+                    "[PipelineBT] 因子归因覆盖率不足: %d/%d 笔开仓 bar 拿到因子值"
+                    "（其余 bar 无因子值，其交易不进 by_name 统计）",
+                    stat["covered"], stat["needed"],
+                )
+            elif stat["needed"]:
+                logger.info(
+                    "[PipelineBT] 因子归因旁路就绪: %d/%d 笔开仓 bar，按需补算 %d 个窗口",
+                    stat["covered"], stat["needed"], stat["computed"],
+                )
+        except Exception as exc:
+            logger.warning("[PipelineBT] 因子归因旁路补算失败: %s", exc)
+        return stat
+
+    def _compute_factor_direction_windowed(self, i: int, bars: List[Bar]) -> int:
+        """原慢路径：对以 i 结尾的 30 根窗口跑全因子引擎并合成方向。"""
+        try:
+            from backend.services.factor_engine import FactorSignalGenerator
+
+            # 原样 FactorValue dict：下游 generate_signals 需要对象（含 has_data/is_directional）
+            factor_values = self._factor_values_at(i, bars)
             if not factor_values:
                 return 0
+
+            # [F341 2026-09-18 · B4 phase 2 step 1] 旁路记录**因子值**（默认关，见 `_FACTOR_ATTR_ENABLED`）：
+            # 这是"因子名级归因"的唯一数据来源——没有它，回测只能回答"哪个方向赚了"（phase 1），
+            # 回答不了"哪个因子赚了"。默认关是为了不拖慢进化（本函数在预计算循环里按 bar 调用）。
+            if _FACTOR_ATTR_ENABLED:
+                try:
+                    _side = getattr(self, "_factor_attr_sidecar", None)
+                    if _side is None:
+                        _side = {}
+                        self._factor_attr_sidecar = _side
+                    _vals = self._floats_of(factor_values)
+                    if _vals:
+                        _side[int(i)] = _vals
+                except Exception:
+                    pass
 
             # 生成因子信号
             signal_gen = FactorSignalGenerator()
@@ -975,6 +1339,9 @@ class LivePipelineBacktestEngine:
             pnl_pct=pnl_pct,
             fee=close_fee + (notional * TAKER_FEE),
             exit_reason=reason,
+            # [F340 2026-09-18 · B4 phase 1] 把开仓当根的因子方向票带进成交记录，
+            # 供 `run()` 收尾按 +1/-1/0 分桶做因子归因（验收：Σ桶贡献 == 总 PnL）。
+            factor_dir_at_entry=int(getattr(position, "factor_dir_at_entry", 0) or 0),
         )
         return equity, trade
 

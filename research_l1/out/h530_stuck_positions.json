@@ -1,0 +1,439 @@
+{
+  "switches": {
+    "timeout_exit_maker_only": {
+      "params": null,
+      "limits": true
+    },
+    "timeout_hard_taker_sec": {
+      "params": null,
+      "limits": 300.0
+    },
+    "max_one_side_seconds": {
+      "params": null,
+      "limits": 90.0
+    },
+    "max_quote_age_sec": {
+      "params": null,
+      "limits": 90.0
+    },
+    "ofi_flatten_maker_only": {
+      "params": null,
+      "limits": 1.0
+    },
+    "take_profit_maker_grace_sec": {
+      "params": null,
+      "limits": 240
+    },
+    "stop_maker_grace_sec": {
+      "params": null,
+      "limits": 30.0
+    },
+    "max_net_directional_ratio": {
+      "params": null,
+      "limits": 2.0
+    },
+    "max_leg_notional_mult": {
+      "params": null,
+      "limits": 3
+    }
+  },
+  "stuck": [
+    {
+      "sym": "ARB",
+      "qty": -236.55,
+      "age_s": 15100.8,
+      "last_ts_age_s": null,
+      "last_skip": null
+    },
+    {
+      "sym": "NEAR",
+      "qty": 12.3004316719,
+      "age_s": 15192.6,
+      "last_ts_age_s": null,
+      "last_skip": null
+    },
+    {
+      "sym": "XRP",
+      "qty": -94.7395387244,
+      "age_s": 15083.9,
+      "last_ts_age_s": null,
+      "last_skip": null
+    }
+  ],
+  "skip_counts": {
+    "trend_only_flat": 175,
+    "trend_up": 170,
+    "vol_regime": 116,
+    "trend_down": 102,
+    "timeout_maker_only": 65,
+    "model_below_thr": 50,
+    "ofi_toxic_sell": 45,
+    "sudden_move": 33,
+    "vol_pause": 22,
+    "ofi_flatten_maker": 12,
+    "ofi_toxic_buy": 11,
+    "toxic_streak": 1
+  },
+  "recent_legs": [
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 04:32:38.220250+08:00",
+      "path": "ofi_flatten_maker",
+      "action": "quote",
+      "net_bp": 4.8782,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 04:32:38.220250+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 0.1006,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 04:32:21.356486+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.7261,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 04:32:05.550300+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": -19.3589,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 04:30:49.569625+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.0384,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 04:30:49.569625+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 0.1674,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 04:25:28.808449+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 9.8285,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 04:24:27.211118+08:00",
+      "path": "timeout_hard_taker",
+      "action": "flatten",
+      "net_bp": -14.1167,
+      "flatten": "true",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 04:24:27.211118+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 0.3358,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 04:20:37.003628+08:00",
+      "path": "trail_lock_taker",
+      "action": "flatten",
+      "net_bp": -30.628700000000002,
+      "flatten": "true",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 04:19:36.100056+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.5702,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 04:19:20.720484+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 1.5708,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 04:16:32.947856+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.4832,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 04:09:54.472925+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": -16.0397,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 04:08:52.700218+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 2.2157,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 03:59:28.342105+08:00",
+      "path": "timeout_hard_taker",
+      "action": "flatten",
+      "net_bp": -46.5565,
+      "flatten": "true",
+      "side": "sell"
+    },
+    {
+      "sym": "ARB",
+      "ts": "2026-09-29 03:54:18.214021+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 3.3456,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:41:24.199604+08:00",
+      "path": "stop_loss_taker",
+      "action": "flatten",
+      "net_bp": -98.519,
+      "flatten": "true",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:40:41.225761+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.1047,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:40:23.640179+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 9.5222,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:39:51.806143+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 8.8377,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:38:07.375237+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 2.628,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:37:11.494310+08:00",
+      "path": "stop_loss_taker",
+      "action": "pause",
+      "net_bp": -48.7209,
+      "flatten": "true",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:36:19.339200+08:00",
+      "path": "stop_loss_taker",
+      "action": "flatten",
+      "net_bp": -112.8545,
+      "flatten": "true",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:34:01.085952+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 0.0972,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:33:44.336035+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 0.6178,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:33:09.472616+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 2.0708,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:32:33.418636+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 0.1883,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:32:13.527312+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.1217,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:30:47.843140+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 0.3348,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:21:34.549254+08:00",
+      "path": "timeout_hard_taker",
+      "action": "flatten",
+      "net_bp": 18.8496,
+      "flatten": "true",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:16:28.097807+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 1.536,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:16:09.536482+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 17.7396,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:11:52.610979+08:00",
+      "path": "",
+      "action": "pause",
+      "net_bp": 1.2147,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:11:04.881350+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 92.50099999999999,
+      "flatten": "false",
+      "side": "buy"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:08:18.828603+08:00",
+      "path": "take_profit_taker",
+      "action": "flatten",
+      "net_bp": 82.4313,
+      "flatten": "true",
+      "side": "buy"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 03:07:34.552982+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 1.5418,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:03:59.672182+08:00",
+      "path": "",
+      "action": "quote",
+      "net_bp": 0.1167,
+      "flatten": "false",
+      "side": "sell"
+    },
+    {
+      "sym": "XRP",
+      "ts": "2026-09-29 03:02:23.390912+08:00",
+      "path": "timeout_hard_taker",
+      "action": "flatten",
+      "net_bp": -18.2271,
+      "flatten": "true",
+      "side": "sell"
+    },
+    {
+      "sym": "NEAR",
+      "ts": "2026-09-29 02:59:21.895359+08:00",
+      "path": "timeout_hard_taker",
+      "action": "flatten",
+      "net_bp": -37.460899999999995,
+      "flatten": "true",
+      "side": "sell"
+    }
+  ]
+}

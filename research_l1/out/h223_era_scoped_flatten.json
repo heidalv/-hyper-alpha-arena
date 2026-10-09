@@ -1,0 +1,234 @@
+{
+  "scopes": {
+    "A 全窗口（含旧宇宙）": {
+      "legs": 23794,
+      "total_usd": -394.01,
+      "maker_n": 22705,
+      "maker_usd": -60.51,
+      "maker_w_bp": -0.129,
+      "flatten_n": 1089,
+      "flatten_usd": -333.5,
+      "flatten_w_bp": -17.584,
+      "symbols": [
+        "1000PEPE",
+        "1000SHIB",
+        "ADA",
+        "ARB",
+        "ASTER",
+        "BNB",
+        "BTC",
+        "DOGE",
+        "ENA",
+        "ETH",
+        "HYPE",
+        "ONDO",
+        "PENDLE",
+        "SEI",
+        "SOL",
+        "SUI",
+        "TAO",
+        "UNI",
+        "VIRTUAL",
+        "WLFI",
+        "XMR",
+        "XRP",
+        "ZEC"
+      ]
+    },
+    "B 仅当前 4 币": {
+      "legs": 18887,
+      "total_usd": -230.48,
+      "maker_n": 18360,
+      "maker_usd": -65.44,
+      "maker_w_bp": -0.162,
+      "flatten_n": 527,
+      "flatten_usd": -165.04,
+      "flatten_w_bp": -14.591,
+      "symbols": [
+        "ASTER",
+        "HYPE",
+        "SOL",
+        "XRP"
+      ]
+    },
+    "C 仅当前 4 币 + 最近 3 天": {
+      "legs": 16149,
+      "total_usd": -185.86,
+      "maker_n": 15832,
+      "maker_usd": -71.96,
+      "maker_w_bp": -0.202,
+      "flatten_n": 317,
+      "flatten_usd": -113.9,
+      "flatten_w_bp": -12.823,
+      "symbols": [
+        "ASTER",
+        "HYPE",
+        "SOL",
+        "XRP"
+      ]
+    }
+  },
+  "by_symbol": [
+    {
+      "sym": "XRP",
+      "legs": 5973,
+      "flat_n": 224,
+      "flat_usd": -41.44,
+      "maker_usd": -29.78
+    },
+    {
+      "sym": "SOL",
+      "legs": 5622,
+      "flat_n": 176,
+      "flat_usd": -54.84,
+      "maker_usd": -12.74
+    },
+    {
+      "sym": "ASTER",
+      "legs": 5063,
+      "flat_n": 102,
+      "flat_usd": -50.77,
+      "maker_usd": -7.33
+    },
+    {
+      "sym": "ETH",
+      "legs": 1100,
+      "flat_n": 67,
+      "flat_usd": -49.74,
+      "maker_usd": 3.28
+    },
+    {
+      "sym": "HYPE",
+      "legs": 2229,
+      "flat_n": 25,
+      "flat_usd": -17.99,
+      "maker_usd": -15.58
+    },
+    {
+      "sym": "BTC",
+      "legs": 635,
+      "flat_n": 48,
+      "flat_usd": -28.56,
+      "maker_usd": -4.27
+    },
+    {
+      "sym": "ONDO",
+      "legs": 81,
+      "flat_n": 32,
+      "flat_usd": -25.31,
+      "maker_usd": 1.54
+    },
+    {
+      "sym": "DOGE",
+      "legs": 1887,
+      "flat_n": 176,
+      "flat_usd": -26.15,
+      "maker_usd": 2.83
+    },
+    {
+      "sym": "BNB",
+      "legs": 582,
+      "flat_n": 42,
+      "flat_usd": -13.4,
+      "maker_usd": 0.25
+    },
+    {
+      "sym": "ARB",
+      "legs": 261,
+      "flat_n": 88,
+      "flat_usd": -10.66,
+      "maker_usd": -0.18
+    },
+    {
+      "sym": "UNI",
+      "legs": 206,
+      "flat_n": 69,
+      "flat_usd": -7.57,
+      "maker_usd": -0.18
+    },
+    {
+      "sym": "ZEC",
+      "legs": 69,
+      "flat_n": 7,
+      "flat_usd": -3.81,
+      "maker_usd": 0.41
+    },
+    {
+      "sym": "PENDLE",
+      "legs": 28,
+      "flat_n": 13,
+      "flat_usd": -1.3,
+      "maker_usd": 0.21
+    },
+    {
+      "sym": "VIRTUAL",
+      "legs": 15,
+      "flat_n": 7,
+      "flat_usd": -1.09,
+      "maker_usd": 0.12
+    },
+    {
+      "sym": "ENA",
+      "legs": 9,
+      "flat_n": 2,
+      "flat_usd": -0.18,
+      "maker_usd": -0.13
+    },
+    {
+      "sym": "1000SHIB",
+      "legs": 8,
+      "flat_n": 4,
+      "flat_usd": -0.22,
+      "maker_usd": 0.02
+    },
+    {
+      "sym": "SEI",
+      "legs": 7,
+      "flat_n": 2,
+      "flat_usd": -0.17,
+      "maker_usd": 0.02
+    },
+    {
+      "sym": "XMR",
+      "legs": 7,
+      "flat_n": 1,
+      "flat_usd": -0.5,
+      "maker_usd": 0.4
+    },
+    {
+      "sym": "SUI",
+      "legs": 2,
+      "flat_n": 0,
+      "flat_usd": 0,
+      "maker_usd": -0.1
+    },
+    {
+      "sym": "TAO",
+      "legs": 2,
+      "flat_n": 1,
+      "flat_usd": -0.09,
+      "maker_usd": 0.01
+    },
+    {
+      "sym": "WLFI",
+      "legs": 2,
+      "flat_n": 1,
+      "flat_usd": 0.03,
+      "maker_usd": 0.0
+    },
+    {
+      "sym": "ADA",
+      "legs": 2,
+      "flat_n": 1,
+      "flat_usd": 0.1,
+      "maker_usd": 0.09
+    },
+    {
+      "sym": "1000PEPE",
+      "legs": 4,
+      "flat_n": 1,
+      "flat_usd": 0.15,
+      "maker_usd": 0.62
+    }
+  ]
+}

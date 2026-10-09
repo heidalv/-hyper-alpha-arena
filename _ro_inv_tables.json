@@ -1,0 +1,1498 @@
+{
+ "alpha_arena": [
+  [
+   "_bak_garbage_accounts_20260801",
+   "account_asset_snapshots",
+   "BASE TABLE",
+   7
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "account_strategy_configs",
+   "BASE TABLE",
+   4
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "accounts",
+   "BASE TABLE",
+   4
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "ai_strategies",
+   "BASE TABLE",
+   2218
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "arbitrage_profiles",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "paper_balances",
+   "BASE TABLE",
+   3
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "paper_funding_ledger",
+   "BASE TABLE",
+   123
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "paper_orders",
+   "BASE TABLE",
+   1182
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "paper_positions",
+   "BASE TABLE",
+   397
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "position_exit_events",
+   "BASE TABLE",
+   454
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "strategy_memories",
+   "BASE TABLE",
+   558
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "strategy_trades",
+   "BASE TABLE",
+   1341
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "trade_memory_records",
+   "BASE TABLE",
+   772
+  ],
+  [
+   "_bak_garbage_accounts_20260801",
+   "trader_mental_states",
+   "BASE TABLE",
+   4
+  ],
+  [
+   "public",
+   "_bak_brain_attribution_20260909",
+   "BASE TABLE",
+   1323
+  ],
+  [
+   "public",
+   "account_asset_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "account_prompt_bindings",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "account_strategy_configs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "accounts",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "admin_audit_logs",
+   "BASE TABLE",
+   21
+  ],
+  [
+   "public",
+   "agent_predictions",
+   "BASE TABLE",
+   9596
+  ],
+  [
+   "public",
+   "ai_analysis_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_attribution_conversations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_attribution_messages",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_decision_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_prompt_conversations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_prompt_messages",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_signal_conversations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_signal_messages",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "ai_strategies",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "alembic_version_core",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "alpha_assistant_conversations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "alpha_assistant_messages",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "analysis_runs",
+   "BASE TABLE",
+   34059
+  ],
+  [
+   "public",
+   "anomaly_events",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "arbitrage_paper_accounts",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "arbitrage_paper_allocation_presets",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "arbitrage_paper_exchange_balances",
+   "BASE TABLE",
+   7
+  ],
+  [
+   "public",
+   "arbitrage_paper_ledgers",
+   "BASE TABLE",
+   5729
+  ],
+  [
+   "public",
+   "arbitrage_positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "arbitrage_profiles",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "atas_ai_generation_history",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "atas_factor_cache",
+   "BASE TABLE",
+   90
+  ],
+  [
+   "public",
+   "atas_factors",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "atas_prompt_templates",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "atas_strategies",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "auto_coin_selections",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "backtest_runs",
+   "BASE TABLE",
+   515
+  ],
+  [
+   "public",
+   "backtest_trades",
+   "BASE TABLE",
+   70
+  ],
+  [
+   "public",
+   "bak_20260821_accounts",
+   "BASE TABLE",
+   8
+  ],
+  [
+   "public",
+   "bak_20260821_full_auto_sessions",
+   "BASE TABLE",
+   2
+  ],
+  [
+   "public",
+   "bak_20260821_paper_balances",
+   "BASE TABLE",
+   4
+  ],
+  [
+   "public",
+   "bak_20260821_paper_orders",
+   "BASE TABLE",
+   9813
+  ],
+  [
+   "public",
+   "bak_20260821_paper_positions",
+   "BASE TABLE",
+   2596
+  ],
+  [
+   "public",
+   "bak_20260821_position_exit_events",
+   "BASE TABLE",
+   3778
+  ],
+  [
+   "public",
+   "bak_20260821_strategy_trades",
+   "BASE TABLE",
+   1565
+  ],
+  [
+   "public",
+   "binance_positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "brain_agent_calibration",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "brain_attribution",
+   "BASE TABLE",
+   797
+  ],
+  [
+   "public",
+   "brain_episodes",
+   "BASE TABLE",
+   1382
+  ],
+  [
+   "public",
+   "brain_lessons",
+   "BASE TABLE",
+   1382
+  ],
+  [
+   "public",
+   "brain_research_tasks",
+   "BASE TABLE",
+   92
+  ],
+  [
+   "public",
+   "brain_theses",
+   "BASE TABLE",
+   1069
+  ],
+  [
+   "public",
+   "cloud_factor_definitions",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "coin_select_adoptions",
+   "BASE TABLE",
+   2
+  ],
+  [
+   "public",
+   "coin_select_candidates",
+   "BASE TABLE",
+   62338
+  ],
+  [
+   "public",
+   "coin_select_scans",
+   "BASE TABLE",
+   2639
+  ],
+  [
+   "public",
+   "coordinator_actions",
+   "BASE TABLE",
+   4597
+  ],
+  [
+   "public",
+   "cross_market_correlations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "custom_trading_styles",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "dashboard_layouts",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "decision_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "dingtalk_bots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "dingtalk_notification_stats",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "dingtalk_notifications",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "drl_performance",
+   "BASE TABLE",
+   239
+  ],
+  [
+   "public",
+   "drl_performance_daily",
+   "BASE TABLE",
+   106
+  ],
+  [
+   "public",
+   "edge_ledger_snapshots",
+   "BASE TABLE",
+   62
+  ],
+  [
+   "public",
+   "evolution_events",
+   "BASE TABLE",
+   425
+  ],
+  [
+   "public",
+   "exchange_credentials",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "exchange_proxy_configs",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "exchange_rule_snapshots",
+   "BASE TABLE",
+   1558
+  ],
+  [
+   "public",
+   "experiment_heartbeat",
+   "BASE TABLE",
+   6
+  ],
+  [
+   "public",
+   "experiments",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "factor_sync_config",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "full_auto_sessions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "global_sampling_configs",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "hyperliquid_account_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "hyperliquid_exchange_actions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "hyperliquid_positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "hyperliquid_wallets",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "job_registry",
+   "BASE TABLE",
+   47
+  ],
+  [
+   "public",
+   "job_runs",
+   "BASE TABLE",
+   47982
+  ],
+  [
+   "public",
+   "kline_research_log",
+   "BASE TABLE",
+   476
+  ],
+  [
+   "public",
+   "lane_breaker_log",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "lane_ledger",
+   "BASE TABLE",
+   5298
+  ],
+  [
+   "public",
+   "lane_ledger_pairing_gaps",
+   "VIEW",
+   0
+  ],
+  [
+   "public",
+   "lane_registry",
+   "BASE TABLE",
+   6
+  ],
+  [
+   "public",
+   "lane_runtime_state",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "lane_shadow_report",
+   "BASE TABLE",
+   10
+  ],
+  [
+   "public",
+   "live_orders",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "live_sub_positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "llm_configurations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "llm_quota_usage",
+   "BASE TABLE",
+   22088
+  ],
+  [
+   "public",
+   "macro_regime_states",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "market_regime_configs",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "market_regime_history",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "multi_symbol_kelly",
+   "BASE TABLE",
+   127104
+  ],
+  [
+   "public",
+   "new_coin_opportunities",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "observation_pool_labels",
+   "BASE TABLE",
+   2603
+  ],
+  [
+   "public",
+   "opencode_evolution_proposals",
+   "BASE TABLE",
+   457
+  ],
+  [
+   "public",
+   "opencode_insights",
+   "BASE TABLE",
+   2749
+  ],
+  [
+   "public",
+   "orders",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "pair_strategy_bindings",
+   "BASE TABLE",
+   24
+  ],
+  [
+   "public",
+   "pair_strategy_candidates",
+   "BASE TABLE",
+   2425
+  ],
+  [
+   "public",
+   "paper_balances",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "paper_funding_ledger",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "paper_orders",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "paper_positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "period_daily_reports",
+   "BASE TABLE",
+   96
+  ],
+  [
+   "public",
+   "position_exit_events",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "positions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "prompt_templates",
+   "BASE TABLE",
+   22
+  ],
+  [
+   "public",
+   "prompt_training_records",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "rebate_evolution_proposals",
+   "BASE TABLE",
+   4842
+  ],
+  [
+   "public",
+   "rebate_incentive_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "rebate_orders",
+   "BASE TABLE",
+   305
+  ],
+  [
+   "public",
+   "rebate_performance_logs",
+   "BASE TABLE",
+   279
+  ],
+  [
+   "public",
+   "rebate_positions",
+   "BASE TABLE",
+   305
+  ],
+  [
+   "public",
+   "rebate_trade_outcomes",
+   "BASE TABLE",
+   277
+  ],
+  [
+   "public",
+   "refresh_tokens",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "risk_control_configs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "risk_control_events",
+   "BASE TABLE",
+   5298
+  ],
+  [
+   "public",
+   "rule_ai_analysis_logs",
+   "BASE TABLE",
+   1547
+  ],
+  [
+   "public",
+   "rule_change_events",
+   "BASE TABLE",
+   1547
+  ],
+  [
+   "public",
+   "rule_sync_audit_logs",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "rule_sync_gate_state",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "scalp_backtest_run",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "scalp_experiment_log",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "scalp_signal_log",
+   "BASE TABLE",
+   318529
+  ],
+  [
+   "public",
+   "signal_definitions",
+   "BASE TABLE",
+   3555
+  ],
+  [
+   "public",
+   "signal_ledger",
+   "BASE TABLE",
+   6214
+  ],
+  [
+   "public",
+   "signal_performance_history",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "signal_pools",
+   "BASE TABLE",
+   1184
+  ],
+  [
+   "public",
+   "signal_trade_feedback",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "signal_trigger_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "signal_weight_history",
+   "BASE TABLE",
+   2916
+  ],
+  [
+   "public",
+   "strategic_macro_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategic_memories",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategic_reports",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategy_executions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategy_hypotheses",
+   "BASE TABLE",
+   4430
+  ],
+  [
+   "public",
+   "strategy_memories",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategy_node_templates",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategy_regime_scores",
+   "BASE TABLE",
+   198
+  ],
+  [
+   "public",
+   "strategy_templates",
+   "BASE TABLE",
+   2167
+  ],
+  [
+   "public",
+   "strategy_trades",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "symbol_scalp_profile",
+   "BASE TABLE",
+   940
+  ],
+  [
+   "public",
+   "system_configs",
+   "BASE TABLE",
+   7
+  ],
+  [
+   "public",
+   "system_coordinator_state",
+   "BASE TABLE",
+   2
+  ],
+  [
+   "public",
+   "trade_facts",
+   "BASE TABLE",
+   2498
+  ],
+  [
+   "public",
+   "trade_journals",
+   "BASE TABLE",
+   585
+  ],
+  [
+   "public",
+   "trade_memory_records",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trader_mental_states",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trader_personalities",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trader_trigger_config",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trades",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trading_configs",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "trading_wisdom",
+   "BASE TABLE",
+   92
+  ],
+  [
+   "public",
+   "trend_cycles",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trend_prediction_records",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "user_auth_sessions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "user_exchange_config",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "user_subscriptions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "users",
+   "BASE TABLE",
+   213
+  ],
+  [
+   "public",
+   "visual_strategies",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "wash_trade_logs",
+   "BASE TABLE",
+   305
+  ]
+ ],
+ "alpha_analytics": [
+  [
+   "public",
+   "ai_decision_logs",
+   "BASE TABLE",
+   10336
+  ],
+  [
+   "public",
+   "alembic_version_analytics",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "asterdex_live_points_events",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "compute_metrics",
+   "BASE TABLE",
+   274350
+  ],
+  [
+   "public",
+   "cross_market_correlations",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "decision_retrospectives",
+   "BASE TABLE",
+   3959
+  ],
+  [
+   "public",
+   "decision_snapshots",
+   "BASE TABLE",
+   5941
+  ],
+  [
+   "public",
+   "factor_active_set",
+   "BASE TABLE",
+   25
+  ],
+  [
+   "public",
+   "factor_evolution_log",
+   "BASE TABLE",
+   17564
+  ],
+  [
+   "public",
+   "factor_exposure_snapshots",
+   "BASE TABLE",
+   706331
+  ],
+  [
+   "public",
+   "factor_performance_logs",
+   "BASE TABLE",
+   355417
+  ],
+  [
+   "public",
+   "factor_quality_reports",
+   "BASE TABLE",
+   925
+  ],
+  [
+   "public",
+   "generated_signal_history",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "kline_ai_analysis_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "llm_usage_logs",
+   "BASE TABLE",
+   9087
+  ],
+  [
+   "public",
+   "macro_regime_states",
+   "BASE TABLE",
+   1776
+  ],
+  [
+   "public",
+   "market_analysis_snapshots",
+   "BASE TABLE",
+   56076
+  ],
+  [
+   "public",
+   "mlto_debate_log",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "mlto_episodes",
+   "BASE TABLE",
+   2882
+  ],
+  [
+   "public",
+   "mlto_memory_events",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "mlto_signal_weights",
+   "BASE TABLE",
+   12
+  ],
+  [
+   "public",
+   "mlto_thesis",
+   "BASE TABLE",
+   152
+  ],
+  [
+   "public",
+   "mlto_thesis_events",
+   "BASE TABLE",
+   8735
+  ],
+  [
+   "public",
+   "new_coin_opportunities",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "pattern_definitions",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "risk_control_events",
+   "BASE TABLE",
+   3887
+  ],
+  [
+   "public",
+   "scalp_veto_audit",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategic_macro_snapshots",
+   "BASE TABLE",
+   1044
+  ],
+  [
+   "public",
+   "strategic_memories",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategic_reports",
+   "BASE TABLE",
+   1044
+  ],
+  [
+   "public",
+   "strategy_analysis_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "strategy_optimization_logs",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "trend_prediction_records",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "walk_forward_reports",
+   "BASE TABLE",
+   2213
+  ]
+ ],
+ "alpha_market": [
+  [
+   "public",
+   "alembic_version_market",
+   "BASE TABLE",
+   1
+  ],
+  [
+   "public",
+   "asterdex_book_ticker",
+   "BASE TABLE",
+   51367861
+  ],
+  [
+   "public",
+   "asterdex_depth_snapshots",
+   "BASE TABLE",
+   12312943
+  ],
+  [
+   "public",
+   "asterdex_stream_health",
+   "BASE TABLE",
+   3
+  ],
+  [
+   "public",
+   "asterdex_trades",
+   "BASE TABLE",
+   870920
+  ],
+  [
+   "public",
+   "crypto_klines",
+   "BASE TABLE",
+   60964082
+  ],
+  [
+   "public",
+   "crypto_klines_bak_20260807114347",
+   "BASE TABLE",
+   23251266
+  ],
+  [
+   "public",
+   "crypto_price_ticks",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "crypto_prices",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "exchange_announcements",
+   "BASE TABLE",
+   204
+  ],
+  [
+   "public",
+   "flow_archive_5m",
+   "BASE TABLE",
+   3524
+  ],
+  [
+   "public",
+   "kline_collection_tasks",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "kline_sync_heartbeat",
+   "BASE TABLE",
+   63
+  ],
+  [
+   "public",
+   "liquidation_events",
+   "BASE TABLE",
+   48284
+  ],
+  [
+   "public",
+   "liquidation_ticks",
+   "BASE TABLE",
+   301705
+  ],
+  [
+   "public",
+   "macro_events",
+   "BASE TABLE",
+   4
+  ],
+  [
+   "public",
+   "macro_series",
+   "BASE TABLE",
+   1172
+  ],
+  [
+   "public",
+   "market_asset_metrics",
+   "BASE TABLE",
+   1264474
+  ],
+  [
+   "public",
+   "market_events",
+   "BASE TABLE",
+   10893
+  ],
+  [
+   "public",
+   "market_orderbook_snapshots",
+   "BASE TABLE",
+   2346123
+  ],
+  [
+   "public",
+   "market_spot_klines",
+   "BASE TABLE",
+   155683
+  ],
+  [
+   "public",
+   "market_trades_aggregated",
+   "BASE TABLE",
+   1475419
+  ],
+  [
+   "public",
+   "news_events",
+   "BASE TABLE",
+   2736
+  ],
+  [
+   "public",
+   "perp_funding",
+   "BASE TABLE",
+   17376881
+  ],
+  [
+   "public",
+   "position_structure",
+   "BASE TABLE",
+   84511
+  ],
+  [
+   "public",
+   "price_samples",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "raw_market_events",
+   "BASE TABLE",
+   2291525
+  ],
+  [
+   "public",
+   "smart_money_moves",
+   "BASE TABLE",
+   100
+  ],
+  [
+   "public",
+   "smart_money_scorecard",
+   "BASE TABLE",
+   5
+  ],
+  [
+   "public",
+   "smart_money_snapshots",
+   "BASE TABLE",
+   9
+  ],
+  [
+   "public",
+   "smart_money_traders",
+   "BASE TABLE",
+   28
+  ],
+  [
+   "public",
+   "symbol_aux_timeseries",
+   "BASE TABLE",
+   179811
+  ],
+  [
+   "public",
+   "symbol_catalog",
+   "BASE TABLE",
+   2577
+  ],
+  [
+   "public",
+   "ticker_snapshots",
+   "BASE TABLE",
+   5127607
+  ],
+  [
+   "public",
+   "whale_activities",
+   "BASE TABLE",
+   35506
+  ]
+ ],
+ "alpha_snapshots": [
+  [
+   "public",
+   "hyperliquid_account_snapshots",
+   "BASE TABLE",
+   0
+  ],
+  [
+   "public",
+   "hyperliquid_trades",
+   "BASE TABLE",
+   0
+  ]
+ ]
+}

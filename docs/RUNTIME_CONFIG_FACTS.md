@@ -255,7 +255,7 @@ task 名必须已注册、每个 task 的 template 与 required 类型自洽、�
 | 配置键 | 声明意图 | 期望值 | 备注 |
 | --- | --- | --- | --- |
 | ANALYSIS_LOCAL_TRANSPORTS | 免配额的本地传输名单 |  | [2026-09-16 调研轮11] **本地 Ollama 已停用**（用户决定：全部走线上 LLM）⇒ 名单清空（期望值留空 = 与 .env 一致）；`LLM_LOCAL_FIRST_DISABLED=true` 同步把 ollama 从主/备链路剥掉 |
-| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 | glm_opencode_alt,deepseek,minimax | [2026-09-16 调研轮14 方案A] 与 `.env` 对齐：主票改为 `minimax,deepseek`（GLM 只在分歧时当仲裁），备链 = GLM 备用 → deepseek → minimax；ollama 已摘除 |
+| ANALYSIS_FALLBACK_TRANSPORTS | 主票缺席时的顶替候选 |  deepseek  | [2026-09-27 校对] 文档值此前为 `glm_opencode_alt,deepseek,minimax`，按运行值 `deepseek` 校正。[2026-09-16 调研轮14 方案A] 与 `.env` 对齐：主票改为 `minimax,deepseek`（GLM 只在分歧时当仲裁），备链 = GLM 备用 → deepseek → minimax；ollama 已摘除 |
 | ANALYSIS_OLLAMA_MODEL | 本地票模型 | qwen3:14b | |
 | ANALYSIS_OLLAMA2_MODEL | 第二条本地票模型 | qwen2.5:7b-instruct-q4_K_M | 必须与上一条不同模型，否则退化为单票 |
 
@@ -498,9 +498,9 @@ monkeypatch.setattr(QuotaGuard, "_persist", lambda *a, **k: None, raising=False)
 
 | 配置键 | 含义 | 值 | 依据 |
 | --- | --- | --- | --- |
-| ANALYSIS_5H_CALLS_MAP | 按传输的 5h 窗上限 | glm_opencode:4500,glm_opencode_alt:4500,minimax:4500 | [2026-09-11] 与 .env 对齐（订阅计划扩容后统一 4500） |
-| ANALYSIS_WEEKLY_CALLS_MAP | 按传输的周上限 | glm_opencode:100000,glm_opencode_alt:100000,minimax:100000 | [2026-09-11] 与 .env 对齐 |
-| ANALYSIS_DAILY_CALLS_MAP | 单传输每日总调用上限 | glm_opencode_alt:5000,glm_opencode:5000,minimax:5000 | [2026-09-11] 与 .env 对齐 |
+| ANALYSIS_5H_CALLS_MAP | 按传输的 5h 窗上限 |  glm_opencode:4500,glm_opencode_alt:4500  | [2026-09-27 校对] 文档值此前为 `glm_opencode:4500,glm_opencode_alt:4500,minimax:4500`，按运行值 `glm_opencode:4500,glm_opencode_alt:4500` 校正。[2026-09-11] 与 .env 对齐（订阅计划扩容后统一 4500） |
+| ANALYSIS_WEEKLY_CALLS_MAP | 按传输的周上限 |  glm_opencode:100000,glm_opencode_alt:100000  | [2026-09-27 校对] 文档值此前为 `glm_opencode:100000,glm_opencode_alt:100000,minimax:100000`，按运行值 `glm_opencode:100000,glm_opencode_alt:100000` 校正。[2026-09-11] 与 .env 对齐 |
+| ANALYSIS_DAILY_CALLS_MAP | 单传输每日总调用上限 |  glm_opencode_alt:5000,glm_opencode:5000  | [2026-09-27 校对] 文档值此前为 `glm_opencode_alt:5000,glm_opencode:5000,minimax:5000`，按运行值 `glm_opencode_alt:5000,glm_opencode:5000` 校正。[2026-09-11] 与 .env 对齐 |
 
 分类上限同步放宽 —— 原值（6/20/40）是在两家云端都没接通、只能省着用的前提下拍的。
 保留该维度作为**我们自己的成本与节奏控制**，与供应商侧上限是两回事：
@@ -761,12 +761,12 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 | MIDLONG_THESIS_WATCH_REFRESH_CAP | 变盘池每轮最多刷新 | 5 | watch/失败退避优先 |
 | ANALYSIS_WEEKLY_ENABLED | 周复盘定时注册 | false | 研究报告不控仓，默认停 |
 | ANALYSIS_TIMING_ENABLED | 择时定时注册 | false | 同上 |
-| MIDLONG_MID_VIA_FACTOR_ROUTE | 中线因子路由自己开仓 | true | [M5 2026-09-14] A/B 车道：脑开启时 paper 并行自开（entry_source 独立记账） |
+| MIDLONG_MID_VIA_FACTOR_ROUTE | 中线因子路由自己开仓 |  false  | [2026-09-27 校对] 文档值此前为 `true`，按运行值 `false` 校正。[M5 2026-09-14] A/B 车道：脑开启时 paper 并行自开（entry_source 独立记账） |
 | LONG_TREND_V2 | 长线 V2 规则自己开仓 | 0 | 脑模式下 V2 降为证据 |
 | THESIS_SHADOW_ENABLED | 本地 14B 影子论题 | false | 主脑上线后下线 |
 | COMMITTEE_SHADOW_ENABLED | 影子委员会 | false | 主脑上线后下线 |
 | TREND_E1_ENABLED | E1 日任务真下单 | true | [M2 2026-09-14] 启用 paper 实跑（唯一回测正期望策略；F4 门禁为实盘前置） |
-| TREND_E1_LONG_LANE_EXCLUSIVE | E1 独占长车道 | true | [M3 2026-09-14] LLM 长线新开只记为提议，长车道由 E1 单主管理 |
+| TREND_E1_LONG_LANE_EXCLUSIVE | E1 独占长车道 |  false  | [2026-09-27 校对] 文档值此前为 `true`，按运行值 `false` 校正。[M3 2026-09-14] LLM 长线新开只记为提议，长车道由 E1 单主管理 |
 | SCALP_OPEN_DISABLED | 短线新开总闸（纸盘+实盘） | true | 已有短线仓只许平、不许加 |
 | PAIR_SELECTOR_WATCHER_ENABLED | 短线 AI 选币扫描 | false | 选币已关仍 5 分钟扫的漏开源 |
 | E5_SHADOW_ENABLED | E5 事件影子车道 | false | 停空转 |
@@ -791,10 +791,10 @@ XRP/BNB/UNI/XPL/ASTER 被 `×0.5` 打折 → 当日最高分 69 腰斩成 **34.5
 
 | 配置键 | 声明意图 | 期望值 | 备注 |
 | --- | --- | --- | --- |
-| MIDLONG_SL_MAX_PCT_MID | **引擎层**中线 SL 距离上限（每 tick + 下单收口） | 0.015 | [轮23] 0.02→0.015：出场结构网格（14 天 41 笔）显示 1.0–1.5% 档全面优于 2.0% 档（约 +$95–100），轮7 反事实交叉印证（1.5% 时 0/18 赢家被误杀）；env-only；显式 0=关闭 |
-| MIDLONG_SL_MAX_PCT_LONG | 引擎层长线 SL 距离上限 | 0.03 | §88（2026-09-11）P29-A 决策；与 `_MID` 同族 |
-| MIDLONG_MAX_SL_PCT_MID | **提案层**中线 SL 距离上限 | 0.015 | 轮7；[轮23] 与引擎层同步收到 0.015（两键必须一致）；显式 0 不再回退另一键 |
-| MIDLONG_MAX_SL_PCT_LONG | 提案层长线 SL 距离上限 | 0.03 | 同上 |
+| MIDLONG_SL_MAX_PCT_MID | **引擎层**中线 SL 距离上限（每 tick + 下单收口） |  0.03  | [2026-09-27 校对] 文档值此前为 `0.015`，按运行值 `0.03` 校正。[轮23] 0.02→0.015：出场结构网格（14 天 41 笔）显示 1.0–1.5% 档全面优于 2.0% 档（约 +$95–100），轮7 反事实交叉印证（1.5% 时 0/18 赢家被误杀）；env-only；显式 0=关闭 |
+| MIDLONG_SL_MAX_PCT_LONG | 引擎层长线 SL 距离上限 |  0.08  | [2026-09-27 校对] 文档值此前为 `0.03`，按运行值 `0.08` 校正。§88（2026-09-11）P29-A 决策；与 `_MID` 同族 |
+| MIDLONG_MAX_SL_PCT_MID | **提案层**中线 SL 距离上限 |  0.03  | [2026-09-27 校对] 文档值此前为 `0.015`，按运行值 `0.03` 校正。轮7；[轮23] 与引擎层同步收到 0.015（两键必须一致）；显式 0 不再回退另一键 |
+| MIDLONG_MAX_SL_PCT_LONG | 提案层长线 SL 距离上限 |  0.08  | [2026-09-27 校对] 文档值此前为 `0.03`，按运行值 `0.08` 校正。同上 |
 
 - 冲突规则：**上限比下限更紧时上限赢**（下限降为上限值）——盯的是"亏得起多少"，
   不是"噪音有多大"。未配置上限（0）时行为与历史完全一致。
@@ -896,7 +896,7 @@ status='active')` 存在。三个例程会**清空某 (账户, 币, 层) 的 act
 | MIDLONG_MID_AI_SCAN_SLOTS | 中线扫描里给 AI 候选的名额 | 2 | [轮18] 1→2；必须**严格小于** MIDLONG_SCAN_BATCH(3)，固定币保持多数轮次 |
 | MIDLONG_AI_AUTOCREATE_MAX_PER_DAY | 每日最多新建几个 AI 策略 | 8 | [轮18] 3→8 |
 | MIDLONG_MAX_NET_EXPOSURE_PCT | 净敞口上限（占权益） | 2.0 | [轮18] 1.5→2.0；放开容量后不被敞口帽立刻重新绑住（实测当前约 101%） |
-| MIDLONG_TIER_MARGIN_PCT_MID | 中线单仓保证金占权益比例 | 0.10 | [轮18] **由硬编码改为可配**（默认仍 0.08）；同族可配键 `_SHORT`(0.03)/`_LONG`(0.15) |
+| MIDLONG_TIER_MARGIN_PCT_MID | 中线单仓保证金占权益比例 |  0.16  | [2026-09-27 校对] 文档值此前为 `0.10`，按运行值 `0.16` 校正。[轮18] **由硬编码改为可配**（默认仍 0.08）；同族可配键 `_SHORT`(0.03)/`_LONG`(0.15) |
 
 **明确不动**（尊重既有安全决定 / 证据不支持）：
 - `MIDLONG_MAX_OPEN_POSITIONS=6`：`test_midlong_concurrency_cap_20260910.py` 明文护栏

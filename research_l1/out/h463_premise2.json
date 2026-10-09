@@ -1,0 +1,61 @@
+{
+  "legs_30h": 4604,
+  "pairs": 31,
+  "hist": {
+    "180-270": {
+      "n": 1,
+      "net_per_leg_bp": -114.33
+    },
+    "270-330": {
+      "n": 3,
+      "net_per_leg_bp": -502.602
+    },
+    ">=330": {
+      "n": 23,
+      "net_per_leg_bp": -43.059
+    }
+  },
+  "band_43_48": [
+    0,
+    0.0
+  ],
+  "band_58_63": [
+    0,
+    0.0
+  ],
+  "band_295_310": [
+    3,
+    -502.6019999999998
+  ],
+  "band_lt43": [
+    0,
+    0.0
+  ],
+  "by_exit_path": {
+    "timeout_hard_taker": {
+      "n": 20,
+      "net_per_leg_bp": -87.585,
+      "ge44_share": 0.9
+    },
+    "jump_exit_taker": {
+      "n": 4,
+      "net_per_leg_bp": -35.916,
+      "ge44_share": 1.0
+    },
+    "stop_loss_taker": {
+      "n": 5,
+      "net_per_leg_bp": -128.017,
+      "ge44_share": 0.8
+    },
+    "reversal_decay_taker": {
+      "n": 1,
+      "net_per_leg_bp": -412.527,
+      "ge44_share": 0.0
+    },
+    "take_profit_taker": {
+      "n": 1,
+      "net_per_leg_bp": 32.223,
+      "ge44_share": 1.0
+    }
+  }
+}

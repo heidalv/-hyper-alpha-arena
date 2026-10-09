@@ -477,6 +477,13 @@ def _ensure_columns_safe(eng, inspector, columns=None):
         ("full_auto_sessions", "auto_coin_max_slots", "INTEGER DEFAULT 5"),
         ("full_auto_sessions", "fixed_symbols_by_tier", "JSONB"),
         ("full_auto_sessions", "auto_coin_mid_enabled", "BOOLEAN DEFAULT FALSE"),
+        # [P6 bug 修复⑤ 2026-09-28] 挂单补单上下文（tier/nature/metadata）
+        ("paper_orders", "timeframe_tier", "VARCHAR(10)"),
+        ("paper_orders", "expected_hold_hours", "FLOAT"),
+        ("paper_orders", "metadata_json", "TEXT"),
+        # [P0 大轮回 2026-09-27] 开/平仓滑点记账（bp）
+        ("paper_positions", "entry_slippage_bp", "FLOAT"),
+        ("paper_positions", "exit_slippage_bp", "FLOAT"),
         ("full_auto_sessions", "auto_coin_mid_max_slots", "INTEGER DEFAULT 3"),
         # [2026-09-08] 长线 AI 选币会话配置
         ("full_auto_sessions", "auto_coin_long_enabled", "BOOLEAN DEFAULT FALSE"),

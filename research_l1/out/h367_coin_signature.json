@@ -1,0 +1,45 @@
+{
+  "hours": 168.0,
+  "symbols": {
+    "BTC": {
+      "p1_f120_edge": 0.36,
+      "median_rel_spread_bp": 0.012,
+      "median_abs_15s_ret_bp": 0.0,
+      "ofi_ac1": 0.0351,
+      "vr60": 1.31,
+      "median_depth_imb": null
+    },
+    "ETH": {
+      "p1_f120_edge": 0.825,
+      "median_rel_spread_bp": 0.037,
+      "median_abs_15s_ret_bp": 0.0,
+      "ofi_ac1": 0.0224,
+      "vr60": 1.169,
+      "median_depth_imb": null
+    },
+    "BNB": {
+      "p1_f120_edge": -0.316,
+      "median_rel_spread_bp": 0.89,
+      "median_abs_15s_ret_bp": 0.133,
+      "ofi_ac1": 0.0567,
+      "vr60": 1.388,
+      "median_depth_imb": null
+    },
+    "SOL": {
+      "p1_f120_edge": 0.207,
+      "median_rel_spread_bp": 0.857,
+      "median_abs_15s_ret_bp": 0.0,
+      "ofi_ac1": 0.038,
+      "vr60": 1.236,
+      "median_depth_imb": null
+    },
+    "DOGE": {
+      "p1_f120_edge": 1.591,
+      "median_rel_spread_bp": 1.123,
+      "median_abs_15s_ret_bp": 0.511,
+      "ofi_ac1": 0.0491,
+      "vr60": 1.287,
+      "median_depth_imb": null
+    }
+  }
+}

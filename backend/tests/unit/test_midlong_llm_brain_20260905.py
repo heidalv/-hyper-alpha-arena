@@ -789,9 +789,10 @@ def test_can_open_blocks_midlong_short_no_bias(monkeypatch):
     [2026-09-09] 显式声明前提：mid 空头模式已由 conditional 改为默认 off
     （实测 27 笔 short 信号在任何出场参数下费后均为负，见
     backend/tests/unit/test_midlong_location_gate.py::test_short_mode_default_off）。
-    本用例测的是 conditional 分支契约，不写死会随生产配置而红。
+    [2026-09-27 更新] 总开关 true（用户指令撤销「不做空」封锁）后本用例测的
+    conditional 分支契约不变，但前提键改为显式 true。
     """
-    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "true")
     monkeypatch.setenv("MIDLONG_SHORT_MODE", "conditional")
     import importlib as _il
 

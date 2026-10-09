@@ -25,6 +25,24 @@ sys.path.insert(0, str(ROOT))
 from backend.services.position_memory_manager import PositionMemoryManager as P  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _pin_design_caps(monkeypatch):
+    """把封顶值钉在**本文件设计年代（09-16 轮15）的 2%/3%**，让本文件只测"封顶机制"。
+
+    [2026-09-27 R4 修] 本文件此前读的是**运行时环境**，于是部署值一变就红：
+    `.env` 的 09-24「R8」决策把上限改成 **mid 0.03 / long 0.08**
+    （反事实见 `.env` 内注释：long 0.03→0.08，两个样本过全部五条预登记判据），
+    且线上实测与之一致 —— 09-24 之后开的 mid 仓止损距离**恰好 3.00%**、
+    long 仓 6.04~8.00%（`paper_positions` 账户 14）。
+    兄弟文件（`test_stop_distance_cap_20260916` / `test_tp_sl_price_cap_20260916`）
+    早就用显式 monkeypatch 钉值，本文件补齐同一做法。
+    """
+    from backend.config import settings as S
+
+    monkeypatch.setattr(S, "MIDLONG_MAX_SL_PCT_MID", 0.02, raising=False)
+    monkeypatch.setattr(S, "MIDLONG_MAX_SL_PCT_LONG", 0.03, raising=False)
+
+
 class _Fake(P):
     """只借配置与映射表，不触发 DB/初始化。"""
 

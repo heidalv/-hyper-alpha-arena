@@ -30,6 +30,35 @@ from backend.config.tier_timeframe_map import TIER_TIMEFRAME_MAP, NATURE_TO_TIER
 logger = logging.getLogger(__name__)
 
 
+def _round_price_keep_precision(p):
+    """按价位保留有效位的价格取整（[2026-10-02 修复 · 决策价精度缺陷]）。
+
+    背景（可复核）：
+      `env.current_price` 经 `full_auto/market_scan_cycle.py:93,109` 落到
+      `full_auto_sessions.last_market_summary.<SYM>.current_price`，而
+      `full_auto/execution_gates.py:69,81` 的 DecisionPriceGate 把它当"决策价"，
+      与实时价比对 `dev=|p_now-p_dec|/p_dec > max_dev`（paper 1% / live 0.5%）。
+      原先这里写的是 `round(current_price, 2)` —— 对 **<$0.5 的币**，2 位小数的相对误差
+      恒 >1%（实测快照：XPL 0.098→0.10 = +2.0%、DOGE 0.0958→0.10 = +4.4%、
+      ADA 0.2542→0.25 = −1.7%、TRX 0.3342→0.33 = −1.3%，且 price_source=realtime、
+      price_stale_warning 为空 ⇒ 与新鲜度无关）⇒ 这些币**数学上永远**被判
+      `decision_price_stale`，与其它门禁无关（实测 XPL/DOGE 各命中 8+ 次）。
+    现在按价位保留有效位：<$1 → 8 位；<$100 → 6 位；其余 → 2 位。
+    展示口径不受影响（前端另有格式化）。
+    """
+    try:
+        v = float(p)
+    except (TypeError, ValueError):
+        return p
+    if v <= 0:
+        return v
+    if v < 1:
+        return round(v, 8)
+    if v < 100:
+        return round(v, 6)
+    return round(v, 2)
+
+
 # ============================================================
 # 数据结构
 # ============================================================
@@ -504,7 +533,8 @@ class StrategyCoordinator:
             older_vol = sum(volumes[-20:-10]) / 10
             env.liquidity_score = min(recent_vol / older_vol, 2.0) if older_vol > 0 else 1.0
         
-        env.current_price = round(current_price, 2)
+        # [2026-10-02] 2 位小数曾让 <$0.5 的币在 DecisionPriceGate 上必然被拒（见 _round_price_keep_precision）
+        env.current_price = _round_price_keep_precision(current_price)
         env.atr_value = round(atr_value, 4)
         env.kline_count = len(short_klines)
         env.kline_age_hours = round(kline_age_hours, 1)

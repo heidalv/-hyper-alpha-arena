@@ -1,0 +1,64 @@
+{
+  "hours": 168.0,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "DOGEUSDT"
+  ],
+  "n_events": 8443,
+  "tp": 30.0,
+  "stop": 40.0,
+  "timeout": 120,
+  "by_distance": {
+    "0.25": {
+      "attempts": 8443,
+      "fills": 7983,
+      "fill_rate": 0.946,
+      "bp_per_fill": 0.253,
+      "bp_per_attempt": 0.2392,
+      "fills_per_h_per_sym": 9.5
+    },
+    "0.5": {
+      "attempts": 8443,
+      "fills": 7765,
+      "fill_rate": 0.92,
+      "bp_per_fill": 0.066,
+      "bp_per_attempt": 0.0606,
+      "fills_per_h_per_sym": 9.2
+    },
+    "1.0": {
+      "attempts": 8443,
+      "fills": 7462,
+      "fill_rate": 0.884,
+      "bp_per_fill": -0.171,
+      "bp_per_attempt": -0.1515,
+      "fills_per_h_per_sym": 8.9
+    },
+    "2.0": {
+      "attempts": 8443,
+      "fills": 6944,
+      "fill_rate": 0.822,
+      "bp_per_fill": -0.242,
+      "bp_per_attempt": -0.1991,
+      "fills_per_h_per_sym": 8.3
+    },
+    "3.0": {
+      "attempts": 8443,
+      "fills": 6383,
+      "fill_rate": 0.756,
+      "bp_per_fill": -0.566,
+      "bp_per_attempt": -0.4277,
+      "fills_per_h_per_sym": 7.6
+    },
+    "5.0": {
+      "attempts": 8443,
+      "fills": 5502,
+      "fill_rate": 0.652,
+      "bp_per_fill": -0.704,
+      "bp_per_attempt": -0.4586,
+      "fills_per_h_per_sym": 6.5
+    }
+  }
+}

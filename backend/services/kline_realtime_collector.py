@@ -262,24 +262,64 @@ def get_trade_universe_symbols() -> List[str]:
                 pass
     except Exception as e:
         logger.debug(f"get_trade_universe_symbols DB query failed: {e}")
-    # 并入选币/研究优先级币，缩短山寨 P1 轮转等待
+    # [h704 2026-10-02] **做市车道宇宙并入采集名单** —— 本函数此前只读
+    # FullAutoSession + 持仓,不知道 `mm_asterdex[_live]` 的存在 ⇒ v5 雷达每
+    # 15 分钟换币后,新币(实测 XLM)不在采集名单 ⇒ "在交易但没深度"
+    # (用户实测反馈:"发现了,却不去激活采集")。本函数的自述铁律就是
+    # "采集名单必须是交易名单的超集"——此前漏了做市车道这一整条交易名单。
     try:
-        for sym in get_research_priority_symbols(80):
-            if sym not in result:
-                result.append(sym)
+        from backend.services import lane_registry as _reg
+        for _lid in ("mm_asterdex", "mm_asterdex_live"):
+            _lm = (_reg.get_lane(_lid) or {}).get("meta") or {}
+            for _s in (_lm.get("symbols") or []):
+                su = normalize_symbol(str(_s))
+                if su and su not in seen:
+                    seen.add(su)
+                    result.append(su)
     except Exception:
         pass
-    # [2026-09-07] 研究池也会混进 TSLA/死币 → 与 AI 选币同一套可交易过滤
-    if result:
+    # 并入选币/研究优先级币，缩短山寨 P1 轮转等待
+    # [2026-09-17 修复·自锁死循环] 可交易过滤只作用于「研究池新增」。
+    # 原实现对整个宇宙套 filter_tradeable_ai_symbols（含 1m K线 ≤6h 新鲜度）：
+    # 1m 一旦过期 → 币被移出采集名单 → 永远采不到新 1m → 永久剔除。
+    # 该过滤的本意（见下方 [2026-09-07] 注释）是拦研究池混入的 TSLA/死币；
+    # 会话交易宇宙（固定币/AI 注入/持仓）必须无条件采集——采集恰恰是治过期的。
+    try:
+        research_syms = get_research_priority_symbols(80) or []
+    except Exception:
+        research_syms = []
+    if research_syms:
         try:
             from backend.services.ai_coin_unified import filter_tradeable_ai_symbols
-            result = filter_tradeable_ai_symbols(result)
+            research_syms = filter_tradeable_ai_symbols(research_syms)
         except Exception:
             pass
+    for sym in research_syms:
+        if sym not in result:
+            result.append(sym)
     if result:
         _trade_universe_cache = result
         _trade_universe_ts = now
     return _trade_universe_cache
+
+
+def _ccxt_prewarm_enabled() -> bool:
+    """[新目标 R4] ccxt 市场预载开关（默认 true；回滚 KLINE_CCXT_PREWARM=false）。"""
+    return (os.getenv("KLINE_CCXT_PREWARM", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _p0_period_align_enabled() -> bool:
+    """[续作R10] P0 周期对齐开关（默认 **false** = 现行为不变）。
+
+    见 `KlineRealtimeCollector._periods_due_now` 的 docstring：开启后 3m/5m 只在周期边界采集，
+    P0 任务量约 318 → 162（-49%），且**不牺牲 1m 新鲜度**。
+    回滚：置 false，或删除该行（默认即 false）。
+    """
+    return (os.getenv("KLINE_P0_PERIOD_ALIGN", "false") or "false").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
 
 
 class KlineRealtimeCollector:
@@ -351,6 +391,26 @@ class KlineRealtimeCollector:
             self.running = True
             self._started_event.clear()
             get_kline_collector_executor()  # 预热专用线程池
+            # [新目标 R4] **ccxt 市场预载**：实测（§80）重启后第 1 轮 P0 全灭
+            # （0ok/214err），第 2 轮起稳定 96.3% —— 根因是池内各线程首次使用
+            # `_make_sync_ccxt` 时各自 `load_markets`，冷启动风暴叠加当分钟任务。
+            # 注意 `_tls` 是**线程本地**缓存 ⇒ 必须把预载任务分发到**池的所有线程**里跑，
+            # 否则只暖了 start() 所在的线程。开关 KLINE_CCXT_PREWARM（默认 true）；回滚 false。
+            if _ccxt_prewarm_enabled():
+                try:
+                    from backend.services.kline_collectors import prewarm_sync_ccxt
+                    try:
+                        from backend.services.exchange_config import get_active_exchange
+                        _act_ex = str(get_active_exchange() or "asterdex").strip().lower()
+                    except Exception:
+                        _act_ex = (os.getenv("KLINE_ACTIVE_EXCHANGE") or "asterdex").strip().lower()
+                    _pool = get_kline_collector_executor()
+                    _n = int(os.getenv("KLINE_COLLECTOR_MAX_WORKERS", "6") or 6)
+                    _n = max(2, min(_n, 64))
+                    list(_pool.map(lambda _i: prewarm_sync_ccxt(_act_ex), range(_n)))
+                    logger.info("[P0] ccxt 预载完成 exchange=%s threads=%d", _act_ex, _n)
+                except Exception as _pw_err:  # noqa: BLE001
+                    logger.warning("[P0] ccxt 预载失败(不阻断): %s", _pw_err)
 
             self._collector_thread = threading.Thread(
                 target=self._collector_thread_main,
@@ -518,8 +578,35 @@ class KlineRealtimeCollector:
           ~75% 轮次 0ok，长周期轮 100% 超时，触发 180s 熔断死循环）。
         - 长周期（15m/30m/1h/4h/1d/1w）全部由 P1 full-period 轮转覆盖
           （asterdex 每 12 轮中 2 轮 + 冷所轮转），P2 深度回补补齐历史。
+
+        [续作R10] **周期对齐（默认关，`KLINE_P0_PERIOD_ALIGN=false`）**：
+        3m/5m 的 bar 只在**周期边界**闭合，未到边界时逐分钟重复抓取拿到的是同一根未完成 bar。
+        实测（§66）：P0 每轮 106 币 × 3 周期 = 318 任务，而 K 线 IO 线程池只有
+        `KLINE_COLLECTOR_MAX_WORKERS=12` 个线程、单请求超时仅 6s ⇒ 队尾等待 ≈ 26s ⇒ 系统性超时
+        （中位成功率 95.0%、4.2% 轮次整轮全灭）。开启本开关后：
+          3m 只在 `minute % 3 == 0`、5m 只在 `minute % 5 == 0` 采集，1m 仍每分钟
+          ⇒ 任务量约 318 → 162（-49%），且**不牺牲 1m 新鲜度**（1m 车道不变）。
+        判定阈值（预写死）：成功率中位 ≥98% 且 0ok 轮次 <1% 记为有效，否则回滚。
         """
-        return [p for p in ("1m", "3m", "5m") if p in self.periods]
+        _all = [p for p in ("1m", "3m", "5m") if p in self.periods]
+        if not _p0_period_align_enabled():
+            return _all
+        try:
+            _m = int(getattr(current_time, "minute", 0) or 0)
+        except Exception:
+            _m = 0
+        _out: List[str] = []
+        for _p in _all:
+            if _p == "1m":
+                _out.append(_p)
+                continue
+            try:
+                _step = int(_p.rstrip("m"))
+            except Exception:
+                _step = 0
+            if _step > 0 and _m % _step == 0:
+                _out.append(_p)
+        return _out
 
     def _build_p0_symbols(self) -> List[str]:
         """P0 热币 = 配置 ∪ 交易 universe ∪ 成交额 TopN（补山寨新鲜度）。"""
@@ -1439,11 +1526,60 @@ class KlineRealtimeCollector:
             pass
 
     async def _collect_symbol_kline(self, symbol: str, period: str = "1m", exchange_id: str = None) -> bool:
-        """采集单个交易对指定周期的K线数据，采集成功后广播 + 失效缓存"""
+        """采集单个交易对指定周期的K线数据，采集成功后广播 + 失效缓存
+
+        [2026-09-18 数据中心优化·P0 健壮性] 加**请求级超时 + 有界重试**。
+
+        ## 根因（有实证，见 `docs/数据中心优化升级_20260918.md`）
+        本函数原先既无请求级超时、也无重试 ⇒ 底层一旦"挂住"（本地代理抖动/
+        连接停滞），任务会一直挂着，直到**轮级** `KLINE_P0_TIMEOUT_S`(=.env 90s) 到期，
+        `asyncio.wait_for` 把整轮 306 个任务**一起取消** ⇒ 整轮 `0ok/306err`。
+
+        实测（`logs/data-center.log`）：**1383 轮**累计 `ok=211,251 / err=217,479`
+        ⇒ **成功率 49.3%**，**整轮全失败 656 轮（47.4%）**。
+
+        更隐蔽的是：任务是被 `CancelledError`（BaseException）取消的，
+        本函数的 `except Exception` **捕不到** ⇒ 日志里 `Failed to collect kline` **0 条**，
+        故障长期**无痕**（这也是它一直没被发现的原因）。
+
+        预算算式：306 任务 / 并发 `KLINE_P0_CONCURRENCY`(=.env 32) ≈ 10 批；
+        轮级预算 90s ⇒ 单任务预算 ≈ 9s。故默认请求超时 **6s**、重试 **1** 次
+        （最坏 12s，仍在预算内），单个慢请求只会牺牲它自己，不再拖垮整轮。
+        同一个文件里 P1 早有请求级超时（`asyncio.wait_for(_fetch(), timeout=25)`）——
+        本改动只是把 p0 对齐到既有做法。
+
+        回滚：`KLINE_P0_REQ_TIMEOUT_S=0` 关闭请求级超时；`KLINE_P0_REQ_RETRY=0` 关闭重试。
+        """
         exchange_id = exchange_id or get_active_exchange()
         try:
             collector = ExchangeDataSourceFactory.get_collector(exchange_id)
-            kline_data = await collector.fetch_current_kline(symbol, period)
+            try:
+                _req_to = float(os.getenv("KLINE_P0_REQ_TIMEOUT_S", "6") or 6)
+            except (TypeError, ValueError):
+                _req_to = 6.0
+            try:
+                _retry = max(0, int(os.getenv("KLINE_P0_REQ_RETRY", "1") or 1))
+            except (TypeError, ValueError):
+                _retry = 1
+            kline_data = None
+            for _attempt in range(_retry + 1):
+                try:
+                    if _req_to > 0:
+                        kline_data = await asyncio.wait_for(
+                            collector.fetch_current_kline(symbol, period), timeout=_req_to,
+                        )
+                    else:
+                        kline_data = await collector.fetch_current_kline(symbol, period)
+                    break
+                except asyncio.TimeoutError:
+                    if _attempt >= _retry:
+                        logger.warning(
+                            "[P0] 请求超时（%.0fs×%d 次）%s/%s@%s —— 单任务放弃，"
+                            "不再拖到轮级超时（旧行为会让整轮 0ok）",
+                            _req_to, _retry + 1, symbol, period, exchange_id,
+                        )
+                        return False
+                    await asyncio.sleep(0.4 * (_attempt + 1))
             if not kline_data:
                 return False
 

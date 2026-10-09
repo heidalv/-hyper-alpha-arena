@@ -1,0 +1,149 @@
+{
+  "windows": {
+    "A_内置基线(0.15体制,45s)": {
+      "window": [
+        "2026-09-28T01:48:11.023510+00:00",
+        "2026-09-28T13:48:11.023510+00:00"
+      ],
+      "n": 749,
+      "mean_bp": -0.778,
+      "median_bp": 0.228,
+      "stop_legs": 25,
+      "stop_net_bp_sum": -1117.32,
+      "stop_usd": -11.346,
+      "stop_contrib_bp_per_leg": -1.492
+    },
+    "N3_同体制参照(0.5体制,45s)": {
+      "window": [
+        "2026-09-28T15:17:00+00:00",
+        "2026-09-29T01:48:11.023510+00:00"
+      ],
+      "n": 398,
+      "mean_bp": -3.087,
+      "median_bp": 0.166,
+      "stop_legs": 24,
+      "stop_net_bp_sum": -1240.44,
+      "stop_usd": -9.837,
+      "stop_contrib_bp_per_leg": -3.117
+    },
+    "T_试跑窗(0.5体制,90s,进行中)": {
+      "window": [
+        "2026-09-29T01:48:11.023510+00:00",
+        "2026-09-29T05:26:05.642037+00:00"
+      ],
+      "n": 254,
+      "mean_bp": -2.399,
+      "median_bp": 0.168,
+      "stop_legs": 7,
+      "stop_net_bp_sum": -418.62,
+      "stop_usd": -1.668,
+      "stop_contrib_bp_per_leg": -1.648
+    }
+  },
+  "stop_rate_norm": {
+    "A_内置基线(0.15体制,45s)": {
+      "stop_rate": 0.0334,
+      "mean_stop_bp": -44.693,
+      "mean_nonstop_bp": 0.738,
+      "mean_all_bp": -0.778
+    },
+    "N3_同体制参照(0.5体制,45s)": {
+      "stop_rate": 0.0603,
+      "mean_stop_bp": -51.685,
+      "mean_nonstop_bp": 0.031,
+      "mean_all_bp": -3.087
+    },
+    "T_试跑窗(0.5体制,90s,进行中)": {
+      "stop_rate": 0.0276,
+      "mean_stop_bp": -59.803,
+      "mean_nonstop_bp": -0.772,
+      "mean_all_bp": -2.399
+    }
+  },
+  "normalized_delta_vs_A_内置基线(0.15体制,45s)": -1.966,
+  "normalized_delta_vs_N3_同体制参照(0.5体制,45s)": -1.245,
+  "welch_vs_A_内置基线(0.15体制,45s)": {
+    "t": -1.5267583933352076,
+    "p": 0.12754283505779623,
+    "mean_trial": -2.3985015748031495,
+    "mean_base": -0.7779185580774367,
+    "n_trial": 254,
+    "n_base": 749,
+    "delta": -1.6205830167257127
+  },
+  "welch_vs_N3_同体制参照(0.5体制,45s)": {
+    "t": 0.5046371897040719,
+    "p": 0.6140593238542753,
+    "mean_trial": -2.3985015748031495,
+    "mean_base": -3.0871030150753773,
+    "n_trial": 254,
+    "n_base": 398,
+    "delta": 0.6886014402722278
+  },
+  "market_same_clock": {
+    "D1_09-28": {
+      "window_h": 3.63,
+      "trades_per_h": 2833.8178699775663,
+      "vol_bp": 13.163737784475476,
+      "trades": 10292
+    },
+    "D2_09-29": {
+      "window_h": 3.63,
+      "trades_per_h": 2221.4576928662073,
+      "vol_bp": 12.111438727565616,
+      "trades": 8068
+    }
+  },
+  "baseline_market_softness": {
+    "A_window": {
+      "trades_per_h": 2648.25,
+      "vol_bp": 12.285694039133237,
+      "trades": 31779
+    },
+    "prev_day_same_clock": {
+      "trades_per_h": 1629.1666666666667,
+      "vol_bp": 10.089241939731274,
+      "trades": 19550
+    }
+  },
+  "stop_rate_by_daynight": {
+    "day": {
+      "legs": 991,
+      "stops": 35
+    },
+    "night": {
+      "legs": 475,
+      "stops": 23
+    }
+  },
+  "daytime_only_试跑窗": {
+    "n": 254,
+    "mean_bp": -2.399,
+    "median_bp": 0.168
+  },
+  "daytime_only_A 内置基线": {
+    "n": 698,
+    "mean_bp": -0.636,
+    "median_bp": 0.229
+  },
+  "stop_severity": {
+    "试跑窗": {
+      "stop_legs": 7,
+      "stop_notional_p50": 30.2,
+      "stop_notional_avg": 38.3,
+      "stop_net_bp_avg": -59.8
+    },
+    "A 内置基线": {
+      "stop_legs": 25,
+      "stop_notional_p50": 36.3,
+      "stop_notional_avg": 90.6,
+      "stop_net_bp_avg": -44.69
+    },
+    "N3 同体制参照": {
+      "stop_legs": 24,
+      "stop_notional_p50": 71.0,
+      "stop_notional_avg": 72.7,
+      "stop_net_bp_avg": -51.69
+    }
+  }
+}

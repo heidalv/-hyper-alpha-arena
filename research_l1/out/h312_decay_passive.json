@@ -1,0 +1,12 @@
+{
+  "n": 26610,
+  "mv_t_mean": -0.817,
+  "worst_mean": -14.774,
+  "rec60_rate": 0.8421,
+  "rec300_rate": 0.9265,
+  "mv60_mean": -0.869,
+  "mv300_mean": -1.035,
+  "policy_taker": -4.817,
+  "policy_bounce60": -2.624,
+  "policy_bounce300": -2.077
+}

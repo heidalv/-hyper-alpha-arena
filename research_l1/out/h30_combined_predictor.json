@@ -1,0 +1,133 @@
+{
+  "hours": 72.0,
+  "horizon_buckets": 1,
+  "n_folds": 6,
+  "ridge_alpha": 1.0,
+  "features": [
+    "amp_1",
+    "amp_4",
+    "avg_size",
+    "count_ratio_4",
+    "depth_imb",
+    "depth_total",
+    "depth_total_rel",
+    "flow_imb",
+    "flow_imb_16",
+    "flow_imb_4",
+    "max_size_rel",
+    "notional_ratio_4",
+    "ret_1",
+    "ret_16",
+    "ret_4",
+    "ret_autocov_32",
+    "ret_autocov_8",
+    "stdev_16",
+    "stdev_64",
+    "trade_count",
+    "trade_intensity_32",
+    "trade_intensity_4",
+    "vwap_dev"
+  ],
+  "per_symbol": {
+    "ASTER": {
+      "n_oos": 10244,
+      "ic_oos": 0.32325180365167266,
+      "sigma_fwd_bp": 3.8924272249681904,
+      "edge_bp": 1.2582341210538426
+    },
+    "BNB": {
+      "n_oos": 10344,
+      "ic_oos": 0.2410585016010102,
+      "sigma_fwd_bp": 1.9826515822953854,
+      "edge_bp": 0.47793501962499757
+    },
+    "BTC": {
+      "n_oos": 10350,
+      "ic_oos": 0.15655317910324024,
+      "sigma_fwd_bp": 1.4119993345651192,
+      "edge_bp": 0.22105298471782914
+    },
+    "DOGE": {
+      "n_oos": 10192,
+      "ic_oos": 0.23998156107237797,
+      "sigma_fwd_bp": 3.3571755587981658,
+      "edge_bp": 0.8056602313944167
+    },
+    "ETH": {
+      "n_oos": 10328,
+      "ic_oos": 0.1603744362641424,
+      "sigma_fwd_bp": 2.3293545820820927,
+      "edge_bp": 0.37356892796071267
+    },
+    "SOL": {
+      "n_oos": 10338,
+      "ic_oos": 0.19468854269879454,
+      "sigma_fwd_bp": 2.850141131478765,
+      "edge_bp": 0.5548898233734941
+    },
+    "SYN": {
+      "n_oos": 3834,
+      "ic_oos": 0.12345099091241804,
+      "sigma_fwd_bp": 43.83752007573181,
+      "edge_bp": 5.4117852924921115
+    },
+    "UNI": {
+      "n_oos": 3591,
+      "ic_oos": 0.008219323435082516,
+      "sigma_fwd_bp": 19.08647760228749,
+      "edge_bp": 0.15687793264965913
+    },
+    "XPL": {
+      "n_oos": 708,
+      "ic_oos": 0.14265823976836925,
+      "sigma_fwd_bp": 43.066318063889746,
+      "edge_bp": 6.143765128299235
+    },
+    "XRP": {
+      "n_oos": 10262,
+      "ic_oos": 0.1885216910074759,
+      "sigma_fwd_bp": 3.7319653982288643,
+      "edge_bp": 0.7035564276554938
+    }
+  },
+  "stratified": {
+    "liquid_sigma_le_6bp": {
+      "n_sym": 7,
+      "ic_mean": 0.21491853077124487,
+      "n_pos": 7,
+      "sigma_mean": 2.7936735446309404,
+      "edge_mean": 0.6278425051115409,
+      "symbols": [
+        "ASTER",
+        "BNB",
+        "BTC",
+        "DOGE",
+        "ETH",
+        "SOL",
+        "XRP"
+      ]
+    },
+    "illiquid_sigma_gt_6bp": {
+      "n_sym": 3,
+      "ic_mean": 0.09144285137195661,
+      "n_pos": 3,
+      "sigma_mean": 35.33010524730302,
+      "edge_mean": 3.904142784480335,
+      "symbols": [
+        "SYN",
+        "UNI",
+        "XPL"
+      ]
+    }
+  },
+  "summary": {
+    "ic_oos_mean_all": 0.17787582695145837,
+    "ic_oos_median": 0.17444806363580917,
+    "n_pos_all": 10,
+    "n_sym": 10,
+    "sigma_fwd_bp_mean_all": 12.554603055432564,
+    "edge_bp_mean_all": 1.610732588922179,
+    "ic_oos_mean_liquid": 0.21491853077124487,
+    "edge_bp_mean_liquid": 0.6278425051115409
+  }
+}

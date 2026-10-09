@@ -1,0 +1,83 @@
+{
+  "hours": 24.0,
+  "beta": -0.91,
+  "current_mult": 0.5,
+  "rows": [
+    {
+      "sym": "BNB",
+      "legs": 673,
+      "entries": 315,
+      "half_spread_bp": 0.552,
+      "capture_bp": 0.144,
+      "markout60_bp": -0.646,
+      "t": -1.29,
+      "breakeven_f": 5.482,
+      "suggested_f": 3.0,
+      "suggested_net_bp": -0.358,
+      "legs_delta": -541.2,
+      "note": "不可行"
+    },
+    {
+      "sym": "NEAR",
+      "legs": 252,
+      "entries": 77,
+      "half_spread_bp": 3.211,
+      "capture_bp": 1.133,
+      "markout60_bp": -2.11,
+      "t": -0.63,
+      "breakeven_f": 2.863,
+      "suggested_f": 3.0,
+      "suggested_net_bp": 0.156,
+      "legs_delta": -202.7,
+      "note": ""
+    },
+    {
+      "sym": "ARB",
+      "legs": 123,
+      "entries": 59,
+      "half_spread_bp": 3.696,
+      "capture_bp": 1.153,
+      "markout60_bp": 0.694,
+      "t": 0.23,
+      "breakeven_f": 0.399,
+      "suggested_f": 0.458,
+      "suggested_net_bp": 0.069,
+      "legs_delta": 10.1,
+      "note": ""
+    },
+    {
+      "sym": "XRP",
+      "legs": 346,
+      "entries": 112,
+      "half_spread_bp": 0.703,
+      "capture_bp": 0.192,
+      "markout60_bp": 1.584,
+      "t": 1.25,
+      "breakeven_f": -7.228,
+      "suggested_f": 0.35,
+      "suggested_net_bp": 1.459,
+      "legs_delta": 132.7,
+      "note": "可收窄"
+    },
+    {
+      "sym": "ENA",
+      "legs": 86,
+      "entries": 42,
+      "half_spread_bp": 2.843,
+      "capture_bp": 1.303,
+      "markout60_bp": -0.044,
+      "t": -0.01,
+      "breakeven_f": 1.034,
+      "suggested_f": 1.189,
+      "suggested_net_bp": 0.202,
+      "legs_delta": -46.9,
+      "note": ""
+    }
+  ],
+  "portfolio": {
+    "legs_before": 1480,
+    "legs_after": 832.0,
+    "legs_delta_pct": -43.78
+  },
+  "verdict": "**贴 touch/半价差以内挂单不可行的币：['BNB']**（盈亏平衡倍数 >3×，即无论怎么加宽都赚不回来）；**可收窄换腿量的币：['XRP']** ⇒ 逐币挂宽倍数比「换币」改动更小、且两头都受益（不可行的少做、有余量的多做），但需要引擎支持（`QuoteParams` 目前全局）"
+}

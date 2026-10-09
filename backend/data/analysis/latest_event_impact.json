@@ -1,71 +1,64 @@
 {
   "task": "event_impact",
-  "ts_ms": 1789445930523,
+  "ts_ms": 1791564715906,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.7,
-  "run_id": "7e7611628b7e4bbbbbee0d911053a151",
-  "context_hash": "6981bb0fd4ed68f7c051556a13c2f9cdc8cf368e74369d9fcd950cd4afced2fa",
+  "consensus_score": 0.55,
+  "run_id": "e8b8ea91ae744c7a953b338d0ef8d734",
+  "context_hash": "67b22dab8870c87f8da8c433bac2838d4aec0fe48c9c24230cd1118de482537b",
   "final": {
     "direction": "bullish",
     "strength": 4,
-    "confidence": 0.45,
-    "half_life_hours": 24,
+    "confidence": 0.55,
+    "half_life_hours": 8,
     "affected_symbols": [
-      "AVAAI"
+      "SKLUSDT"
     ],
-    "hedging_window_hours": 24,
+    "hedging_window_hours": 8,
     "position_adjustments": [
       {
-        "symbol": "AVAAI",
+        "symbol": "SKLUSDT",
         "action": "no_new_short",
-        "reason": "gateio 空头每 8h 支付 0.223% 资金费（约 -244% APR），且 AVAAI 处于 7d +22.19% 上行趋势、高于 EMA200 约 23.65%，此时开空承担负 carry 与轧空双重风险；当前组合无 AVAAI 持仓，不新建空头"
+        "reason": "gateio SKL 资金费 -0.295%/8h（≈-323% APR），且 binance/bybit 同为深度负值（-0.181%/-0.158%），空头需持续付费，做空成本极高；同时 SKL 1d 涨幅 +45.4%、7d +55.1%，动量向上，不宜新增空头。"
       }
     ],
     "analogues": [
       {
-        "event": "bybit HIVE 资金费 -1.930%/8h（≈-2113% APR，severity 4，ts 与本事件相近）",
-        "outcome": "context pack 未提供该事件后续价格/清算结果，无法验证空头是否被挤压"
+        "event": "同批 funding.extreme 中 SKL 在 binance（-0.265%/8h）与 bybit（-0.324%/8h）同时出现深度负资金费",
+        "outcome": "多交易所同步负资金费表明空头拥挤，历史上此类挤压结构往往伴随价格继续上行或高位剧烈波动，随后资金费向常态回归"
       },
       {
-        "event": "CAP 跨四所资金费 -0.537%~-1.674%/8h、STEEM -0.836%~-0.959%/8h 等批量负费率极端（24h 内 funding.extreme 事件共 200 条）",
-        "outcome": "结果数据不足，仅能确认市场整体存在空头拥挤现象，无法确认后续走向"
-      },
-      {
-        "event": "AVAAI 自身数据截止时点快照：gateio -0.0515%/8h vs asterdex/binance/bybit 均 +0.005%",
-        "outcome": "已演化为事件中的 -0.223%/8h，表明 gateio 局部空头拥挤在约一天内持续加深，而非一次性噪声"
+        "event": "同窗口其他深度负资金费事件（RLC -0.971%/8h、COOL -0.910%/8h、CTSI -0.525%/8h）",
+        "outcome": "极端负资金费集群出现，反映市场空头情绪集中，短期方向偏多但波动放大，半衰期通常在一个资金费结算周期（8h）量级"
       }
     ],
     "key_factors": [
-      "跨所背离是核心：仅 gateio 费率 -0.223%/8h 极端为负，asterdex/binance/bybit 均为 +0.005%/8h，指向 venue 级微观结构/局部空头拥挤，而非全市场一致情绪，故方向置信度下调",
-      "趋势与拥挤度冲突：1d +9.74%、7d +22.19%、高于 EMA200 +23.65% 的上升趋势叠加极端负费率（空头付费），构成典型轧空（short squeeze）前置条件",
-      "负费率对 gateio 多头为正 carry（约 +0.67%/天），但小市值（last 0.0099）、rv30 年化 272.1%、日 ATR 7.93% 意味着高滑点与高尾部风险，carry 难以覆盖波动",
-      "24h 清算结构：AVAAI 多头已清算 385 USD、空头 0，多头杠杆已有小幅出清；全市场空头清算 43.4M > 多头 21.8M",
-      "FOMC 将于 09-16 18:00 UTC 公布，宏观窗口与本事件半衰期部分重叠，事件尾部不确定性上升",
-      "数据时点错位提示：事件 ts(1789445280044) 晚于行情快照 as_of(1789344000000)，费率快照与事件值非同时点，影响精度"
+      "gateio SKL 资金费 -0.295%/8h（≈-323% APR），severity 3，方向标记 +0.5（偏多）",
+      "跨交易所一致性：binance -0.1812%、bybit -0.1584%、gateio -0.1346%（8h 口径），空头付费结构普遍",
+      "SKL 价格动量强：ret_1d +45.42%、ret_7d +55.11%，rv30 年化 256.2%，波动极高",
+      "全市场 24h 多头爆仓 5657 万美元 > 空头爆仓 3158 万美元，杠杆多头已被部分清洗",
+      "24h 高影响新闻 4 条全为负面（pos 0 / neg 4），宏观情绪偏空，构成反向风险",
+      "持仓结构、清算明细、SKL 相关性数据缺失，无法量化拥挤度与传导路径"
     ],
-    "summary": "AVAAI 在 gateio 出现 -0.223%/8h（≈-244% APR）极端负资金费，但其余三所费率均为小幅正值（+0.005%），信号呈 venue 级局部拥挤而非市场一致。该币处于 +22%/7d 上行趋势且高于 EMA200 约 23.65%，拥挤空头付费格局下短期偏多头/轧空方向，且 gateio 多头持有正 carry；但小市值+272% 年化波动使执行风险高，故仅给中等偏弱强度（4/10）与偏低置信度（0.45）。当前组合无 AVAAI 敞口，建议不新增空头；同类负费率极端事件（HIVE/CAP/STEEM）在 context pack 中无后续结果数据，无法用历史类比验证，半衰期按 1-3 个结算周期估计为 24 小时，避险窗口同为 24 小时并注意与 FOMC（09-16 18:00 UTC）窗口部分重叠。",
-    "arbitration": {
-      "verdict": "B",
-      "by": "glm_opencode_alt",
-      "rationale": "B 的论证更严格地锚定在 context pack 事实上：其一，B 正确识别了时序错位——行情快照 as_of(1789344000000) 早于事件 ts(1789445280044) 约 28 小时，gateio 费率由快照的 -0.0515%/8h 深化为事件中的 -0.223%/8h，说明是持续性加深的 venue 级空头拥挤而非一次性噪声；而 A 错误地将其他三所 +0.005% 的快照称为『同一时刻』数据。其二，A 的 analogues 断言了 HIVE/STEEM 等事件的结果（『价格走势由现货驱动』『不构成强方向信号』），这些结果数据在 context pack 中并不存在，属于引入 pack 之外的假设；B 则明确承认类比事件无后续结果可验证。其三，pack 中的客观事实支持温和多头倾向：ret_7d +22.19%、高于 EMA200 +23.65% 的上升趋势叠加极端负费率构成轧空前置条件，全市场 24h 空头清算 43.4M 大于多头 21.8M，且事件本身 direction 编码为 0.5（多头向）。B 同时已纳入 A 最有力的反驳点（跨所分歧降低置信度），并将其体现为 0.45 的低置信度。但考虑到信号仅 gateio 单所、幅度相对同批事件（CAP -1.67%、HIVE -1.93%）偏小、AVAAI 高波动小市值（rv30 272%）且临近 FOMC，我将强度自 B 的 4 微调至 3，置信度 0.4，方向维持 bullish。"
-    }
+    "summary": "SKL 在 gateio 出现 -0.295%/8h（≈-323% APR）的极端负资金费，且 binance、bybit 同向深度负值，属空头拥挤/多头被付费的挤压结构，方向判定偏多（bullish），强度中等（4/10）。SKL 近 1 日 +45.4%、近 7 日 +55.1%，动量与资金费方向一致，但 rv30 年化 256% 显示波动极大，且 24h 高影响新闻全为负面，故 confidence 仅 0.55。资金费类冲击通常在一个结算周期内衰减，半衰期取 8 小时，避险窗口同为 8 小时。持仓层面：当前组合无 SKL 敞口，主要风险是误入空头，故对 SKLUSDT 采取 no_new_short；其余持仓（AVAX/BNB/BTC/ETH/LINK/SOL/XRP）与 SKL 无直接关联，且相关性数据缺失，不做调整。数据不足：SKL 的 30d 收益、ATR14、RSI14、EMA 趋势、持仓结构、清算明细及与 BTC 相关性均缺失，无法进一步验证挤压强度。"
   },
-  "notes": [],
+  "notes": [
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"
+  ],
   "event": {
-    "id": 111482,
+    "id": 360328,
     "event_type": "funding.extreme",
-    "symbol": "AVAAI",
-    "ts_ms": 1789445280044,
+    "symbol": "SKL",
+    "ts_ms": 1791561645349,
     "severity": 3,
     "direction": 0.5,
-    "title": "gateio AVAAI 资金费 -0.223%/8h（≈-244% APR）",
+    "title": "gateio SKL 资金费 -0.295%/8h（≈-323% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -243.7,
-      "rate_8h": -0.002226,
+      "apr_pct": -322.9,
+      "rate_8h": -0.002949,
       "exchange": "gateio",
-      "rate_raw": -0.002226,
+      "rate_raw": -0.002949,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

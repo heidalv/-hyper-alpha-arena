@@ -39,11 +39,41 @@ def test_tick_appends_only_on_new_snapshot():
     assert "_snap_ms_now" in src
     # 不允许再有无条件 append
     assert "st.mid_hist.append(float(m[\"mid\"]))" in src
-    # 追加必须被条件包住（同一 if 块内同时更新 last_mid_src_ms）
-    i = src.index("_snap_ms_now")
-    seg = src[i:i + 400]
-    assert "if _snap_ms_now != int(st.last_mid_src_ms" in seg
-    assert "st.last_mid_src_ms = _snap_ms_now" in seg
+
+    # 追加必须被 `if _snap_ms_now != int(st.last_mid_src_ms ...)` 包住，
+    # 且同一块内同时更新 last_mid_src_ms。
+    #
+    # [F301 2026-09-16] 原断言用「首个子串起 400 字符的窗口」定位，属于**脆弱的
+    # 字面窗口**：F279 在 append 之前插入了停机断点补齐（`_splice_mid_hist`，
+    # 约 390 字符），把 `st.last_mid_src_ms = _snap_ms_now` 推出窗口 ⇒ 断言失败，
+    # 但**行为完全正确**（append 仍在同一 if 块内、顺序不变）。
+    # 改为**结构断言**：按缩进圈出守卫块，再检查块内成员与顺序。
+    lines = src.splitlines()
+    guard_idx = guard_indent = None
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if s.startswith("if _snap_ms_now != int(st.last_mid_src_ms"):
+            guard_idx = i
+            guard_indent = len(ln) - len(ln.lstrip())
+            break
+    assert guard_idx is not None, "未找到按快照去重的守卫条件"
+    body = []
+    for ln in lines[guard_idx + 1:]:
+        if not ln.strip():
+            continue                      # 空行不结束块
+        ind = len(ln) - len(ln.lstrip())
+        if ind <= guard_indent:
+            break                         # 回到同级或更外层 ⇒ 块结束
+        body.append(ln.strip())
+    assert body, "守卫块为空"
+    joined = "\n".join(body)
+    assert "st.mid_hist.append(float(m[\"mid\"]))" in joined, \
+        "append 必须在守卫块内（否则会重复注入相同中价 ⇒ 冻结档失效）"
+    assert "st.last_mid_src_ms = _snap_ms_now" in joined, \
+        "必须在同一守卫块内更新 last_mid_src_ms"
+    assert (body.index("st.mid_hist.append(float(m[\"mid\"]))")
+            < body.index("st.last_mid_src_ms = _snap_ms_now")), \
+        "必须先 append 再推进时间戳（顺序颠倒会漏掉本快照）"
 
 
 def mmrunning_tick():

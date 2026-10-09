@@ -1,0 +1,182 @@
+{
+  "rows": [
+    {
+      "ts": "2026-09-29T01:00:00+08:00",
+      "mkt_trades": 216,
+      "mkt_notional": 151929.3,
+      "engine_legs": 5,
+      "engine_entries": 3,
+      "legs_per_mkt_trade": 0.0231,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T01:10:00+08:00",
+      "mkt_trades": 1140,
+      "mkt_notional": 1389774.5,
+      "engine_legs": 21,
+      "engine_entries": 12,
+      "legs_per_mkt_trade": 0.0184,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T01:20:00+08:00",
+      "mkt_trades": 440,
+      "mkt_notional": 679894.3,
+      "engine_legs": 18,
+      "engine_entries": 14,
+      "legs_per_mkt_trade": 0.0409,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T01:30:00+08:00",
+      "mkt_trades": 414,
+      "mkt_notional": 195667.8,
+      "engine_legs": 8,
+      "engine_entries": 5,
+      "legs_per_mkt_trade": 0.0193,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T01:40:00+08:00",
+      "mkt_trades": 283,
+      "mkt_notional": 193496.1,
+      "engine_legs": 3,
+      "engine_entries": 2,
+      "legs_per_mkt_trade": 0.0106,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T01:50:00+08:00",
+      "mkt_trades": 301,
+      "mkt_notional": 141789.7,
+      "engine_legs": 16,
+      "engine_entries": 11,
+      "legs_per_mkt_trade": 0.0532,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T02:00:00+08:00",
+      "mkt_trades": 372,
+      "mkt_notional": 366682.5,
+      "engine_legs": 12,
+      "engine_entries": 7,
+      "legs_per_mkt_trade": 0.0323,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T02:10:00+08:00",
+      "mkt_trades": 273,
+      "mkt_notional": 408063.3,
+      "engine_legs": 17,
+      "engine_entries": 12,
+      "legs_per_mkt_trade": 0.0623,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T02:20:00+08:00",
+      "mkt_trades": 271,
+      "mkt_notional": 159068.5,
+      "engine_legs": 13,
+      "engine_entries": 7,
+      "legs_per_mkt_trade": 0.048,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T02:30:00+08:00",
+      "mkt_trades": 434,
+      "mkt_notional": 379053.6,
+      "engine_legs": 21,
+      "engine_entries": 15,
+      "legs_per_mkt_trade": 0.0484,
+      "phase": "pre-h472"
+    },
+    {
+      "ts": "2026-09-29T02:40:00+08:00",
+      "mkt_trades": 302,
+      "mkt_notional": 430041.8,
+      "engine_legs": 14,
+      "engine_entries": 13,
+      "legs_per_mkt_trade": 0.0464,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T02:50:00+08:00",
+      "mkt_trades": 352,
+      "mkt_notional": 313623.3,
+      "engine_legs": 18,
+      "engine_entries": 13,
+      "legs_per_mkt_trade": 0.0511,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:00:00+08:00",
+      "mkt_trades": 256,
+      "mkt_notional": 153118.9,
+      "engine_legs": 7,
+      "engine_entries": 4,
+      "legs_per_mkt_trade": 0.0273,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:10:00+08:00",
+      "mkt_trades": 402,
+      "mkt_notional": 293163.3,
+      "engine_legs": 7,
+      "engine_entries": 7,
+      "legs_per_mkt_trade": 0.0174,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:20:00+08:00",
+      "mkt_trades": 314,
+      "mkt_notional": 209510.2,
+      "engine_legs": 6,
+      "engine_entries": 3,
+      "legs_per_mkt_trade": 0.0191,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:30:00+08:00",
+      "mkt_trades": 540,
+      "mkt_notional": 794045.8,
+      "engine_legs": 14,
+      "engine_entries": 12,
+      "legs_per_mkt_trade": 0.0259,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:40:00+08:00",
+      "mkt_trades": 462,
+      "mkt_notional": 499574.0,
+      "engine_legs": 8,
+      "engine_entries": 5,
+      "legs_per_mkt_trade": 0.0173,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T03:50:00+08:00",
+      "mkt_trades": 370,
+      "mkt_notional": 462018.8,
+      "engine_legs": 9,
+      "engine_entries": 6,
+      "legs_per_mkt_trade": 0.0243,
+      "phase": "post-h472"
+    },
+    {
+      "ts": "2026-09-29T04:00:00+08:00",
+      "mkt_trades": 260,
+      "mkt_notional": 214673.4,
+      "engine_legs": 0,
+      "engine_entries": 0,
+      "legs_per_mkt_trade": 0.0,
+      "phase": "post-h472"
+    }
+  ],
+  "verdict": "⇒ 两者都在降/不显著 ⇒ 需更长窗口再判（或查闸门拦截率变化）",
+  "mkt_mean_pre": 414.4,
+  "mkt_mean_post": 362,
+  "legs_mean_pre": 13.4,
+  "legs_mean_post": 9.222222222222221,
+  "yield_pre": 0.03233590733590734,
+  "yield_post": 0.02547575199508901
+}

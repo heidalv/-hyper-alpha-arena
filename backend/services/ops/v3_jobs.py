@@ -89,6 +89,65 @@ def register_v3_jobs() -> List[str]:
     except Exception as exc:
         logger.warning("[v3_jobs] edge_ledger_snapshot 注册失败: %s", exc)
 
+    # ── [P2 大轮回 2026-09-27] 出场后 60 分钟观察（§9.3，30 分钟节奏）──
+    try:
+        from backend.services.ops.exit_markout import run_exit_markout
+        _job("exit_markout_30m", "interval 1800s",
+             "出场后 1h/4h 价格路径观察（§9.3 卖飞/躲过标记）",
+             owner="p2", runner=run_exit_markout, expected_interval_sec=1800)
+        task_scheduler.add_interval_task(
+            task_func=_wrap("exit_markout_30m", run_exit_markout),
+            interval_seconds=1800, task_id="v3_exit_markout_30m", max_instances=1,
+        )
+        registered.append("exit_markout_30m")
+    except Exception as exc:
+        logger.warning("[v3_jobs] exit_markout_30m 注册失败: %s", exc)
+
+    # ── [P0 大轮回 2026-09-27] 持仓逐 5 分钟快照（§10.1 断档门禁数据源）──
+    try:
+        from backend.services.ops.position_snapshotter import snapshot_open_positions
+        _job("position_snapshot_5m", "interval 300s",
+             "持仓逐 5 分钟快照（position_snapshots，幂等桶；§10.3 断档门禁数据源）",
+             owner="p0", runner=snapshot_open_positions, expected_interval_sec=300)
+        task_scheduler.add_interval_task(
+            task_func=_wrap("position_snapshot_5m", snapshot_open_positions),
+            interval_seconds=300, task_id="v3_position_snapshot_5m", max_instances=1,
+        )
+        registered.append("position_snapshot_5m")
+    except Exception as exc:
+        logger.warning("[v3_jobs] position_snapshot_5m 注册失败: %s", exc)
+
+    # ── [P0 大轮回 2026-09-27] 数据契约每日质量门禁（每日 05:10）──
+    try:
+        from backend.services.ops.p0_data_contract_audit import run_p0_audit
+        _job("p0_data_contract_audit", "daily 05:10",
+             "P0 数据契约质量门禁（决策关联/快照/thesis/资金费/滑点/学习比率/K线新鲜度，§10.3）",
+             owner="p0", runner=lambda: run_p0_audit(days=1), expected_interval_sec=24 * 3600)
+        task_scheduler.add_cron_task(
+            task_func=_wrap("p0_data_contract_audit", run_p0_audit),
+            hour=5, minute=10, task_id="v3_p0_data_contract_audit", max_instances=1, days=1,
+        )
+        registered.append("p0_data_contract_audit")
+    except Exception as exc:
+        logger.warning("[v3_jobs] p0_data_contract_audit 注册失败: %s", exc)
+
+    # ── [P0 大轮回 2026-09-27] 资金费逐仓回填每日任务（每日 05:00，近 7 天增量，幂等）──
+    try:
+        from scripts.backfill_position_funding import main as _funding_main
+        def _run_funding_backfill() -> dict:
+            out = _funding_main(["--days", "7", "--apply"])
+            return {"exit": int(out or 0)}
+        _job("position_funding_backfill", "daily 05:00",
+             "position_funding_events 增量回填 + paper_positions.funding_paid/received 重算（幂等）",
+             owner="data", runner=_run_funding_backfill, expected_interval_sec=24 * 3600)
+        task_scheduler.add_cron_task(
+            task_func=_wrap("position_funding_backfill", _run_funding_backfill),
+            hour=5, minute=0, task_id="v3_position_funding_backfill", max_instances=1,
+        )
+        registered.append("position_funding_backfill")
+    except Exception as exc:
+        logger.warning("[v3_jobs] position_funding_backfill 注册失败: %s", exc)
+
     # ── 后续 Phase 的任务在此追加（RiskEngine 巡检、数据采集、双模型简报…）──
     # [M8 2026-09-14] 原裸 `except ImportError: pass` 可静默杀掉全部扩展定时任务
     # （审计实证：ops/v3_jobs.py:96-97）。改为 WARNING 可见 + 注册计数归零可见。

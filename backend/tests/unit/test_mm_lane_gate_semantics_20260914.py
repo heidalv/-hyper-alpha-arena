@@ -144,11 +144,26 @@ def test_status_exposes_live_quoted_width():
     st = r.status()
     assert "avg_width_bp" in st and "avg_sigma" in st and "quoted_decisions" in st
     assert st["quoted_decisions"] == 0 and st["avg_width_bp"]["bid"] is None
+    # [F232] 挂宽均值改为**分侧计数**：bid/ask 各除各侧决策数（`_w_n_side`），
+    # 不再除含单边决策的 `_w_n` —— 否则单边行情里未挂侧会把另一侧均值稀释
+    # （实测 bid 读数 1.86bp < 任何可能的挂宽 ✗）。断言必须跟着口径走。
+    assert st["avg_width_bp"]["ask"] is None
     # 累计口径：挂出去的一侧才计入
     r._w_sum["bid"] += 7.0
     r._w_sum["ask"] += 3.0
     r._sigma_sum += 0.5
     r._w_n = 1
+    r._w_n_side["bid"] = 1
+    r._w_n_side["ask"] = 1
     st2 = r.status()
     assert st2["avg_width_bp"] == {"bid": 7.0, "ask": 3.0}
     assert st2["avg_sigma"] == 0.5
+    # 分侧口径的实质：只挂了一侧时，另一侧必须是 None 而不是 0 或被稀释
+    r2 = mmrunner.ShadowRunner(lane_id="t2", venue="x", symbols=["BTC"])
+    r2._w_sum["bid"] += 5.0
+    r2._w_n_side["bid"] = 1
+    r2._w_n = 1
+    st3 = r2.status()
+    assert st3["avg_width_bp"]["bid"] == 5.0
+    assert st3["avg_width_bp"]["ask"] is None, (
+        "未挂侧必须为 None —— 这是 F232 分侧计数的目的（不被对方稀释）")

@@ -6,9 +6,9 @@
     "banned_until": 0
   },
   "0:UNI": {
-    "consec_losses": 1,
-    "day": "2026-09-08",
-    "day_pnl": -2.45,
+    "consec_losses": 0,
+    "day": "2026-09-27",
+    "day_pnl": 0.2118,
     "banned_until": 0
   },
   "0:BNB": {
@@ -24,15 +24,15 @@
     "banned_until": 0
   },
   "0:SOL": {
-    "consec_losses": 1,
-    "day": "2026-09-01",
-    "day_pnl": -2.5211,
+    "consec_losses": 0,
+    "day": "2026-09-29",
+    "day_pnl": 5.72,
     "banned_until": 0
   },
   "0:XRP": {
-    "consec_losses": 1,
-    "day": "2026-09-10",
-    "day_pnl": -27.3082,
+    "consec_losses": 2,
+    "day": "2026-10-02",
+    "day_pnl": -6.5012,
     "banned_until": 0
   },
   "0:VIRTUAL": {
@@ -48,63 +48,153 @@
     "banned_until": 0
   },
   "0:BTC": {
-    "consec_losses": 8,
-    "day": "2026-09-09",
-    "day_pnl": 760.0,
-    "banned_until": 1788986960.3739982
+    "consec_losses": 0,
+    "day": "2026-10-03",
+    "day_pnl": 149126.7156,
+    "banned_until": 0
   },
   "14:BNB": {
-    "consec_losses": 2,
-    "day": "2026-09-10",
-    "day_pnl": -32.3619,
+    "consec_losses": 1,
+    "day": "2026-10-09",
+    "day_pnl": -3.5507,
     "banned_until": 0
   },
   "14:ETH": {
-    "consec_losses": 3,
-    "day": "2026-09-10",
-    "day_pnl": -4.8899,
-    "banned_until": 1789086615.4837134
+    "consec_losses": 4,
+    "day": "2026-10-09",
+    "day_pnl": -2.5766,
+    "banned_until": 1791521820.3366046
   },
   "14:BTC": {
-    "consec_losses": 2,
-    "day": "2026-09-07",
-    "day_pnl": -2.4551,
+    "consec_losses": 1,
+    "day": "2026-10-09",
+    "day_pnl": -1.6881,
     "banned_until": 0
   },
   "14:VIRTUAL": {
-    "consec_losses": 1,
-    "day": "2026-09-10",
-    "day_pnl": -13.029,
+    "consec_losses": 2,
+    "day": "2026-10-02",
+    "day_pnl": -0.9877,
     "banned_until": 0
   },
   "14:XRP": {
-    "consec_losses": 2,
-    "day": "2026-09-10",
-    "day_pnl": -27.6761,
-    "banned_until": 0
+    "consec_losses": 3,
+    "day": "2026-10-08",
+    "day_pnl": -1.3448,
+    "banned_until": 1791476463.513206
   },
   "14:SOL": {
-    "consec_losses": 2,
-    "day": "2026-09-10",
-    "day_pnl": -16.564,
-    "banned_until": 0
+    "consec_losses": 3,
+    "day": "2026-10-09",
+    "day_pnl": -0.3121,
+    "banned_until": 1791522476.3041096
   },
   "14:XPL": {
-    "consec_losses": 0,
-    "day": "2026-09-03",
-    "day_pnl": 1.1573,
+    "consec_losses": 2,
+    "day": "2026-10-02",
+    "day_pnl": -5.5905,
     "banned_until": 0
   },
   "14:UNI": {
-    "consec_losses": 0,
-    "day": "2026-09-08",
-    "day_pnl": 2.0594,
-    "banned_until": 0
+    "consec_losses": 3,
+    "day": "2026-10-02",
+    "day_pnl": -4.1299,
+    "banned_until": 1790935137.4961236
   },
   "14:ASTER": {
     "consec_losses": 2,
     "day": "2026-09-10",
     "day_pnl": -17.0155,
+    "banned_until": 0
+  },
+  "14:AAVE": {
+    "consec_losses": 2,
+    "day": "2026-10-09",
+    "day_pnl": -1.8967,
+    "banned_until": 0
+  },
+  "0:AAVE": {
+    "consec_losses": 1,
+    "day": "2026-09-28",
+    "day_pnl": -15.7291,
+    "banned_until": 0
+  },
+  "14:ATOM": {
+    "consec_losses": 2,
+    "day": "2026-10-02",
+    "day_pnl": -2.2423,
+    "banned_until": 0
+  },
+  "0:AVAX": {
+    "consec_losses": 2,
+    "day": "2026-10-08",
+    "day_pnl": -0.0874,
+    "banned_until": 0
+  },
+  "14:LINK": {
+    "consec_losses": 1,
+    "day": "2026-10-08",
+    "day_pnl": -1.7378,
+    "banned_until": 0
+  },
+  "14:DOT": {
+    "consec_losses": 1,
+    "day": "2026-09-30",
+    "day_pnl": -52.3123,
+    "banned_until": 0
+  },
+  "14:DOGE": {
+    "consec_losses": 1,
+    "day": "2026-10-03",
+    "day_pnl": -14.3475,
+    "banned_until": 0
+  },
+  "250:ETH": {
+    "consec_losses": 1,
+    "day": "2026-10-03",
+    "day_pnl": -2.3069,
+    "banned_until": 0
+  },
+  "250:BNB": {
+    "consec_losses": 1,
+    "day": "2026-10-03",
+    "day_pnl": -1.5394,
+    "banned_until": 0
+  },
+  "252:BTC": {
+    "consec_losses": 0,
+    "day": "2026-10-03",
+    "day_pnl": 223656.675,
+    "banned_until": 0
+  },
+  "253:ETH": {
+    "consec_losses": 0,
+    "day": "2026-10-03",
+    "day_pnl": 4521.9981,
+    "banned_until": 0
+  },
+  "253:SOL": {
+    "consec_losses": 1,
+    "day": "2026-10-03",
+    "day_pnl": -0.3081,
+    "banned_until": 0
+  },
+  "254:BTC": {
+    "consec_losses": 0,
+    "day": "2026-10-03",
+    "day_pnl": 149089.9642,
+    "banned_until": 0
+  },
+  "254:ETH": {
+    "consec_losses": 0,
+    "day": "2026-10-03",
+    "day_pnl": 4522.4218,
+    "banned_until": 0
+  },
+  "14:AVAX": {
+    "consec_losses": 0,
+    "day": "2026-10-08",
+    "day_pnl": -0.504,
     "banned_until": 0
   }
 }

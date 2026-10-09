@@ -1,0 +1,43 @@
+{
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "baseline": {
+    "ARB": 11.7218,
+    "SEI": 3.9164,
+    "SOL": 3.2726,
+    "UNI": 9.0309,
+    "XRP": 3.9099,
+    "DOGE": 3.414,
+    "HYPE": 4.234966,
+    "ASTER": 3.6678,
+    "PENDLE": 7.5478,
+    "VIRTUAL": 4.5372,
+    "1000SHIB": 4.1838
+  },
+  "replay_baseline_keys": [
+    "note",
+    "as_of",
+    "method",
+    "source",
+    "symbols",
+    "f341_note",
+    "window_days",
+    "vol_baseline_bp"
+  ],
+  "vol_pause_sigma": 1.5,
+  "runtime_avg_sigma": 0.019,
+  "lane_pause_last": {
+    "reason": "vol_pause(sigma=1.93)",
+    "ts": 1790626072.0620403,
+    "symbol": "XRP"
+  },
+  "realised_bp_1h": 8.533295120538344,
+  "realised_bp_24h_ago": 6.283185629859499,
+  "ratio": 1.3581160295480814,
+  "verdict": "市场确实更波动（1.36×）⇒ vol_pause 属于按设计生效"
+}

@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-09-27T20:20:23.230997+00:00",
+  "lookback_days": 400,
+  "strategy": "ema_trend_proxy",
+  "note": "代理趋势策略 WFO，用于证明闭环；非实盘 MLTO 参数。",
+  "reports": [
+    {
+      "symbol": "BTC",
+      "ok": true,
+      "bars": 401,
+      "periods": 20,
+      "oos_return": 0.034298634150099754,
+      "oos_sharpe": 0.39084700145086054,
+      "oos_max_dd": 0.1922989229508971,
+      "overfitting_score": 0.506469410272328,
+      "consistency_score": 0.38379014003214657,
+      "dsr": 0.5810274308458331,
+      "psr": 0.8955589694963715,
+      "pbo": null,
+      "pbo_verdict": ""
+    },
+    {
+      "symbol": "ETH",
+      "ok": true,
+      "bars": 401,
+      "periods": 20,
+      "oos_return": 0.06410706087429749,
+      "oos_sharpe": 0.7837229088782234,
+      "oos_max_dd": 0.27159818056562385,
+      "overfitting_score": 0.33903568743048806,
+      "consistency_score": 0.4523326641496454,
+      "dsr": 0.7543895489940147,
+      "psr": 0.9591135884497592,
+      "pbo": null,
+      "pbo_verdict": ""
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "bars": 401,
+      "periods": 20,
+      "oos_return": 0.04333907354343656,
+      "oos_sharpe": 0.2915317725907402,
+      "oos_max_dd": 0.23271994628633427,
+      "overfitting_score": 0.0,
+      "consistency_score": 0.3249769596260248,
+      "dsr": 0.5163884008860213,
+      "psr": 0.8628500772700316,
+      "pbo": null,
+      "pbo_verdict": ""
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "era": "2026-09-26 19:08:28.549563+08",
+  "windows": {
+    "本时代": {
+      "n": 84,
+      "spread_bp": 0.1557,
+      "price_bp": -1.3015,
+      "fee_bp": 0.0,
+      "funding_bp": 0.0,
+      "slippage_bp": 0.0,
+      "net_bp": -1.1458,
+      "per_leg_bp": -0.7742
+    },
+    "近24h": {
+      "n": 1472,
+      "spread_bp": 1.111,
+      "price_bp": -8.6952,
+      "fee_bp": 0.0,
+      "funding_bp": 0.0,
+      "slippage_bp": 0.0,
+      "net_bp": -7.5843,
+      "per_leg_bp": -0.206
+    },
+    "近7天": {
+      "n": 32655,
+      "spread_bp": 129.6472,
+      "price_bp": -625.5997,
+      "fee_bp": -233.3679,
+      "funding_bp": 0.0,
+      "slippage_bp": 0.0,
+      "net_bp": -729.3205,
+      "per_leg_bp": -0.5692
+    },
+    "近30天": {
+      "n": 37953,
+      "spread_bp": 603.7191,
+      "price_bp": -1216.9339,
+      "fee_bp": -261.5134,
+      "funding_bp": 0.0,
+      "slippage_bp": 0.0,
+      "net_bp": -874.7282,
+      "per_leg_bp": -0.6297
+    }
+  }
+}

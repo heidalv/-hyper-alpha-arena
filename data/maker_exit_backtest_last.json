@@ -1,0 +1,10 @@
+{
+  "ts": 1791086338.38269,
+  "n": 154,
+  "returned_pct": 0.623,
+  "median_wait_min": 13.5,
+  "avg_actual_bp_all": -12.89,
+  "avg_hypo_bp_all": -11.85,
+  "no_return_pct": 0.377,
+  "no_return_worse_n": 27
+}

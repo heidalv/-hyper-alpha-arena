@@ -1,0 +1,32 @@
+{
+  "h442": {
+    "verdict": "INCONCLUSIVE",
+    "why": "welch_p=0.214 delta=-1.355bp",
+    "legs": 61.3,
+    "base_legs": 68.8,
+    "freq_ok": true,
+    "delta": -1.355,
+    "p": 0.214,
+    "breaks": 10
+  },
+  "h443": {
+    "verdict": "INCONCLUSIVE",
+    "why": "welch_p=0.298 delta=-1.250bp",
+    "legs": 64.7,
+    "base_legs": 65.9,
+    "freq_ok": true,
+    "delta": -1.25,
+    "p": 0.298,
+    "breaks": 10
+  },
+  "h435": {
+    "verdict": "INCONCLUSIVE",
+    "why": "welch_p=0.120 delta=-2.310bp",
+    "legs": 62.0,
+    "base_legs": 62.5,
+    "freq_ok": true,
+    "delta": -2.31,
+    "p": 0.12,
+    "breaks": 10
+  }
+}

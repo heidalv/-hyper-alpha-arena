@@ -1,0 +1,914 @@
+{
+  "generated_at": "2026-09-20T10:37:26.746855+00:00",
+  "window": [
+    1789886229680,
+    1789900629680
+  ],
+  "hours": 4.0,
+  "hold_ms": 30000,
+  "widths_bp": [
+    0.0,
+    0.5,
+    1.0,
+    2.0,
+    3.0,
+    5.0,
+    8.0,
+    12.0,
+    20.0,
+    30.0
+  ],
+  "notional_usd": 30.0,
+  "rows": [
+    {
+      "width_bp": 0.0,
+      "decisions": 99706,
+      "fills": 36281,
+      "fill_rate": 0.3638798066314966,
+      "mk5s_bp": 2.6851215133663806,
+      "net_bp_per_fill": 1.863808615628886,
+      "net_bp_per_decision": -0.11041580481443387,
+      "usd_per_decision": -0.0003312474144433016,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 0.0,
+          "decisions": 14396,
+          "fills": 11735,
+          "fill_rate": 0.8151569880522367,
+          "net_bp_per_fill": -0.8754432648332967,
+          "net_bp_per_decision": -0.7136236949721267,
+          "mk5s_bp": -0.23809026386635973,
+          "usd_per_decision": -0.0021408710849163803
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 0.0,
+          "decisions": 14400,
+          "fills": 5885,
+          "fill_rate": 0.40868055555555555,
+          "net_bp_per_fill": -0.30520895809291715,
+          "net_bp_per_decision": -0.12473296655394567,
+          "mk5s_bp": -0.031245497547722077,
+          "usd_per_decision": -0.000374198899661837
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 0.0,
+          "decisions": 14400,
+          "fills": 8372,
+          "fill_rate": 0.5813888888888888,
+          "net_bp_per_fill": -0.12764395070303453,
+          "net_bp_per_decision": -0.07421077467262535,
+          "mk5s_bp": -0.1677446158435263,
+          "usd_per_decision": -0.00022263232401787604
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 0.0,
+          "decisions": 14400,
+          "fills": 9059,
+          "fill_rate": 0.6290972222222222,
+          "net_bp_per_fill": -0.23834312835176372,
+          "net_bp_per_decision": -0.14994099998184915,
+          "mk5s_bp": -0.005725196393961845,
+          "usd_per_decision": -0.00044982299994554743
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 0.0,
+          "decisions": 14395,
+          "fills": 965,
+          "fill_rate": 0.06703716568252865,
+          "net_bp_per_fill": 2.6275141990534685,
+          "net_bp_per_decision": 0.17614110469514396,
+          "mk5s_bp": 1.7877169525544265,
+          "usd_per_decision": 0.0005284233140854319
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 0.0,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 0.0,
+          "decisions": 13315,
+          "fills": 237,
+          "fill_rate": 0.017799474277131057,
+          "net_bp_per_fill": 5.688408900373823,
+          "net_bp_per_decision": 0.10125068790000721,
+          "mk5s_bp": 7.1013320885895075,
+          "usd_per_decision": 0.0003037520637000216
+        }
+      ]
+    },
+    {
+      "width_bp": 0.5,
+      "decisions": 99706,
+      "fills": 26146,
+      "fill_rate": 0.2622309590195174,
+      "mk5s_bp": 2.690250048456208,
+      "net_bp_per_fill": 1.879093888424055,
+      "net_bp_per_decision": -0.09016009636217971,
+      "usd_per_decision": -0.00027048028908653913,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 0.5,
+          "decisions": 14396,
+          "fills": 11735,
+          "fill_rate": 0.8151569880522367,
+          "net_bp_per_fill": -0.8754432648332967,
+          "net_bp_per_decision": -0.7136236949721267,
+          "mk5s_bp": -0.23809026386635973,
+          "usd_per_decision": -0.0021408710849163803
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 0.5,
+          "decisions": 14400,
+          "fills": 3953,
+          "fill_rate": 0.2745138888888889,
+          "net_bp_per_fill": -0.20294524254904195,
+          "net_bp_per_decision": -0.055711287763636305,
+          "mk5s_bp": -0.007542828066935774,
+          "usd_per_decision": -0.00016713386329090892
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 0.5,
+          "decisions": 14400,
+          "fills": 169,
+          "fill_rate": 0.01173611111111111,
+          "net_bp_per_fill": -0.12291075668072626,
+          "net_bp_per_decision": -0.0014424942971557459,
+          "mk5s_bp": -0.15554753969551774,
+          "usd_per_decision": -4.327482891467237e-06
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 0.5,
+          "decisions": 14400,
+          "fills": 9059,
+          "fill_rate": 0.6290972222222222,
+          "net_bp_per_fill": -0.23834312835176372,
+          "net_bp_per_decision": -0.14994099998184915,
+          "mk5s_bp": -0.005725196393961845,
+          "usd_per_decision": -0.00044982299994554743
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 0.5,
+          "decisions": 14395,
+          "fills": 965,
+          "fill_rate": 0.06703716568252865,
+          "net_bp_per_fill": 2.6275141990534685,
+          "net_bp_per_decision": 0.17614110469514396,
+          "mk5s_bp": 1.7877169525544265,
+          "usd_per_decision": 0.0005284233140854319
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 0.5,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 0.5,
+          "decisions": 13315,
+          "fills": 237,
+          "fill_rate": 0.017799474277131057,
+          "net_bp_per_fill": 5.688408900373823,
+          "net_bp_per_decision": 0.10125068790000721,
+          "mk5s_bp": 7.1013320885895075,
+          "usd_per_decision": 0.0003037520637000216
+        }
+      ]
+    },
+    {
+      "width_bp": 1.0,
+      "decisions": 99706,
+      "fills": 3298,
+      "fill_rate": 0.03307724710649309,
+      "mk5s_bp": 2.695409205223369,
+      "net_bp_per_fill": 1.8769198595633863,
+      "net_bp_per_decision": 0.02915055432935851,
+      "usd_per_decision": 8.745166298807553e-05,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 1.0,
+          "decisions": 14396,
+          "fills": 993,
+          "fill_rate": 0.06897749374826341,
+          "net_bp_per_fill": -0.8911955281300483,
+          "net_bp_per_decision": -0.06147243397007072,
+          "mk5s_bp": -0.29304474089285937,
+          "usd_per_decision": -0.00018441730191021214
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 1.0,
+          "decisions": 14400,
+          "fills": 801,
+          "fill_rate": 0.055625,
+          "net_bp_per_fill": -0.5412105328817911,
+          "net_bp_per_decision": -0.030104835891549626,
+          "mk5s_bp": -0.06259787858306909,
+          "usd_per_decision": -9.031450767464888e-05
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 1.0,
+          "decisions": 14400,
+          "fills": 33,
+          "fill_rate": 0.0022916666666666667,
+          "net_bp_per_fill": -0.4331054019886986,
+          "net_bp_per_decision": -0.0009925332128907676,
+          "mk5s_bp": -0.33580980271952415,
+          "usd_per_decision": -2.977599638672303e-06
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 1.0,
+          "decisions": 14400,
+          "fills": 277,
+          "fill_rate": 0.01923611111111111,
+          "net_bp_per_fill": 0.28487605924351783,
+          "net_bp_per_decision": 0.00547990752850378,
+          "mk5s_bp": 0.19297416384552102,
+          "usd_per_decision": 1.643972258551134e-05
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 1.0,
+          "decisions": 14395,
+          "fills": 929,
+          "fill_rate": 0.06453629732546023,
+          "net_bp_per_fill": 2.753289008370978,
+          "net_bp_per_decision": 0.17768707806715098,
+          "mk5s_bp": 1.9154034802517055,
+          "usd_per_decision": 0.000533061234201453
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 1.0,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 1.0,
+          "decisions": 13315,
+          "fills": 237,
+          "fill_rate": 0.017799474277131057,
+          "net_bp_per_fill": 5.688408900373823,
+          "net_bp_per_decision": 0.10125068790000721,
+          "mk5s_bp": 7.1013320885895075,
+          "usd_per_decision": 0.0003037520637000216
+        }
+      ]
+    },
+    {
+      "width_bp": 2.0,
+      "decisions": 99706,
+      "fills": 1000,
+      "fill_rate": 0.010029486690871161,
+      "mk5s_bp": 2.852203281217816,
+      "net_bp_per_fill": 1.6148482501078718,
+      "net_bp_per_decision": 0.03832474962853417,
+      "usd_per_decision": 0.0001149742488856025,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 2.0,
+          "decisions": 14396,
+          "fills": 20,
+          "fill_rate": 0.0013892747985551543,
+          "net_bp_per_fill": 0.0992232658351837,
+          "net_bp_per_decision": 0.00013784838265515936,
+          "mk5s_bp": -0.37866968424088354,
+          "usd_per_decision": 4.135451479654781e-07
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 2.0,
+          "decisions": 14400,
+          "fills": 4,
+          "fill_rate": 0.0002777777777777778,
+          "net_bp_per_fill": -3.1691609602828454,
+          "net_bp_per_decision": -0.000880322488967457,
+          "mk5s_bp": -0.5446081819774236,
+          "usd_per_decision": -2.640967466902371e-06
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 2.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 2.0,
+          "decisions": 14400,
+          "fills": 6,
+          "fill_rate": 0.0004166666666666667,
+          "net_bp_per_fill": -1.671037827322036,
+          "net_bp_per_decision": -0.0006962657613841818,
+          "mk5s_bp": -1.178363873270056,
+          "usd_per_decision": -2.0887972841525457e-06
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 2.0,
+          "decisions": 14395,
+          "fills": 708,
+          "fill_rate": 0.04918374435567906,
+          "net_bp_per_fill": 2.4013143875415044,
+          "net_bp_per_decision": 0.11810563295445536,
+          "mk5s_bp": 1.6928056864286887,
+          "usd_per_decision": 0.0003543168988633661
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 2.0,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 2.0,
+          "decisions": 13315,
+          "fills": 234,
+          "fill_rate": 0.017574164476154713,
+          "net_bp_per_fill": 5.751374122919503,
+          "net_bp_per_decision": 0.1010755948000874,
+          "mk5s_bp": 7.17244861429427,
+          "usd_per_decision": 0.0003032267844002622
+        }
+      ]
+    },
+    {
+      "width_bp": 3.0,
+      "decisions": 99706,
+      "fills": 418,
+      "fill_rate": 0.0041923254367841455,
+      "mk5s_bp": 3.138615849630136,
+      "net_bp_per_fill": 0.8063940416883527,
+      "net_bp_per_decision": 0.019596069066769126,
+      "usd_per_decision": 5.8788207200307374e-05,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 3.0,
+          "decisions": 14396,
+          "fills": 3,
+          "fill_rate": 0.00020839121978327314,
+          "net_bp_per_fill": -2.014745177428635,
+          "net_bp_per_decision": -0.0004198552050768203,
+          "mk5s_bp": 0.4434233116473756,
+          "usd_per_decision": -1.2595656152304608e-06
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 3.0,
+          "decisions": 14400,
+          "fills": 1,
+          "fill_rate": 6.944444444444444e-05,
+          "net_bp_per_fill": 0.7212405337179155,
+          "net_bp_per_decision": 5.008614817485525e-05,
+          "mk5s_bp": 1.0818608005760724,
+          "usd_per_decision": 1.5025844452456575e-07
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 3.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 3.0,
+          "decisions": 14400,
+          "fills": 1,
+          "fill_rate": 6.944444444444444e-05,
+          "net_bp_per_fill": -6.502719318989521,
+          "net_bp_per_decision": -0.0004515777304853834,
+          "mk5s_bp": -1.773468905178662,
+          "usd_per_decision": -1.3547331914561503e-06
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 3.0,
+          "decisions": 14395,
+          "fills": 160,
+          "fill_rate": 0.011114970475859673,
+          "net_bp_per_fill": 0.21335811412739183,
+          "net_bp_per_decision": 0.002371469139311059,
+          "mk5s_bp": 1.1118666466627718,
+          "usd_per_decision": 7.114407417933176e-06
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 3.0,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 3.0,
+          "decisions": 13315,
+          "fills": 225,
+          "fill_rate": 0.016898235073225687,
+          "net_bp_per_fill": 6.143853586747044,
+          "net_bp_per_decision": 0.10382028216433231,
+          "mk5s_bp": 7.618406118000958,
+          "usd_per_decision": 0.00031146084649299696
+        }
+      ]
+    },
+    {
+      "width_bp": 5.0,
+      "decisions": 99706,
+      "fills": 232,
+      "fill_rate": 0.0023268409122821094,
+      "mk5s_bp": 8.58326212556709,
+      "net_bp_per_fill": 7.4583180454233995,
+      "net_bp_per_decision": 0.04738838919522928,
+      "usd_per_decision": 0.00014216516758568785,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 5.0,
+          "decisions": 14396,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 5.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 5.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 5.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 5.0,
+          "decisions": 14395,
+          "fills": 3,
+          "fill_rate": 0.00020840569642236888,
+          "net_bp_per_fill": 7.593423252625677,
+          "net_bp_per_decision": 0.0015825126611932639,
+          "mk5s_bp": 5.310814725167436,
+          "usd_per_decision": 4.747537983579792e-06
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 5.0,
+          "decisions": 14400,
+          "fills": 28,
+          "fill_rate": 0.0019444444444444444,
+          "net_bp_per_fill": 6.2773765119559215,
+          "net_bp_per_decision": 0.012206009884358736,
+          "mk5s_bp": 10.3496071260723,
+          "usd_per_decision": 3.6618029653076206e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 5.0,
+          "decisions": 13315,
+          "fills": 201,
+          "fill_rate": 0.015095756665414945,
+          "net_bp_per_fill": 8.504154371688601,
+          "net_bp_per_decision": 0.12837664504013585,
+          "mk5s_bp": 10.089364525461537,
+          "usd_per_decision": 0.00038512993512040755
+        }
+      ]
+    },
+    {
+      "width_bp": 8.0,
+      "decisions": 99706,
+      "fills": 206,
+      "fill_rate": 0.0020660742583194593,
+      "mk5s_bp": 10.648631050429131,
+      "net_bp_per_fill": 7.801250679873162,
+      "net_bp_per_decision": 0.06882967377084853,
+      "usd_per_decision": 0.00020648902131254558,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 8.0,
+          "decisions": 14396,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 8.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 8.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 8.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 8.0,
+          "decisions": 14395,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 8.0,
+          "decisions": 14400,
+          "fills": 25,
+          "fill_rate": 0.001736111111111111,
+          "net_bp_per_fill": 6.27752361807677,
+          "net_bp_per_decision": 0.010898478503605502,
+          "mk5s_bp": 10.336329855677928,
+          "usd_per_decision": 3.269543551081651e-05
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 8.0,
+          "decisions": 13315,
+          "fills": 181,
+          "fill_rate": 0.013593691325572662,
+          "net_bp_per_fill": 9.324977741669553,
+          "net_bp_per_decision": 0.12676086903809156,
+          "mk5s_bp": 10.960932245180336,
+          "usd_per_decision": 0.00038028260711427467
+        }
+      ]
+    },
+    {
+      "width_bp": 12.0,
+      "decisions": 99706,
+      "fills": 2,
+      "fill_rate": 2.005897338174232e-05,
+      "mk5s_bp": 8.137612797986234,
+      "net_bp_per_fill": 5.425275538221258,
+      "net_bp_per_decision": 0.000814911834505634,
+      "usd_per_decision": 2.444735503516902e-06,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 12.0,
+          "decisions": 14396,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 12.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 12.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 12.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 12.0,
+          "decisions": 14395,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 12.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 12.0,
+          "decisions": 13315,
+          "fills": 2,
+          "fill_rate": 0.0001502065339842283,
+          "net_bp_per_fill": 5.425275538221258,
+          "net_bp_per_decision": 0.000814911834505634,
+          "mk5s_bp": 8.137612797986234,
+          "usd_per_decision": 2.444735503516902e-06
+        }
+      ]
+    },
+    {
+      "width_bp": 20.0,
+      "decisions": 99706,
+      "fills": 1,
+      "fill_rate": 1.002948669087116e-05,
+      "mk5s_bp": 0.5894141223629613,
+      "net_bp_per_fill": -6.483555345986031,
+      "net_bp_per_decision": -0.0004502468990268077,
+      "usd_per_decision": -1.3507406970804232e-06,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 20.0,
+          "decisions": 14396,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 20.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 20.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 20.0,
+          "decisions": 14400,
+          "fills": 1,
+          "fill_rate": 6.944444444444444e-05,
+          "net_bp_per_fill": -6.483555345986031,
+          "net_bp_per_decision": -0.0004502468990268077,
+          "mk5s_bp": 0.5894141223629613,
+          "usd_per_decision": -1.3507406970804232e-06
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 20.0,
+          "decisions": 14395,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 20.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 20.0,
+          "decisions": 13315,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        }
+      ]
+    },
+    {
+      "width_bp": 30.0,
+      "decisions": 99706,
+      "fills": 0,
+      "fill_rate": 0.0,
+      "mk5s_bp": null,
+      "net_bp_per_fill": NaN,
+      "net_bp_per_decision": NaN,
+      "usd_per_decision": NaN,
+      "per_symbol": [
+        {
+          "symbol": "ASTER",
+          "width_bp": 30.0,
+          "decisions": 14396,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "XRP",
+          "width_bp": 30.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SOL",
+          "width_bp": 30.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "DOGE",
+          "width_bp": 30.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "UNI",
+          "width_bp": 30.0,
+          "decisions": 14395,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "SEI",
+          "width_bp": 30.0,
+          "decisions": 14400,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        },
+        {
+          "symbol": "VIRTUAL",
+          "width_bp": 30.0,
+          "decisions": 13315,
+          "fills": 0,
+          "fill_rate": 0.0,
+          "net_bp_per_fill": null,
+          "net_bp_per_decision": null,
+          "mk5s_bp": null,
+          "usd_per_decision": null
+        }
+      ]
+    }
+  ]
+}

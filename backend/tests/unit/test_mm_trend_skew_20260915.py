@@ -99,14 +99,19 @@ def test_skew_composes_with_inventory_skew():
     assert long_inv.w_bid_bp > flat.w_bid_bp
 
 
-def test_trend_blocked_side_now_blocks_the_with_trend_side():
-    """**符号修正**：涨→禁买、跌→禁卖（原来正好相反 ✗）。"""
+def test_trend_blocked_side_now_blocks_the_counter_trend_side():
+    """[h324 2026-09-26] **符号翻回**：涨→禁卖、跌→禁买（F204 曾翻成相反方向）。
+
+    依据见 `core.trend_blocked_side` docstring：h323 markout 4/4 日窗
+    （加仓腿顺势侧 +4.3~+9.8bp vs 逆势侧 −0.5~−3.1bp）+ h284 带闸门实现盈亏
+    （168h/48h：封逆势 −0.842/−0.868 最优）。
+    """
     rising = [100.0 + i * 0.05 for i in range(40)]      # 净上涨
     falling = [100.0 - i * 0.05 for i in range(40)]     # 净下跌
     assert trend_move_bp(rising, 20) > 0
     assert trend_move_bp(falling, 20) < 0
-    assert trend_blocked_side(rising, 3.0, 20) == "buy", "上涨应禁买（原来返回 sell ✗）"
-    assert trend_blocked_side(falling, 3.0, 20) == "sell", "下跌应禁卖（原来返回 buy ✗）"
+    assert trend_blocked_side(rising, 3.0, 20) == "sell", "上涨应禁卖（逆势做空 ✗）"
+    assert trend_blocked_side(falling, 3.0, 20) == "buy", "下跌应禁买（逆势接刀 ✗）"
     # 关闭态不受影响
     assert trend_blocked_side(rising, 0.0, 20) == ""
     assert trend_blocked_side(falling, -1.0, 20) == ""

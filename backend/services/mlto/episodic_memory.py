@@ -195,6 +195,16 @@ def backfill_outcome(
                 .first()
             )
             if row is None:
+                # [F384 2026-09-18 禁止静默退化] 原为 `return False`（**零日志**）。
+                # 这是**最可能发生**的失败形态：调用方用"该 paper 账户最新的 session_id"
+                # 精确匹配，会话轮转 / tier 标签不一致时必然匹配不到 ⇒ 结局永久丢失，
+                # 而外部完全看不出来（实测 BTC/mid 261 条情景里仅 6 条带结局 = 2.3%）。
+                # 只加日志，不改任何行为。
+                logger.warning(
+                    "[Episodic] 结局回填**未匹配到情景**（结局丢失）: session=%s %s/%s "
+                    "pnl=%.4f pct=%.4f —— 常见原因：会话已轮转或 tier 标签不一致",
+                    session_id, symbol, tier, float(pnl or 0), float(pct or 0),
+                )
                 return False
             row.opened = 1
             row.outcome_pnl = round(float(pnl), 4)
@@ -205,7 +215,8 @@ def backfill_outcome(
             db.commit()
         return True
     except Exception as exc:
-        logger.debug("[Episodic] backfill 失败 %s %s: %s", symbol, tier, exc)
+        # [F384] debug → warning：生产日志级别为 INFO，debug 等于不可见。
+        logger.warning("[Episodic] backfill 失败 %s %s: %s", symbol, tier, exc)
         return False
 
 

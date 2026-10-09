@@ -1,0 +1,10 @@
+﻿① px_exact_hit / source 分布（区分被动成交 vs 主动 taker 平仓）
+   清库  px_exact_hit=(无键)     source=F60_shadow       455 笔  净 $  -110.3
+   做市  px_exact_hit=(无键)     source=F60_shadow      9337 笔  净 $   -17.3
+
+② 清库成交的 seg 桶是否有值（被动路径才会写）
+   清库单 455 笔：seg_high>0 0 笔，fill_px>0 455 笔
+
+③ 清库单的 side 分布与价差符号（taker 平仓必然负价差）
+   side=buy     210 笔  均spread_bp=  -2.594  均price_bp=   -8.771  均fee_bp=-4.000
+   side=sell    245 笔  均spread_bp=  -1.726  均price_bp=   -5.075  均fee_bp=-4.000

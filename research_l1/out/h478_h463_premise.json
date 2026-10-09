@@ -1,0 +1,14 @@
+{
+  "samples": 30,
+  "points": 150,
+  "in_pos": 33,
+  "untagged": 16,
+  "untagged_gt45": 8,
+  "untagged_gt90": 5,
+  "tagged": 17,
+  "age_p50": 68.5,
+  "age_p90": 190.6,
+  "age_max": 304.6,
+  "exposed_share_pct": 24.24,
+  "verdict": "触及面显著 ⇒ 该参数是真实杠杆，判定应能给出明确结论"
+}

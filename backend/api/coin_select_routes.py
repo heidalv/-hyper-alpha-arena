@@ -1,7 +1,9 @@
 """VIP 共用 AI 选币 API — /api/coin-select/*
 
 权限：require_feature(ai_coin_select)；管理员可管理扫描。
-采纳：短线 → auto_coin_symbols；长线 → session.symbols（手动确认）。
+采纳：midlong → AI 中线 sticky（force_adopt_ai_mid_symbol，绝不进固定长线表）。
+[2026-09-17] 短线车道已停（SCALP_OPEN_DISABLED=true）：adopt 不再接受 scalp，
+平台扫描也只产 midlong 看板；auto_follow_scalp（短线自动跟投）随之移除。
 """
 from __future__ import annotations
 
@@ -45,7 +47,6 @@ def _feature_on(user: User, request: Request) -> bool:
 
 class SettingsPatch(BaseModel):
     enabled: Optional[bool] = None
-    auto_follow_scalp: Optional[bool] = None
     default_session_id: Optional[str] = None
     account_id: Optional[int] = None
     account_enabled: Optional[bool] = None
@@ -53,7 +54,7 @@ class SettingsPatch(BaseModel):
 
 class AdoptRequest(BaseModel):
     symbol: str
-    horizon: str = Field(..., description="scalp|midlong")
+    horizon: str = Field(..., description="midlong")
     session_id: str
     candidate_id: Optional[int] = None
 
@@ -69,7 +70,6 @@ def get_settings(request: Request, db: Session = Depends(get_db)):
             (user.coin_select_enabled or "false").lower() in ("true", "1", "yes")
         ),
         "coin_select_enabled": (user.coin_select_enabled or "false"),
-        "auto_follow_scalp": (user.coin_select_auto_follow or "false"),
         "default_session_id": user.coin_select_default_session,
         "is_admin": _is_admin(request),
     }
@@ -81,8 +81,6 @@ def patch_settings(body: SettingsPatch, request: Request, db: Session = Depends(
     user = _user(db, uid)
     if body.enabled is not None:
         user.coin_select_enabled = "true" if body.enabled else "false"
-    if body.auto_follow_scalp is not None:
-        user.coin_select_auto_follow = "true" if body.auto_follow_scalp else "false"
     if body.default_session_id is not None:
         user.coin_select_default_session = body.default_session_id or None
     if body.account_id is not None and body.account_enabled is not None:
@@ -131,8 +129,8 @@ def adopt(body: AdoptRequest, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(403, "请先打开 VIP AI 选币开关")
 
     horizon = (body.horizon or "").lower().strip()
-    if horizon not in ("scalp", "midlong"):
-        raise HTTPException(400, "horizon must be scalp or midlong")
+    if horizon not in ("mid", "long"):
+        raise HTTPException(400, "horizon must be mid or long（短线已停；中/长线是独立周期分开采纳）")
     symbol = (body.symbol or "").upper().strip()
     if not symbol:
         raise HTTPException(400, "symbol required")
@@ -150,25 +148,23 @@ def adopt(body: AdoptRequest, request: Request, db: Session = Depends(get_db)):
     if acc_flag in ("false", "0", "off", "no") and not _is_admin(request):
         raise HTTPException(403, "该交易账户已关闭 AI 选币（ai_coin_select_enabled）")
 
-    from backend.services.full_auto_trading_service import full_auto_service
+    from backend.services.auto_coin_selector import (
+        force_adopt_ai_long_symbol,
+        force_adopt_ai_mid_symbol,
+    )
 
-    # scalp → 短线 auto 池；midlong → AI 中线 sticky（绝不进固定长线表）
-    if horizon == "midlong":
+    # [2026-09-17] 中线/长线独立采纳：mid → AI 中线 sticky；long → AI 长线 sticky
+    # （均不进固定表、互不占槽；scalp 分支已随短线车道停用移除）
+    if horizon == "long":
+        result = force_adopt_ai_long_symbol(body.session_id, symbol)
+    else:
         auto_list = list(getattr(session, "auto_coin_symbols", None) or [])
         if symbol in auto_list:
             session.auto_coin_symbols = [s for s in auto_list if s != symbol]
             db.commit()
-        from backend.services.auto_coin_selector import force_adopt_ai_mid_symbol
-
         result = force_adopt_ai_mid_symbol(body.session_id, symbol)
-        if not result.get("success"):
-            raise HTTPException(400, result.get("error") or "adopt midlong failed")
-    else:
-        result = full_auto_service.add_symbols(
-            db, body.session_id, [symbol], is_auto_coin=True
-        )
-        if not result.get("success"):
-            raise HTTPException(400, result.get("error") or "adopt failed")
+    if not result.get("success"):
+        raise HTTPException(400, result.get("error") or "adopt failed")
 
     cand = None
     if body.candidate_id:
@@ -275,6 +271,64 @@ def admin_detail(request: Request):
     return {**detail, "board": board}
 
 
+@router.get("/ai-pools")
+def ai_pools(request: Request, db: Session = Depends(get_db)):
+    """[2026-09-18] 当前 AI 池全景（看板页与会话页共用的同一份账）。
+
+    返回每个 running 会话的 mid/long 池（与交易循环同源），并给每个池内币
+    标注最新看板判定（verdict/conf/direction/年龄）——把「看板推荐」与
+    「会话实际在池」之间的桥显式化，消灭两套真相。
+    """
+    uid, _ = require_user_tenant(request)
+    from sqlalchemy import text as _sa_text
+    from backend.services.ai_coin_unified import get_tier_state
+
+    rows = db.execute(
+        _sa_text(
+            "SELECT session_id, account_id FROM full_auto_sessions "
+            "WHERE status IN ('running','defensive','paused')"
+        )
+    ).all()
+    out = []
+    for sid, acc_id in rows:
+        pools = {}
+        for tier in ("mid", "long"):
+            st = get_tier_state(str(sid), tier)
+            syms = [str(s).upper() for s in (st.get("symbols") or [])]
+            detail = []
+            for s in syms:
+                j = db.execute(
+                    _sa_text(
+                        "SELECT horizon, lower(ai_verdict), confidence, "
+                        "lower(direction_bias), listed, "
+                        "EXTRACT(EPOCH FROM (now()-created_at))/3600.0 "
+                        "FROM coin_select_candidates WHERE upper(symbol)=:s "
+                        "AND horizon=:h ORDER BY id DESC LIMIT 1"
+                    ),
+                    {"s": s, "h": tier},
+                ).first()
+                detail.append({
+                    "symbol": s,
+                    "verdict": j[1] if j else None,
+                    "confidence": float(j[2]) if j and j[2] is not None else None,
+                    "direction": j[3] if j else None,
+                    "listed": bool(j[4]) if j else False,
+                    "judged_age_h": round(float(j[5] or 0), 1) if j else None,
+                })
+            pools[tier] = {
+                "symbols": syms,
+                "detail": detail,
+                "reason": str(st.get("reason") or ""),
+                "updated_at": st.get("updated_at"),
+            }
+        out.append({
+            "session_id": str(sid),
+            "account_id": acc_id,
+            "pools": pools,
+        })
+    return {"sessions": out}
+
+
 class DelistBody(BaseModel):
     candidate_id: int
     listed: bool = False
@@ -290,3 +344,46 @@ def admin_delist(body: DelistBody, request: Request, db: Session = Depends(get_d
     row.listed = bool(body.listed)
     db.commit()
     return {"ok": True, "id": row.id, "listed": row.listed}
+
+
+# ==================== 混合打分中心（ADR-23 · HC-v1） ====================
+
+class HybridRunBody(BaseModel):
+    symbols: Optional[List[str]] = None
+    llm: Optional[bool] = None
+
+
+@router.get("/hybrid/status")
+def hybrid_status(request: Request):
+    if not _is_admin(request):
+        raise HTTPException(403, "admin only")
+    from backend.services.hybrid_scoring import service
+
+    return service.status()
+
+
+@router.post("/hybrid/run")
+def hybrid_run(body: HybridRunBody, request: Request):
+    if not _is_admin(request):
+        raise HTTPException(403, "admin only")
+    from backend.services.hybrid_scoring import service
+
+    return service.run_cycle(symbols=body.symbols, force=True, llm_enabled=body.llm)
+
+
+@router.post("/hybrid/evaluate")
+def hybrid_evaluate(request: Request):
+    if not _is_admin(request):
+        raise HTTPException(403, "admin only")
+    from backend.services.hybrid_scoring import service
+
+    return service.evaluate_hits()
+
+
+@router.get("/hybrid/report")
+def hybrid_report(request: Request, weeks: int = Query(4, ge=1, le=12)):
+    if not _is_admin(request):
+        raise HTTPException(403, "admin only")
+    from backend.services.hybrid_scoring import report
+
+    return report.weekly_report(weeks=weeks)

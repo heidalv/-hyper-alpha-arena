@@ -1,0 +1,35 @@
+{
+  "pre": {
+    "legs": 420,
+    "entries": 355,
+    "exits": 65,
+    "entry_notional_p50": 145.1064266020734,
+    "entry_notional_mean": 142.43733693852136,
+    "trips": 53,
+    "adds_per_trip_median": 2,
+    "hold_p50": 625.694728,
+    "paths": {
+      "stop_loss_taker": 15,
+      "timeout_hard_taker": 31,
+      "trail_lock_taker": 9,
+      "reversal_decay_taker": 6,
+      "take_profit_taker": 1,
+      "ofi_flatten_taker": 3
+    }
+  },
+  "post": {
+    "legs": 318,
+    "entries": 202,
+    "exits": 116,
+    "entry_notional_p50": 112.34953125,
+    "entry_notional_mean": 106.68620307718132,
+    "trips": 93,
+    "adds_per_trip_median": 1,
+    "hold_p50": 75.966585,
+    "paths": {
+      "reversal_decay_taker": 3,
+      "ofi_flatten_taker": 98,
+      "stop_loss_taker": 15
+    }
+  }
+}

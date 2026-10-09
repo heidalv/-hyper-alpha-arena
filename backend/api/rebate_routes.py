@@ -119,7 +119,29 @@ class RuleStatusPatch(BaseModel):
 
 @router.get("/status")
 async def get_rebate_status():
-    """积分/返利套利引擎状态"""
+    """积分/返利套利引擎状态。
+
+    [F327 2026-09-17] `engine_enabled` 此前**硬编码 True** —— 与
+    `/api/arbitrage/status` 同一缺陷：用户已停掉套利中心，两个端点仍报"运行中"。
+    现在与 `services/rebate_arb/arb_switches` 同源裁决（`ARBITRAGE_CENTER_ENABLED`），
+    并在停止时**不触发**引擎的 status/timing 调用（避免读状态本身产生副作用）。
+    """
+    from backend.services.rebate_arb.arb_switches import get_arb_switch_status
+
+    sw = get_arb_switch_status()
+    if not sw.rebate_scan_runnable:
+        return {
+            "engine_enabled": False,
+            "mode": "stopped",
+            "scan_count": 0,
+            "execution_count": 0,
+            "active_positions": 0,
+            "total_rebate_pnl": 0.0,
+            "wash_trade_safe": True,
+            "next_safe_interval_sec": 0.0,
+            "center_enabled_env": "ARBITRAGE_CENTER_ENABLED",
+            "note": "套利中心已停止（ARBITRAGE_CENTER_ENABLED 未开启）",
+        }
     try:
         from backend.services.rebate_arb.engine import rebate_arb_engine
         from backend.services.rebate_arb.wash_trade_avoider import wash_trade_avoider

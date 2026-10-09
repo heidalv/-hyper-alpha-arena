@@ -1,0 +1,232 @@
+{
+  "ts": 1791564150.1097612,
+  "lane": "mm_asterdex",
+  "coins": {
+    "ETH": {
+      "buy": {
+        "s0_a3": {
+          "n": 17,
+          "win_rate": 0.4706,
+          "avg_win_bp": 4.31,
+          "avg_loss_bp": -2.61,
+          "avg_bp": 0.65
+        }
+      },
+      "sell": {
+        "s0_a3": {
+          "n": 17,
+          "win_rate": 0.8235,
+          "avg_win_bp": 3.57,
+          "avg_loss_bp": -1.03,
+          "avg_bp": 2.76
+        },
+        "s0_a0": {
+          "n": 3,
+          "win_rate": 0.3333,
+          "avg_win_bp": 20.9,
+          "avg_loss_bp": -1.38,
+          "avg_bp": 6.05
+        }
+      }
+    },
+    "BTC": {
+      "buy": {
+        "s0_a3": {
+          "n": 9,
+          "win_rate": 0.5556,
+          "avg_win_bp": 5.38,
+          "avg_loss_bp": -2.1,
+          "avg_bp": 2.06
+        }
+      },
+      "sell": {
+        "s0_a3": {
+          "n": 7,
+          "win_rate": 0.4286,
+          "avg_win_bp": 6.46,
+          "avg_loss_bp": -1.5,
+          "avg_bp": 1.91
+        }
+      }
+    },
+    "US": {
+      "buy": {
+        "s3_a0": {
+          "n": 1,
+          "win_rate": 0.0,
+          "avg_win_bp": 0.0,
+          "avg_loss_bp": -105.82,
+          "avg_bp": -105.82
+        },
+        "s1_a0": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 11.68,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 11.68
+        },
+        "s3_a3": {
+          "n": 4,
+          "win_rate": 0.25,
+          "avg_win_bp": 17.61,
+          "avg_loss_bp": -68.35,
+          "avg_bp": -46.86
+        },
+        "s2_a3": {
+          "n": 3,
+          "win_rate": 1.0,
+          "avg_win_bp": 40.38,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 40.38
+        },
+        "s3_a2": {
+          "n": 2,
+          "win_rate": 0.5,
+          "avg_win_bp": 21.53,
+          "avg_loss_bp": -31.9,
+          "avg_bp": -5.19
+        },
+        "s2_a0": {
+          "n": 2,
+          "win_rate": 0.5,
+          "avg_win_bp": 8.17,
+          "avg_loss_bp": -28.58,
+          "avg_bp": -10.2
+        }
+      },
+      "sell": {
+        "s3_a3": {
+          "n": 4,
+          "win_rate": 0.75,
+          "avg_win_bp": 41.91,
+          "avg_loss_bp": -48.15,
+          "avg_bp": 19.39
+        },
+        "s3_a2": {
+          "n": 2,
+          "win_rate": 0.5,
+          "avg_win_bp": 9.63,
+          "avg_loss_bp": -24.55,
+          "avg_bp": -7.46
+        },
+        "s2_a2": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 23.48,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 23.48
+        },
+        "s1_a3": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 33.8,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 33.8
+        }
+      }
+    },
+    "PUMP": {
+      "buy": {
+        "s1_a2": {
+          "n": 1,
+          "win_rate": 0.0,
+          "avg_win_bp": 0.0,
+          "avg_loss_bp": -38.42,
+          "avg_bp": -38.42
+        }
+      },
+      "sell": {
+        "s1_a0": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 1.76,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 1.76
+        },
+        "s1_a2": {
+          "n": 1,
+          "win_rate": 0.0,
+          "avg_win_bp": 0.0,
+          "avg_loss_bp": -32.48,
+          "avg_bp": -32.48
+        },
+        "s1_a3": {
+          "n": 2,
+          "win_rate": 1.0,
+          "avg_win_bp": 16.5,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 16.5
+        },
+        "s1_a1": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 84.14,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 84.14
+        }
+      }
+    },
+    "LYN": {
+      "buy": {
+        "s2_a3": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 24.59,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 24.59
+        }
+      },
+      "sell": {
+        "s3_a3": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 188.57,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 188.57
+        }
+      }
+    },
+    "BTW": {
+      "sell": {
+        "s3_a1": {
+          "n": 1,
+          "win_rate": 1.0,
+          "avg_win_bp": 42.22,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 42.22
+        }
+      }
+    },
+    "ARB": {
+      "buy": {
+        "s2_a3": {
+          "n": 1,
+          "win_rate": 0.0,
+          "avg_win_bp": 0.0,
+          "avg_loss_bp": -32.64,
+          "avg_bp": -32.64
+        }
+      }
+    },
+    "NEAR": {
+      "buy": {
+        "s2_a3": {
+          "n": 1,
+          "win_rate": 0.0,
+          "avg_win_bp": 0.0,
+          "avg_loss_bp": -31.09,
+          "avg_bp": -31.09
+        }
+      },
+      "sell": {
+        "s1_a3": {
+          "n": 2,
+          "win_rate": 1.0,
+          "avg_win_bp": 31.37,
+          "avg_loss_bp": 0.0,
+          "avg_bp": 31.37
+        }
+      }
+    }
+  }
+}

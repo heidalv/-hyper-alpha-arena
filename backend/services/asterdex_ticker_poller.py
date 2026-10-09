@@ -125,6 +125,8 @@ class AsterdexTickerPoller:
         self._snap_buffer: List[Tuple[str, float, int]] = []
         self._snap_flusher: Optional[threading.Thread] = None
         self._snap_symbols: set = set()
+        # [F332 2026-09-22] 符号集的**刷新时刻** —— 见 `_buffer_snapshot` 的说明。
+        self._snap_symbols_at: float = 0.0
         self._snap_dropped = 0
         self._snap_written = 0
 
@@ -146,13 +148,62 @@ class AsterdexTickerPoller:
         return syms
 
     def _buffer_snapshot(self, prices: Dict[str, Tuple[float, float]]) -> None:
-        """把本轮 ticker 价格追加到落库缓冲（每 10s 由 flusher 批量写入）。"""
+        """把本轮 ticker 价格追加到落库缓冲（每 10s 由 flusher 批量写入）。
+
+        ══ [F332 2026-09-22] 符号集**必须定期刷新**，不能只取一次 ══
+
+        # 事故（实测）
+
+        `market_orderbook_snapshots` 里 30 个 asterdex 币，**只有 13 个还在更新**，
+        另外 17 个在 09-16 ~ 09-21 之间陆续停止（最后一次：ONDO/PENDLE/SEI/
+        1000SHIB 停在 09-21 10:11，ZEC 停在 11:07，ARB 停在 09:48，
+        LINK 停在 09-17，AVAX/ADA 停在 09-16）。
+
+        根因就是本函数原先的写法：
+
+            if not self._snap_symbols:                  # ← 只算一次
+                self._snap_symbols = self._snapshot_symbols()
+
+        而 `_snapshot_symbols()` 取的是 `get_research_priority_symbols(limit=150)`
+        —— 那是**动态**优先清单（实测当前只有 17 个币，且会变）。
+        一旦冻结，之后无论清单怎么变都不再跟随：
+          · 新进清单的币**永远不落库**（在快照表里表现为"从未存在"）
+          · 移出清单的币**继续占用**符号集（白占，且掩盖了真实覆盖）
+
+        # 为什么这个 bug 比"少几个币"更糟
+
+        它让**所有基于快照表的判断都建立在冻结的清单上**。
+        实测后果：我曾看到该表"只有 12 个币"，据此断定"引擎只能用这 12 个币"，
+        并照此换了车道宇宙 —— 而当时真实活跃的是 13 个且随时在变。
+        **一个不刷新的缓存，会把一次性的观测变成永久的错误前提。**
+
+        # 修法
+
+        加刷新周期（默认 `SNAP_SYMBOLS_TTL_SEC=300`）。取 300s：
+        优先清单本身不是秒级变化的量，而 5 分钟足以让新币"很快"开始落库。
+        刷新是**并集**而非替换 —— 详见下方注释。
+        """
         if not self._snap_flusher or not self._snap_flusher.is_alive():
             return
         now_ms = int(time.time() * 1000)
+        now_s = now_ms / 1000.0
+        ttl = float(os.getenv("SNAP_SYMBOLS_TTL_SEC", "300") or 300)
         with self._lock:
-            if not self._snap_symbols:
-                self._snap_symbols = self._snapshot_symbols()
+            if (not self._snap_symbols) or (now_s - self._snap_symbols_at) >= ttl:
+                fresh = self._snapshot_symbols()
+                if fresh:
+                    # ⚠️ 用**并集**而不是替换。
+                    # 替换会在清单抖动的瞬间丢掉仍在正常落库的币，
+                    # 制造出与本次事故同型的"人为缺口"。
+                    # 并集的代价是符号集单调增长，但 `_snapshot_symbols` 已按
+                    # `limit=150` 收口，且真正决定是否产生行的还有
+                    # "ticker 当时报没报这个币"这一层过滤 ⇒ 体积可控。
+                    before = len(self._snap_symbols)
+                    self._snap_symbols |= fresh
+                    self._snap_symbols_at = now_s
+                    if len(self._snap_symbols) != before:
+                        logger.info("[F332] 快照符号集刷新: %d -> %d（优先清单 %d）",
+                                    before, len(self._snap_symbols), len(fresh))
             syms = self._snap_symbols
             cap = 20000
             for base, (price, _ts) in prices.items():

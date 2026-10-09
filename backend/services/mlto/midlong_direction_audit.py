@@ -187,9 +187,16 @@ def record_open_audit(
     dir_src: str = "",
     authority: str = "",
     session_id: str = "",
+    tier: str = "",
     extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """记录一笔中长线开仓的方向链路审计（兼容旧字段 + outcome=opened）。"""
+    """记录一笔中长线开仓的方向链路审计（兼容旧字段 + outcome=opened）。
+
+    [2026-10-02 修复 · 口径缺陷] 原先本行**不含 tier 字段** ⇒ 按 tier 过滤的任何漏斗
+    （含 `summarize_decision_funnel`）都会显示 `opened=0`（实测 7 天 234 条 opened 行
+    234/234 全为 NO_TIER），历史上多次得出「中线从未成交」的错误结论 —— 而实际同期
+    中线开仓 18 笔。现在把 tier 一起落盘（缺失时为空串，不影响旧数据）。
+    """
     fill = str(fill_dir or "").strip().lower()
     if fill in ("buy", "long"):
         fill_n = "long"
@@ -209,6 +216,7 @@ def record_open_audit(
     row: Dict[str, Any] = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "symbol": str(symbol or "").upper(),
+        "tier": str(tier or "").strip().lower(),   # [2026-10-02] 漏斗按 tier 过滤的必需字段
         "thesis_dir": thesis_n,
         "hub_dir": hub_n,
         "fill_dir": fill_n,

@@ -1,0 +1,21 @@
+轮128: 按用户指令删除画布空卡『旧 swing 模块（非中线！）』——它是 0 行/断链的结构性死节点(kind:none), 本质是代码模块而非运行时 agent; 退役事实改由 retired_layers 徽章说明(同 QAA 处理)
+
+删除前把卡上那句「残活: _archive_prompt 被 trend_agent 复用、update_thesis 被 mlto/qual_layer 调用」逐条核实, 发现 3/4 与代码不符:
+- _archive_prompt: 活(唯一活引用, trend_agent.py:389-390)
+- swing_agent.update_thesis: 死路径(唯一调用者 orchestrator 于 09-05 下线, brain.py:1489 自述)
+- master_execution.py 3 处 import: 死导入(AST 证实名字从未被 Load/Attribute 访问) -> 本轮删除
+- is_swing_nature / derive_swing_side: 0 个生产调用点
+
+运行时三重取证: 当前日志 [SwingAgent] 命中 0; 归档最后一条 2026-08-13 16:25:56;
+alpha_analytics.llm_usage_logs.call_type 全表含 swing = 0 条(对照 sync:TrendAgent:review/pyramid 各 277/253 条且当下仍在写)。
+中线车道真实承担者 = mlto/brain.py 的 model_gateway(call_type=sync:analysis.model_gateway)。
+
+顺带修掉两个真缺陷:
+1) master_execution.py:1018 那条「mid-tier 路由检测仍依赖 is_swing_nature」是假依赖(全文件除该注释无任何调用);
+2) test_swing_deprecated.py 的 assert "is_swing_nature" in src 是被上面那句注释满足的假 ratchet
+   -> 改为 AST 断言「master 路径不再真正引用 swing_agent」。
+
+新增 ratchet: backend/tests/unit/test_agent_wall_retired_swing_20260920.py(8 项: 卡不存在/退役说明/依赖白名单/文档如实/取证归档)
+取证: reports/_轮128_swing模块退役取证_20260920.md + reports/_probe128_*.txt
+回归: 相关 40 passed; master_execution 相邻 87 passed / 3 failed(经 git stash 对照确认为既有失败, 与本轮无关)
+回滚: git revert 本提交即可(画布节点与 retired_layers 条目一并回退; master_execution 的三行死导入回退也无副作用)

@@ -461,6 +461,30 @@ def _live_scale_decision_to_cap(db, session, strat, decision, host) -> None:
                 or 0.05
             )
             _ov0 = max((_avail or _eq) * _pct * _lev * _sm, 0.0)
+            # [P1 大轮回 2026-09-27] 一次定价同源（§13.3 paper/live 参数同源）：
+            # 乘子链不再参与名义，改为 风险预算/止损距离 + 单币权重上限。
+            try:
+                from backend.services.decision_core.risk_pricer import (
+                    one_price_enabled,
+                    price_once,
+                )
+                if one_price_enabled():
+                    _one = price_once(
+                        equity=_eq, tier=decision.get("timeframe_tier"),
+                        price=_price, stop_loss=decision.get("stop_loss_price"),
+                        leverage=_lev,
+                    )
+                    if _one["notional"] > 0:
+                        _ov0 = _one["notional"]
+                        decision["_one_price"] = _one
+                        logger.info(
+                            "[OnePrice-Live] %s lane=%s 名义 $%.0f（stop=%.3f%%%s）",
+                            decision.get("symbol", "?"), _one["lane"],
+                            _one["notional"], _one["stop_pct"] * 100,
+                            " 单币上限" if _one["capped"] else "",
+                        )
+            except Exception as _op_err:
+                logger.debug("[OnePrice-Live] 跳过: %s", _op_err)
 
         if _ov0 <= 0:
             return

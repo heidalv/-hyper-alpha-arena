@@ -348,6 +348,18 @@ if ($StopDataCenter) {
     Write-Host "  data-center stop attempted (matched=$nDc)" -ForegroundColor DarkGray
 } else {
     Write-Host "==> data-center kept running (pass -StopDataCenter to kill)" -ForegroundColor DarkGray
+        # [2026-10-04 workflow-4] a kept-running DC must not be left unsupervised
+        # (2026-10-03 21:57 -> 2026-10-04 01:37 outage: DC dead, no watchdog, 1h39m unnoticed)
+        $dcWd = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -match 'data-center-watchdog' })
+        if ($dcWd.Count -eq 0) {
+            $dcWdScript = Join-Path $PSScriptRoot 'data-center-watchdog.ps1'
+            if (Test-Path $dcWdScript) {
+                Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$dcWdScript) -WindowStyle Minimized
+                Write-Host '==> data-center watchdog restarted (was 0)' -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "==> data-center watchdog alive ($($dcWd.Count))" -ForegroundColor DarkGray
+        }
 }
 
 Write-Host ""

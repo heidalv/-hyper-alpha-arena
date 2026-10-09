@@ -1,0 +1,152 @@
+{
+  "ok": true,
+  "round_ts": 1791063600.3217535,
+  "iso": "2026-10-03T21:40:00.321753+00:00",
+  "stages": {
+    "literature": {
+      "ok": true,
+      "fetched": 8,
+      "fed": 0,
+      "dup": 8
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 3,
+      "rejected": 9
+    },
+    "engineer": {
+      "candidates": 6,
+      "unit_pass": 4
+    },
+    "backtest": {
+      "evaluated": 4,
+      "best_ic": 0.01512
+    },
+    "feedback": {
+      "stats": {
+        "pass": 0,
+        "reject": 4,
+        "fail": 2
+      },
+      "guidance": "多数候选 IC 不足：下一轮偏向更长窗口/横截面异质性更强的机制（流量-订单簿/资金费率类），避免纯价量动量变体。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1791063648070_0",
+      "expr_id": "51f0762398e2d241",
+      "hyp": "h1791063644450_0",
+      "note": "20日动量排名乘以低振幅分位，趋势且波动压缩",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.01223,
+      "icir": 0.047,
+      "quantile_spread": 0.001207,
+      "turnover": 0.1282,
+      "ic_half_life_bars": null,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0122 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1791063648076_1",
+      "expr_id": "6c143e439ec65e28",
+      "hyp": "h1791063644450_0",
+      "note": "20日动量除以20日振幅均值，高动量低波动得分高",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.01512,
+      "icir": 0.0605,
+      "quantile_spread": 0.001891,
+      "turnover": 0.081,
+      "ic_half_life_bars": 2,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0151 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1791063738954_0",
+      "expr_id": "a9e701ee689f3f27",
+      "hyp": "h1791063644461_1",
+      "note": "20日价格斜率减20日成交量斜率，差值大做空",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": -0.01085,
+      "icir": -0.0452,
+      "quantile_spread": -5.3e-05,
+      "turnover": 0.4464,
+      "ic_half_life_bars": 3,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0109 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1791063738972_1",
+      "expr_id": "673a0017c437e9e9",
+      "hyp": "h1791063644461_1",
+      "note": "价格与成交量20日趋势排名差，背离大做空",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.00305,
+      "icir": 0.0127,
+      "quantile_spread": 0.001592,
+      "turnover": 0.3261,
+      "ic_half_life_bars": null,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0031 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1791063812211_0",
+      "expr_id": "c305b6ff17eb3796",
+      "hyp": "h1791063644485_2",
+      "note": "20日内收盘位于上三分位天数占比",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791063812215_1",
+      "expr_id": "a2e2adec515df277",
+      "hyp": "h1791063644485_2",
+      "note": "等价变形：先算收盘-低再比较阈值",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 215.9
+}

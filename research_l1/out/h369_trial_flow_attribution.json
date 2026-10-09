@@ -1,0 +1,55 @@
+{
+  "trial_with": {
+    "n": 309,
+    "sum": -25.79,
+    "mean": -0.083,
+    "t": -0.54
+  },
+  "trial_neutral": {
+    "n": 84,
+    "sum": 11.22,
+    "mean": 0.134,
+    "t": 0.8
+  },
+  "trial_against": {
+    "n": 282,
+    "sum": -19.04,
+    "mean": -0.068,
+    "t": -0.49
+  },
+  "baseline_with": {
+    "n": 246,
+    "sum": -116.27,
+    "mean": -0.473,
+    "t": -2.57
+  },
+  "baseline_neutral": {
+    "n": 88,
+    "sum": 4.24,
+    "mean": 0.048,
+    "t": 0.24
+  },
+  "baseline_against": {
+    "n": 248,
+    "sum": 11.28,
+    "mean": 0.045,
+    "t": 0.27
+  },
+  "per_symbol_trial": {
+    "BNB": {
+      "with": -0.572,
+      "neutral": 0.722,
+      "against": -0.473
+    },
+    "BTC": {
+      "with": -0.203,
+      "neutral": 0.112,
+      "against": 0.021
+    },
+    "ETH": {
+      "with": 0.222,
+      "neutral": -0.011,
+      "against": 0.049
+    }
+  }
+}

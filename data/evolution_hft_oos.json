@@ -1,0 +1,30 @@
+{
+  "ts": 1791562894.5617588,
+  "hours": 4.0,
+  "oos_hours": 1.2,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "NEARUSDT",
+    "AAVEUSDT"
+  ],
+  "train_ep_mean": -0.19839345570653677,
+  "oos_mean_y": 0.0,
+  "baseline_mean_y": 1.13,
+  "oos_n": 2000,
+  "verdict": "learned<baseline",
+  "learner": "TorchPPO",
+  "action_dependent": true,
+  "greedy_agree_ofi": 0.0,
+  "greedy_size_mean": 1.0,
+  "train_stats": {
+    "entropy": 0.5195891857147217,
+    "approx_kl": 0.00614676158875227,
+    "mean_rew": -0.20135455206036568,
+    "iter": 8
+  },
+  "gate_offline_smoke": {
+    "ok": false,
+    "reason": "mean_y +0.00 < 基准+1.13−容忍0.23"
+  }
+}

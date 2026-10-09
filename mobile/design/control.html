@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AlphaArena · 运行控制台（总闸 / 分级开关 / 看门狗）</title>
+<style>
+:root{
+  --bg:10 14 23; --card:17 24 39; --card-2:22 30 46; --border:31 41 55;
+  --profit:0 220 130; --live:239 68 68; --paper:139 92 246; --primary:59 130 246;
+  --muted:107 114 128; --text:249 250 251; --warning:245 158 11;
+  --scrim:0 0 0; --scrim-a:.64; --shadow:none;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+  --W:390px; --H:844px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(1100px 620px at 50% -160px, rgb(var(--primary) / .10), transparent 62%), rgb(8 11 18);
+  color:#e6edf7;font-family:var(--font);font-size:14px;line-height:1.45;display:flex;flex-wrap:wrap;gap:26px;
+  align-items:flex-start;justify-content:center;padding:26px 22px 80px;-webkit-font-smoothing:antialiased}
+
+.phone{width:var(--W);height:var(--H);background:rgb(var(--bg));display:flex;flex-direction:column;position:relative;overflow:hidden;border-radius:22px;color:rgb(var(--text))}
+.phone.killed{--live:239 68 68}
+.sysbar{flex:0 0 auto;height:30px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgb(var(--text) / .82);position:relative;z-index:7}
+.netstrip{flex:0 0 auto;margin:0 13px 7px;min-height:28px;border-radius:9px;display:flex;align-items:center;gap:7px;padding:0 10px;
+  background:rgb(var(--card) / .75);border:1px solid rgb(var(--border) / .7);font-size:11px}
+.netstrip .src{color:rgb(var(--muted));font-family:var(--mono);font-size:10px}
+.netstrip .age{margin-left:auto;font-family:var(--mono)}
+.appbar{flex:0 0 auto;padding:0 13px 8px;display:flex;align-items:center;justify-content:space-between;gap:9px}
+.appbar .title{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.appbar .sub{font-size:11px;color:rgb(var(--muted));margin-top:1px}
+.iconbtn{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:rgb(var(--text) / .75);background:rgb(var(--card) / .8);border:1px solid rgb(var(--border) / .7)}
+.estop{display:flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:9px;
+  background:rgb(var(--live) / .16);border:1px solid rgb(var(--live) / .55);color:rgb(var(--live));
+  font-size:11px;font-weight:700;font-family:var(--font)}
+
+.screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:0 13px 16px;scrollbar-width:none;position:relative}
+.screen::-webkit-scrollbar{display:none}
+.screen > * + *{margin-top:11px}
+.tabbar{flex:0 0 auto;display:flex;background:rgb(13 18 30 / .96);border-top:1px solid rgb(var(--border) / .8);padding-bottom:7px}
+.tabbar button{flex:1;min-height:50px;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgb(var(--muted));font-family:var(--font);font-size:10.5px;font-weight:500;padding:6px 0 0}
+.tabbar button.on{color:rgb(var(--primary));font-weight:650}
+.gesture{flex:0 0 auto;height:21px;display:grid;place-items:center;background:rgb(13 18 30 / .96)}
+.gesture i{width:112px;height:4px;border-radius:99px;background:rgb(var(--text) / .3)}
+
+.card{background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);border-radius:12px;padding:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.row.tight{gap:6px}
+.stack{display:flex;flex-direction:column}
+.muted{color:rgb(var(--muted))} .dim{color:rgb(var(--text) / .68)}
+.profit{color:rgb(var(--profit))} .loss{color:rgb(var(--live))} .warn{color:rgb(var(--warning))}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.h2{font-size:20px;font-weight:680;letter-spacing:-.4px}
+.h3{font-size:15px;font-weight:650}
+.tiny{font-size:10.5px} .sm{font-size:12px}
+.lbl{font-size:11px;color:rgb(var(--muted))}
+.hr{height:1px;background:rgb(var(--border) / .8);margin:10px -12px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2.5px 7px;border-radius:5px;background:rgb(var(--muted) / .16);color:rgb(var(--muted));white-space:nowrap}
+.badge.p{background:rgb(var(--profit) / .15);color:rgb(var(--profit))}
+.badge.l{background:rgb(var(--live) / .15);color:rgb(var(--live))}
+.badge.w{background:rgb(var(--warning) / .16);color:rgb(var(--warning))}
+.badge.b{background:rgb(var(--primary) / .16);color:rgb(var(--primary))}
+.badge.solid-l{background:rgb(var(--live));color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.p{background:rgb(var(--profit));box-shadow:0 0 8px rgb(var(--profit) / .7)}
+.dot.l{background:rgb(var(--live))} .dot.w{background:rgb(var(--warning))} .dot.m{background:rgb(var(--muted))}
+.dot.b{background:rgb(var(--primary))}
+
+/* ── 总闸卡（本页主角） ── */
+.master{border-radius:14px;padding:14px;position:relative;overflow:hidden;border:1px solid rgb(var(--profit) / .4);background:linear-gradient(180deg,rgb(var(--profit) / .10),rgb(var(--card)) 70%)}
+.master.off{border-color:rgb(var(--live) / .55);background:linear-gradient(180deg,rgb(var(--live) / .18),rgb(var(--card)) 70%)}
+.master .st{display:flex;align-items:center;gap:9px}
+.master .big{font-size:24px;font-weight:700;letter-spacing:-.6px}
+.master .ring{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+  background:rgb(var(--profit) / .16);color:rgb(var(--profit));border:2px solid rgb(var(--profit) / .45)}
+.master.off .ring{background:rgb(var(--live) / .18);color:rgb(var(--live));border-color:rgb(var(--live) / .5)}
+.master .desc{font-size:11.5px;color:rgb(var(--text) / .7);line-height:1.6;margin-top:9px}
+
+/* 开关行 */
+.sw{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0}
+.sw + .sw{border-top:1px solid rgb(var(--border) / .7)}
+.sw .nm{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:7px}
+.sw .ds{font-size:10px;color:rgb(var(--muted));margin-top:2px}
+/* iOS/Android 通用开关 */
+.toggle{width:44px;height:26px;border-radius:99px;background:rgb(var(--border));position:relative;flex:0 0 auto;transition:background .18s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 1px 3px rgb(0 0 0 / .35)}
+.toggle.on{background:rgb(var(--profit))}
+.toggle.on::after{left:21px}
+.toggle.danger.on{background:rgb(var(--live))}
+.toggle.locked{opacity:.45}
+.toggle.locked::after{background:#9aa4b2}
+
+/* 单条原因卡 */
+.why{border-radius:11px;padding:11px;border:1px solid rgb(var(--warning) / .4);background:rgb(var(--warning) / .08)}
+.chain{display:flex;flex-direction:column;gap:0;margin-top:9px}
+.ch{display:grid;grid-template-columns:16px 1fr auto;gap:9px;align-items:start;padding:6px 0;position:relative}
+.ch:not(:last-child)::before{content:"";position:absolute;left:4.5px;top:18px;bottom:-4px;width:1px;background:rgb(var(--border))}
+.ch .kn{width:10px;height:10px;border-radius:50%;margin-top:4px;border:2px solid rgb(var(--bg));z-index:2}
+.ch.pass .kn{background:rgb(var(--profit))}
+.ch.fail .kn{background:rgb(var(--warning))}
+.ch .t{font-size:12px;font-weight:600}
+.ch.fail .t{color:rgb(var(--warning))}
+.ch .d{font-size:10px;color:rgb(var(--muted));margin-top:2px;font-family:var(--mono)}
+
+/* 看门狗倒计时 */
+.wd{display:flex;align-items:center;gap:11px}
+.wd .num{font-size:26px;font-weight:700;font-family:var(--mono);letter-spacing:-1px}
+.arc{width:44px;height:44px;flex:0 0 auto;transform:rotate(-90deg)}
+.arc circle{fill:none;stroke-width:4}
+.arc .bgc{stroke:rgb(var(--border))}
+.arc .fg{stroke:rgb(var(--warning));stroke-linecap:round;stroke-dasharray:113;stroke-dashoffset:35}
+
+/* 遮罩 / 弹层 */
+.scrim{position:absolute;inset:0;background:rgb(var(--scrim) / var(--scrim-a));z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;background:rgb(var(--card));border-radius:16px 16px 0 0;border-top:1px solid rgb(var(--border));padding:8px 14px 16px;max-height:88%;overflow-y:auto;box-shadow:0 -18px 44px -14px rgb(0 0 0 / .5)}
+.sheet.center{left:12px;right:12px;bottom:12px;border-radius:16px;border:1px solid rgb(var(--live) / .45)}
+.sheet .handle{width:38px;height:4px;border-radius:99px;background:rgb(var(--muted) / .45);margin:2px auto 12px}
+.sheetic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:10px;background:rgb(var(--live) / .18);color:rgb(var(--live))}
+.sheetlist{background:rgb(var(--bg) / .5);border-radius:9px;padding:10px 11px;margin-top:11px}
+.sheetlist .r{display:flex;justify-content:space-between;font-size:11.5px;padding:3.5px 0}
+/* 后果清单（总闸确认用） */
+.cons{display:flex;gap:9px;padding:7px 0;font-size:11.5px;line-height:1.55}
+.cons .ic{width:18px;height:18px;flex:0 0 auto;border-radius:6px;display:grid;place-items:center;margin-top:1px}
+.cons.stop .ic{background:rgb(var(--live) / .18);color:rgb(var(--live))}
+.cons.keep .ic{background:rgb(var(--profit) / .16);color:rgb(var(--profit))}
+.btn{min-height:46px;border-radius:9px;border:1px solid rgb(var(--border));background:transparent;color:rgb(var(--text));font-family:var(--font);font-size:14px;font-weight:650;width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn.live{background:rgb(var(--live));border-color:rgb(var(--live));color:#fff}
+.btn.primary{background:rgb(var(--primary));border-color:rgb(var(--primary));color:#fff}
+.btn:disabled{opacity:.45}
+.cd{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:rgb(var(--warning))}
+.cd i{width:13px;height:13px;border-radius:50%;border:2px solid rgb(var(--warning) / .3);border-top-color:rgb(var(--warning))}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:5px 0}
+
+/* 展厅 */
+.frame{display:flex;flex-direction:column;gap:9px}
+.frame .cap{display:flex;align-items:center;justify-content:space-between;width:var(--W)}
+.frame .cap .t{font-size:12.5px;font-weight:600;color:#e6edf7}
+.frame .cap .n{font-size:10.5px;color:#7d8b9e;font-family:var(--mono)}
+.frame .hint{width:var(--W);font-size:11px;color:#8b97a8;line-height:1.6}
+.frame .hint b{color:#e6edf7}
+.bezel{width:calc(var(--W) + 20px);height:calc(var(--H) + 20px);padding:10px;border-radius:30px;background:#0b0f18;border:1px solid #24303f;box-shadow:0 26px 60px -26px rgb(0 0 0 / .9)}
+h1{width:100%;text-align:center;font-size:21px;margin:0 0 4px;color:#e6edf7;letter-spacing:-.4px}
+.lead{width:100%;max-width:980px;text-align:center;margin:0 auto 18px;color:#8b97a8;font-size:12.5px}
+.lead b{color:#e6edf7}
+</style>
+</head>
+<body>
+
+<h1>AlphaArena · 运行控制台 <span class="badge b" style="vertical-align:3px">V1</span></h1>
+<p class="lead">
+  后端设计见 <code style="font-family:var(--mono)">BACKEND_DESIGN.md</code>。核心判断：
+  <b>手机端的「停止」按钮不是安全机制</b> —— 停摆必须在服务端闭环，且默认失败方向是「停」。
+  本页给出承载它的四个屏：分级开关、总闸、为什么停了、看门狗。
+</p>
+
+<!-- ═══════ 1 · 运行控制台 ═══════ -->
+<div class="frame">
+  <div class="cap"><span class="t">1 运行控制台 · 分级开关</span><span class="n">control / panel</span></div>
+  <div class="bezel"><div class="phone">
+    <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px;color:rgb(var(--muted))">CONTROL</span></div>
+    <div class="netstrip"><span class="dot p"></span><span>已连接</span><span class="src">state 2.8s 前</span><span class="age profit">在线</span></div>
+    <div class="appbar">
+      <div><div class="title">运行控制台</div><div class="sub">五级开关 · 停摆闭环在服务端</div></div>
+      <div class="estop">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        紧急停摆
+      </div>
+    </div>
+    <div class="screen">
+      <!-- L0 -->
+      <div class="master">
+        <div class="st">
+          <div class="ring">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="lbl">L0 · 全局总闸</div>
+            <div class="big profit">允许运行</div>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="desc">
+          总闸是<b>求值时的与条件</b>，不是对各车道写入。<br/>
+          关掉它，所有车道立刻停止开新仓，但各级自己的状态保持不变 —— 重新打开时它们回到原本的状态，而不是「全被改成 stopped」。
+        </div>
+      </div>
+
+      <!-- L1 -->
+      <div class="card">
+        <div class="row"><span class="h3">L1 · 模块闸</span><span class="tiny muted">可组合</span></div>
+        <div style="margin-top:2px">
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>高频交易</span><div class="ds">mm_asterdex · 报价中</div></span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>交易（中长线）</span><div class="ds">主循环 tick 正常</div></span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot b"></span>Agent 学习任务</span><div class="ds">14 个任务启用 · 不受总闸之外的限制</div></span>
+            <div class="toggle on"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- L2 -->
+      <div class="card">
+        <div class="row"><span class="h3">L2 · 对象闸</span><span class="tiny muted">车道 / 账户</span></div>
+        <div style="margin-top:2px">
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>mm_asterdex</span><div class="ds">lane · status=active</div></span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>mm_asterdex_paper</span><div class="ds">lane · 模拟盘</div></span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>主账户 #1</span><div class="ds">accounts.disable_trading = false</div></span>
+            <div class="toggle on"></div>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot w"></span>会话 fa_c8f0899147</span><div class="ds">running · 由 full-auto 管理</div></span>
+            <div class="toggle on"></div>
+          </div>
+        </div>
+        <div class="tiny muted" style="margin-top:9px">
+          上级关闭时，此处的开关<b>变灰且不可点</b> —— 不是"点了没反应"，而是明确告诉你被上级锁住了。
+        </div>
+      </div>
+
+      <!-- 为什么在跑 / 没跑 -->
+      <div class="card">
+        <div class="row"><span class="h3">当前判定</span><span class="badge p">放行</span></div>
+        <div class="chain">
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L0 全局总闸</div></div><span class="badge p">通过</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L1 模块闸 · 高频</div></div><span class="badge p">通过</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L2 车道状态</div><div class="d">active</div></div><span class="badge p">通过</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">风控熔断</div><div class="d">无激活熔断</div></div><span class="badge p">通过</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">看门狗</div><div class="d">未启用（默认关）</div></div><span class="badge p">通过</span></div>
+        </div>
+        <div class="tiny muted" style="margin-top:8px">
+          前端不自己拼「是否在跑」，而是渲染后端 <code style="font-family:var(--mono)">/api/control/why-stopped</code> 返回的整条链。
+          这样界面判定与执行判定<b>必然一致</b>，不会出现"界面说在跑、实际被拦"。
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+    </nav>
+    <div class="gesture"><i></i></div>
+  </div></div>
+  <div class="hint"><b>为什么分级</b>：紧急时你要的是"先全停、再逐个恢复"。只有单级开关时你只能一个个点，点完第 8 个时第 1 个可能已经又开了新仓。</div>
+</div>
+
+<!-- ═══════ 2 · 紧急停摆确认 ═══════ -->
+<div class="frame">
+  <div class="cap"><span class="t">2 紧急停摆 · 二次确认</span><span class="n">control / kill switch</span></div>
+  <div class="bezel"><div class="phone">
+    <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px;color:rgb(var(--muted))">CONTROL</span></div>
+    <div class="netstrip"><span class="dot p"></span><span>已连接</span><span class="src">state 2.8s 前</span><span class="age profit">在线</span></div>
+    <div class="appbar">
+      <div><div class="title">运行控制台</div><div class="sub">五级开关 · 停摆闭环在服务端</div></div>
+      <div class="estop">紧急停摆</div>
+    </div>
+    <div class="screen" style="opacity:.42">
+      <div class="master">
+        <div class="st"><div class="ring"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div style="flex:1"><div class="lbl">L0 · 全局总闸</div><div class="big profit">允许运行</div></div><div class="toggle on"></div></div>
+      </div>
+      <div class="card"><div class="h3">L1 · 模块闸</div></div>
+    </div>
+    <nav class="tabbar" style="opacity:.45">
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+    </nav>
+    <div class="gesture" style="opacity:.45"><i></i></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="sheetic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </div>
+      <div class="h2">紧急停摆？</div>
+      <div class="sm muted" style="margin-top:6px">立即停止全部自动交易。请先看清这一条：</div>
+
+      <div class="card" style="margin-top:11px;padding:10px 11px;background:rgb(var(--card-2) / .6);border-color:rgb(var(--border))">
+        <div class="cons stop">
+          <span class="ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+          <span><b>会停</b>：所有车道不再开新仓；会话停止派发；Agent 任务暂停。</span>
+        </div>
+        <div class="cons keep">
+          <span class="ic"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <span><b>不会动</b>：现有持仓保持不变，止损止盈仍在生效。</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;padding:10px 11px;background:rgb(var(--card-2) / .6);border-color:rgb(var(--border))">
+        <div class="row"><span class="sm" style="font-weight:650">同时平掉全部持仓</span><div class="toggle danger"></div></div>
+        <div class="tiny muted" style="margin-top:6px;line-height:1.6">
+          默认<b>关</b>。平仓不可逆，而断网时无法判断你是"真想停"还是"网络抖了一下"。<br/>
+          打开后按下确认，将对 4 个仓位市价全平（名义约 $32,891），并额外走一次二次确认。
+        </div>
+      </div>
+
+      <div class="sheetlist">
+        <div class="r"><span class="muted">影响车道</span><span class="mono">2 条（高频 + 中长线）</span></div>
+        <div class="r"><span class="muted">影响会话</span><span class="mono">1 个（fa_c8f0899147）</span></div>
+        <div class="r"><span class="muted">影响 Agent 任务</span><span class="mono">14 个启用中</span></div>
+        <div class="r"><span class="muted">当前持仓</span><span class="mono">4 个 · 保持不动</span></div>
+        <div class="r"><span class="muted">恢复方式</span><span class="mono">再次手动打开总闸</span></div>
+      </div>
+
+      <div class="g2" style="margin-top:13px">
+        <button class="btn">取消</button>
+        <button class="btn live" disabled><span class="cd"><i></i>3s 后可确认</span></button>
+      </div>
+      <div class="tiny muted" style="text-align:center;margin-top:8px">命令发到服务端执行；即使 App 随后断网，停摆依然生效</div>
+    </div>
+  </div></div>
+  <div class="hint"><b>「会停什么 / 不会动什么」必须写在同一张卡里</b>。只写「确认紧急停摆？」会让人不敢按，或者按了才发现持仓没平。默认不平仓是刻意的：断网时无法区分"真想停"与"网断了"。</div>
+</div>
+
+<!-- ═══════ 3 · 为什么停了 ═══════ -->
+<div class="frame">
+  <div class="cap"><span class="t">3 为什么停了（看门狗触发）</span><span class="n">control / why-stopped</span></div>
+  <div class="bezel"><div class="phone killed">
+    <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px;color:rgb(var(--muted))">CONTROL</span></div>
+    <div class="netstrip" style="border-color:rgb(var(--live) / .45);background:rgb(var(--live) / .10)">
+      <span class="dot l"></span><span class="loss" style="font-weight:650">已自动停摆</span>
+      <span class="src">actor=breaker:data_stale</span><span class="age loss">3m 前</span>
+    </div>
+    <div class="appbar">
+      <div><div class="title">运行控制台</div><div class="sub loss">停摆触发器自行打开总闸</div></div>
+      <div class="estop">紧急停摆</div>
+    </div>
+    <div class="screen">
+      <div class="why">
+        <div class="row"><span class="h3 warn">未在交易</span><span class="badge w">BREAKER</span></div>
+        <div class="sm" style="margin-top:7px;color:rgb(var(--text) / .82);line-height:1.65">
+          行情/深度陈旧：<b class="mono">312s &gt; 300s</b> 阈值，且回落 REST 也没拿到数据。<br/>
+          已自动打开全局总闸（只停新开仓，<b>未平仓</b>）。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="h3">判定链</span><span class="tiny muted">后端返回，前端只渲染</span></div>
+        <div class="chain">
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L0 全局总闸</div><div class="d">kill_switch = true（由 breaker:data_stale 写入）</div></div><span class="badge l">已关</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L1 模块闸 · 高频</div><div class="d">hft_enabled = true</div></div><span class="badge p">通过</span></div>
+          <div class="ch pass"><span class="kn"></span><div><div class="t">L2 车道状态</div><div class="d">status = active</div></div><span class="badge p">通过</span></div>
+          <div class="ch fail"><span class="kn"></span><div><div class="t">停摆触发器 · 数据陈旧</div><div class="d">market_data.age = 312s &gt; 300s，REST 回落失败</div></div><span class="badge w">未通过</span></div>
+        </div>
+        <div class="tiny muted" style="margin-top:8px">
+          第一个未通过的条件就是<b>唯一原因</b>。注意 L1/L2 显示"通过" —— 它们本来是开着的，是总闸把它们盖住了。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="h3">当前状态</span><span class="badge p">持仓安全</span></div>
+        <div class="stack" style="margin-top:8px;gap:6px">
+          <div class="kv"><span class="dim">持仓</span><span class="mono">4 个 · 未变动</span></div>
+          <div class="kv"><span class="dim">止损止盈</span><span class="mono profit">仍在交易所侧生效</span></div>
+          <div class="kv"><span class="dim">保证金占用</span><span class="mono warn">32%</span></div>
+          <div class="kv"><span class="dim">强平缓冲</span><span class="mono profit">3.2x</span></div>
+          <div class="kv"><span class="dim">最近报价</span><span class="mono loss">3m 12s 前</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="border-color:rgb(var(--warning) / .4)">
+        <div class="row"><span class="h3">恢复</span><span class="badge w">需手动确认</span></div>
+        <div class="tiny dim" style="margin-top:7px;line-height:1.65">
+          数据源已恢复，但<b>不会自动开跑</b>。抖动过去就自动恢复等于无感重启，你会在不知情的情况下重新暴露在风险里。
+        </div>
+        <div class="g2" style="margin-top:11px">
+          <button class="btn">保持停摆</button>
+          <button class="btn primary">确认恢复运行</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="h3">操作记录</span><span class="tiny" style="color:rgb(var(--primary))">全部 ›</span></div>
+        <div class="stack" style="margin-top:8px;gap:9px">
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot l"></span><span>总闸 → 停止</span></span><span class="mono tiny muted">09:37 · breaker:data_stale</span></div>
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot w"></span><span>行情源陈旧告警</span></span><span class="mono tiny muted">09:32 · job_watchdog</span></div>
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot p"></span><span>手动恢复运行</span></span><span class="mono tiny muted">08:02 · mobile</span></div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <button class="on"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+    </nav>
+    <div class="gesture"><i></i></div>
+  </div></div>
+  <div class="hint">
+    这个机制<b>不是反向的</b>：不是"没收到停止就继续跑"，而是<b>"确认数据与决策链健康才跑"</b>。<br/>
+    注意 L1/L2 仍显示"通过" —— 它们本来开着，是总闸把它们盖住了；恢复时它们回到原状态，而不是被改成 stopped。<br/>
+    <b>手机不参与判定</b>：触发器跑在服务端已有的 <code style="font-family:var(--mono)">job_watchdog</code> 里（300s 一次），
+    手机只负责"下命令"和"看状态"。
+  </div>
+</div>
+
+<!-- ═══════ 4 · 停摆触发器 ═══════ -->
+<div class="frame">
+  <div class="cap"><span class="t">4 停摆触发器 · 接进已有看门狗</span><span class="n">control / breakers</span></div>
+  <div class="bezel"><div class="phone">
+    <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px;color:rgb(var(--muted))">CONTROL</span></div>
+    <div class="netstrip"><span class="dot p"></span><span>系统健康</span><span class="src">job_watchdog 每 300s</span><span class="age profit">刚跑过</span></div>
+    <div class="appbar">
+      <div><div class="title">停摆触发器</div><div class="sub">服务端自检 · 与手机无关</div></div>
+      <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></div>
+    </div>
+    <div class="screen">
+      <div class="card" style="border-color:rgb(var(--profit) / .35)">
+        <div class="row"><span class="h3">全部正常</span><span class="badge p">4 个触发器均未触发</span></div>
+        <div class="tiny dim" style="margin-top:7px;line-height:1.65">
+          触发器由<b>服务端已有的看门狗数据源</b>驱动，不新增采集、不新增进程，也不依赖手机是否在线。
+          现在缺的只是"检测到了要不要停"这一步 —— 已有的看门狗只发告警或自愈，不停交易。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="h3">触发条件</span><span class="tiny muted">阈值比告警严 2–3 倍</span></div>
+        <div style="margin-top:2px">
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>数据陈旧</span>
+              <div class="ds">行情/深度 age · 现 1.2s / 停 300s<br/>要求 RSS 回落也失败才停</div></span>
+            <span class="badge p">正常</span>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>决策循环 hang</span>
+              <div class="ds">fullauto tick 卡住时长 · 现 0s / 停 900s</div></span>
+            <span class="badge p">正常</span>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>关键任务中断</span>
+              <div class="ds">job_registry stale=critical · 现 0 个 / 停 1800s</div></span>
+            <span class="badge p">正常</span>
+          </div>
+          <div class="sw">
+            <span><span class="nm"><span class="dot p"></span>风控熔断</span>
+              <div class="ds">lane health.breaker · 现无激活</div></span>
+            <span class="badge p">正常</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="h3">已接线的看门狗</span><span class="tiny muted">全部在服务端</span></div>
+        <div class="stack" style="margin-top:8px;gap:9px">
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot p"></span><span>job_watchdog</span></span><span class="mono tiny muted">300s · 任务滞后/中断</span></div>
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot p"></span><span>hang watchdog</span></span><span class="mono tiny muted">每 tick · 循环超时</span></div>
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot p"></span><span>market data hub stale</span></span><span class="mono tiny muted">30s · 行情陈旧</span></div>
+          <div class="row sm"><span class="row tight" style="gap:7px"><span class="dot p"></span><span>backend-watchdog.ps1</span></span><span class="mono tiny muted">探针 · 进程存活</span></div>
+        </div>
+        <div class="tiny muted" style="margin-top:9px">
+          这些看门狗<b>本来就在跑</b>。本次只是给它们的输出接一个执行器：命中阈值 → 打开 L0 总闸。
+        </div>
+      </div>
+
+      <div class="card" style="border-color:rgb(var(--warning) / .4)">
+        <div class="row"><span class="h3">为什么阈值要更严</span></div>
+        <div class="tiny dim" style="margin-top:7px;line-height:1.7">
+          现在系统对"陈旧"是<b>自愈</b>：行情源断了会回落 REST，进程挂了会被重启。<br/>
+          如果一陈旧就停交易，数据源抖一下策略就停了，<b>比不停更糟</b>。<br/>
+          所以只有「<b>持续超阈值 且 自愈也失败</b>」才停。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="sm" style="font-weight:650">触发后自动恢复</span><div class="toggle danger"></div></div>
+        <div class="tiny muted" style="margin-top:7px;line-height:1.65">
+          默认<b>关</b>。抖动过去就自动恢复等于无感重启，你会在不知情的情况下重新暴露在风险里。
+          恢复必须由人在控制台点一次。
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <button class="on"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+      <button><svg width="19" height="19" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+    </nav>
+    <div class="gesture"><i></i></div>
+  </div></div>
+  <div class="hint">
+    <b>这一屏没有任何"手机侧设置"</b> —— 阈值、开关、恢复策略全在服务端，手机只是显示出来。
+    这也是为什么不需要心跳：看门狗本来就在服务器上跑，它检测到问题就该自己停，
+    而不是等谁来通知它。<br/>
+    <b>手机只做两件事</b>：① 人在控制台按下总闸；② 看判定链知道"是它自己停的还是一直在跑"。
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+{
+  "ts": 1791565082.8449464,
+  "mode": "shadow",
+  "kappa": 2.0,
+  "switch_cost_bp": 2.0,
+  "current": [
+    "BTC",
+    "ETH",
+    "PLAY",
+    "PUMP"
+  ],
+  "proposed": [
+    "NEAR",
+    "PLAY",
+    "PUMP",
+    "QNT"
+  ],
+  "new_in": [
+    "NEAR",
+    "QNT"
+  ],
+  "dropped": [
+    "BTC",
+    "ETH"
+  ],
+  "top_scored": [
+    {
+      "sym": "PLAY",
+      "mean": -9.785,
+      "n": 16,
+      "ucb": 1010.02
+    },
+    {
+      "sym": "PUMP",
+      "mean": 3.897,
+      "n": 34,
+      "ucb": 11.75
+    },
+    {
+      "sym": "QNT",
+      "mean": -7.201,
+      "n": 14,
+      "ucb": 1.95
+    },
+    {
+      "sym": "NEAR",
+      "mean": -9.69,
+      "n": 30,
+      "ucb": -0.84
+    }
+  ]
+}

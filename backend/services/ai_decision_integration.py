@@ -132,10 +132,11 @@ def build_execution_context(
         ExecutionContext对象
     """
     try:
-        from backend.services.adaptive_executor import (
-            get_stop_manager,
-            get_position_sizer
-        )
+        # [2026-09-17 统一策略修复·断点9] 此前从包根导入——get_stop_manager 实际在
+        # dynamic_sl_tp、get_position_sizer 在 position_sizer，恒 ImportError 被吞 →
+        # 自适应执行上下文恒失败（备用车道"using system defaults"的另一根源）。
+        from backend.services.adaptive_executor.dynamic_sl_tp import get_stop_manager
+        from backend.services.adaptive_executor.position_sizer import get_position_sizer
         from backend.services.factor_engine import MarketRegime
         
         stop_manager = get_stop_manager()
@@ -144,10 +145,34 @@ def build_execution_context(
         initial_stop = stop_manager.calculate_initial_stop(entry_price, atr, side)
         
         tp_levels = stop_manager.calculate_take_profit_levels(entry_price, atr, side)
-        tp1_price = tp_levels.get("LEVEL_1", (entry_price, 0.33))[0]
-        
-        if entry_price > 0:
-            rr_ratio = abs(tp1_price - entry_price) / abs(initial_stop.price - entry_price)
+        # [F325 2026-09-18 复查修复] 原为 `tp_levels.get("LEVEL_1", (entry_price, 0.33))[0]`：
+        # `TakeProfitLevel` 是 IntEnum（`dynamic_sl_tp.py:31-35`）⇒ 字典键是**枚举成员**、
+        # 不是字符串 "LEVEL_1" ⇒ 恒查不到 ⇒ 恒用 fallback ⇒ `tp1_price == entry_price`
+        # ⇒ `rr_ratio` **恒 0.0** ⇒ ① `strategy_context.py:159` 的守卫恒拦 ⇒ adaptive 块恒默认；
+        # ② 预览 prompt 的 `{sym}_risk_reward` 恒显示 0.00，误导 LLM。
+        # 修法：兼容字符串键/枚举键/任意首键，全部落空才用 2% 兜底；并给分母加零保护。
+        tp1_price = None
+        try:
+            if isinstance(tp_levels, dict) and tp_levels:
+                for _k in ("LEVEL_1", "level_1", "TP1", 1, 0):
+                    if _k in tp_levels:
+                        _v = tp_levels[_k]
+                        tp1_price = float(_v[0] if isinstance(_v, (tuple, list)) else _v)
+                        break
+                if tp1_price is None:      # 枚举键：取第一个条目的价格
+                    _v = next(iter(tp_levels.values()))
+                    tp1_price = float(_v[0] if isinstance(_v, (tuple, list)) else _v)
+        except Exception:
+            tp1_price = None
+        if not tp1_price or tp1_price <= 0:
+            _is_long = str(side).lower() in ("long", "buy")
+            tp1_price = entry_price * ((1.0 + 0.02) if _is_long else (1.0 - 0.02))
+
+        _risk_dist = abs(float(getattr(initial_stop, "price", 0.0) or 0.0) - entry_price)
+        if entry_price > 0 and _risk_dist > 0:
+            rr_ratio = abs(tp1_price - entry_price) / _risk_dist
+        elif entry_price > 0:
+            rr_ratio = 2.0                 # 止损距离为 0（病态）⇒ 不产出 0 RR 误导 LLM
         else:
             rr_ratio = 2.0
         
@@ -157,7 +182,20 @@ def build_execution_context(
         except ValueError:
             regime_enum = MarketRegime.NOISE
         
-        regime_params = stop_manager.get_trading_parameters(regime_enum)
+        # [2026-09-17 统一策略修复·断点9b] DynamicStopManager 从无 get_trading_parameters
+        # 方法（幽灵API，恒 AttributeError 被吞 → 恒走默认值）。改用 SLTPStrategy 的
+        # 真实 TP 配置做 regime 修饰：趋势态放宽 TP、噪声态收紧（保守近似）。
+        try:
+            _tp_mult = 2.0
+            _strat = getattr(stop_manager, "strategy", None)
+            _tp1 = float(getattr(_strat, "tp1_distance_pct", 0.02) or 0.02)
+            _tp2 = float(getattr(_strat, "tp2_distance_pct", 0.04) or 0.04)
+            _tp_mult = (_tp1 + _tp2) / 2.0 / 0.02  # 相对 2% 基准的倍率
+            if regime_enum is not None and str(getattr(regime_enum, "name", "")).lower() in ("noise", "range"):
+                _tp_mult *= 0.75  # 噪声/震荡：目标收紧
+            regime_params = {"take_profit_atr_multiple": max(1.0, min(4.0, _tp_mult))}
+        except Exception:
+            regime_params = {"take_profit_atr_multiple": 2.0}
         
         position_result = sizer.calculate_position_size(
             entry_price=entry_price,

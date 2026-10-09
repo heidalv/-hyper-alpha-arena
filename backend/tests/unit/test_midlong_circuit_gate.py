@@ -5,7 +5,8 @@
 -601.73 最差象限。契约：
   1. 连亏 N(默认3) 笔 → 冷却 12h 内禁开；
   2. 单 symbol 当日净亏 ≤ -cap → 熔断至次日；
-  3. mid/long 新开空头默认停开（MIDLONG_OPEN_SHORT_ENABLED=false）；
+  3. mid/long 新开空头由总开关控制：MIDLONG_OPEN_SHORT_ENABLED=true → 按
+     MIDLONG_SHORT_MODE 策略放行；false → off（2026-09-27 用户指令撤销「不做空」封锁）；
   4. 多头正常放行、盈利重置连亏计数、状态落盘可恢复。
 """
 import importlib
@@ -23,13 +24,17 @@ def _fresh_gate(monkeypatch, tmp_path, **env):
         "MIDLONG_CIRCUIT_CONSEC_LOSSES": "3",
         "MIDLONG_CIRCUIT_COOLDOWN_S": "43200",
         "MIDLONG_CIRCUIT_DAILY_LOSS_CAP": "60",
-        "MIDLONG_OPEN_SHORT_ENABLED": "false",
-        # 显式声明前提，别继承 .env 的生产值：线上现为 off（mid 空头全停），
+        "MIDLONG_OPEN_SHORT_ENABLED": "true",
+        # 显式声明前提，别继承 .env 的生产值：线上现为 true + regime_gated，
         # 而本文件测的是 conditional 下的分支契约，不写死会随运维改配置而红。
         "MIDLONG_SHORT_MODE": "conditional",
         # [2026-09-09 第十六轮] 多头治理已独立（MIDLONG_LONG_MODE）且默认 learned；
         # 本文件测的是熔断器机制本身，显式 allow_all 隔离 regime/learned 分支。
         "MIDLONG_LONG_MODE": "allow_all",
+        # [2026-09-29 全面执行] 本文件测的是「亏损熔断机制本身」，与新入场边际闸
+        # （edge_gate：方向配对/m 分数）无关——显式关闭，隔离真实行情数据干扰
+        # （生产 .env 已开，测试若不 pin 会因 z_btc 方向拦而全红）。
+        "MIDLONG_EDGE_GATE_ENABLED": "false",
     }.items():
         monkeypatch.setenv(k, str(env.get(k, v)))
     state_file = tmp_path / "midlong_circuit_state.json"
@@ -110,8 +115,10 @@ def test_short_conditional_mode(monkeypatch, tmp_path):
     monkeypatch.setenv("MIDLONG_SHORT_MODE", "conditional")
     importlib.reload(mod)
     _repatch()
-    # on 模式（master 开关）无条件放
-    mod.SHORT_OPEN_ENABLED = True
+    # on 模式（显式策略档）无条件放
+    monkeypatch.setenv("MIDLONG_SHORT_MODE", "on")
+    importlib.reload(mod)
+    _repatch()
     ok, _ = mod.check_midlong_entry(14, "BTC", side="sell", tier="mid")
     assert ok
 
@@ -142,6 +149,15 @@ def test_account_isolation(monkeypatch, tmp_path):
 #   ① 连亏不再产生冷却；② 日亏帽不再熔断；③ 记账侧直接返回（不写状态）。
 
 def test_paper_account_not_frozen_by_consec_losses(monkeypatch, tmp_path):
+    """模拟账户**不因连亏被冻结**；但按 2026-09-19 用户口径**仍要记账**。
+
+    [2026-09-24 R2 用例更新] 旧断言 `mod._state == {}`（"paper 不写状态"）编码的是
+    2026-09-11 的旧口径，已被 **轮120 2026-09-19 用户拍板**推翻：
+    「单币亏钱，就是冻结单个亏钱的币」⇒ 恢复记账（`MIDLONG_CIRCUIT_PAPER_LOCK` 默认
+    true）。当时实测后果是状态文件 9 天没写（mtime 09-10 20:48）、UNI 连吃 3 个 SL
+    也没得到单币冷却。现行契约：**记账照写、只按 (account,symbol) 粒度，
+    不冻结 paper 开仓、不产生全局或跨币冻结**。回滚口径见下一条用例。
+    """
     mod = _fresh_gate(monkeypatch, tmp_path)
     import backend.services.risk_management.loss_lock_policy as _llp
 
@@ -150,7 +166,29 @@ def test_paper_account_not_frozen_by_consec_losses(monkeypatch, tmp_path):
         mod.record_midlong_outcome(14, "VELVET", -10)
     ok, reason = mod.check_midlong_entry(14, "VELVET", side="long")
     assert ok, f"模拟账户不应被连亏熔断: {reason}"
-    assert mod._state == {}, "模拟账户记账侧应直接返回，不写冷却状态"
+    assert "14:VELVET" in mod._state, "轮120 口径：paper 也要记单币冷却账"
+    assert mod._state["14:VELVET"]["consec_losses"] == 5
+    assert all(k == "14:VELVET" for k in mod._state), (
+        f"只允许按 (account,symbol) 记账，不得产生全局/跨币状态: {list(mod._state)}"
+    )
+    ok2, _ = mod.check_midlong_entry(14, "KAITO", side="long")
+    assert ok2, "另一个币不应被 VELVET 的连亏连带冻结"
+
+
+def test_paper_circuit_rollback_switch_stops_recording(monkeypatch, tmp_path):
+    """回滚口径：MIDLONG_CIRCUIT_PAPER_LOCK=false → 回到 09-11 的「paper 不记账」。
+
+    注意：`_fresh_gate` 只转发它在默认表里声明过的键，所以本键必须在调用前先 setenv，
+    才能被 `_fresh_gate` 内部的 `importlib.reload` 读进模块常量。
+    """
+    monkeypatch.setenv("MIDLONG_CIRCUIT_PAPER_LOCK", "false")
+    mod = _fresh_gate(monkeypatch, tmp_path)
+    import backend.services.risk_management.loss_lock_policy as _llp
+
+    monkeypatch.setattr(_llp, "loss_locks_disabled", lambda *a, **k: True)
+    for _ in range(5):
+        mod.record_midlong_outcome(14, "VELVET", -10)
+    assert mod._state == {}, "回滚开关打开时 paper 记账侧应直接返回"
 
 
 def test_paper_account_not_frozen_by_daily_loss_cap(monkeypatch, tmp_path):

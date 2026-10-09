@@ -543,16 +543,47 @@ def thesis_watch_reason(
     except Exception:
         pass
 
+    # [2026-09-24 新目标 R3] **信号源信任桥**：若 `dual:event_impact` 已被 signal_review
+    # 判为 `disable`（显著负边际），则不再允许它阻断开仓。只跳过本段检查，
+    # 不影响下面其它 watch 判据（冷却/追价等照常）。开关见 source_trust 模块。
+    _src_ok = True
     try:
-        from backend.services.analysis import ledgers
-        rows = ledgers.list_signals(source="dual:event_impact", symbol=symbol, limit=8) or []
-        for r in rows:
-            if int(r.get("created_ms") or 0) <= updated_ms:
-                continue
-            if abs(float(r.get("strength") or 0)) >= 6:
-                return "event_shock"
+        from backend.services.analysis.source_trust import source_allowed as _src_allowed
+        _src_ok = bool(_src_allowed("dual:event_impact"))
     except Exception:
-        pass
+        _src_ok = True
+    if _src_ok:
+        try:
+            from backend.services.analysis import ledgers
+            rows = ledgers.list_signals(source="dual:event_impact", symbol=symbol, limit=8) or []
+            # [2026-09-24 新目标 R2] **方向感知**修复。原口径只判 `|strength| >= 6`、**不看方向**
+            # ⇒ 一个"看多"的事件冲击（strength=+7）会把**做多**开仓挡掉。
+            # 实测现场（logs/backend.log）：
+            #   `[MidLongBrain] skip open BTC mid reason=watch:event_shock dir=long`（BTC/SOL mid，9 次）
+            # 冲击的语义是"刚发生意外事件、先别动"，这在与**拟开方向相反**时才成立；
+            # 同向冲击没有阻断理由，中性冲击（direction=0）同样不构成阻断。
+            # 开关 MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE（默认 true=新口径）；
+            # 回滚：设为 false 即恢复旧的"符号盲阻断"。
+            _sign_aware = os.getenv(
+                "MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE", "true"
+            ).strip().lower() in ("1", "true", "yes", "on")
+            for r in rows:
+                if int(r.get("created_ms") or 0) <= updated_ms:
+                    continue
+                if abs(float(r.get("strength") or 0)) < 6:
+                    continue
+                if _sign_aware:
+                    try:
+                        _sd = int(r.get("direction") or 0)
+                    except (TypeError, ValueError):
+                        _sd = 0
+                    if _sd == 0:
+                        continue          # 中性：不阻断
+                    if (th_dir == "long" and _sd > 0) or (th_dir == "short" and _sd < 0):
+                        continue          # 与拟开方向同向：不阻断
+                return "event_shock"
+        except Exception:
+            pass
 
     if (
         (not ignore_cooldown)
@@ -806,6 +837,78 @@ def _entry_zone_promote_enabled() -> bool:
     """
     return (os.getenv("MIDLONG_ENTRY_ZONE_PROMOTE", "false") or "false").strip().lower() in (
         "1", "true", "yes", "on")
+
+
+def _entry_style_switch() -> bool:
+    """入场方式分派总开关（.env 直读兜底 —— 本仓库 .env 键不进 os.environ）。"""
+    import os as _os_e
+
+    v = _os_e.getenv("MIDLONG_ENTRY_STYLE_ENABLED")
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("MIDLONG_ENTRY_STYLE_ENABLED="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v or "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+def resolve_entry_style(symbol: str, tier: str, thesis: Any, market_block: Optional[Dict[str, Any]]) -> str:
+    """返回入场方式：market_on_signal | wait_pullback。
+
+    优先级：genome.entry_style（显式）→ 顺势启发式 → 回退 wait_pullback。
+    任何异常一律回退 wait_pullback（fail-safe：不改变既有行为）。
+    """
+    try:
+        if not _entry_style_switch():
+            return "wait_pullback"
+    except Exception:
+        return "wait_pullback"
+    # ① 策略 genome 显式指定
+    try:
+        from backend.database.connection import SessionLocal  # noqa: F401
+        from sqlalchemy import text as _t
+
+        _db = SessionLocal()
+        try:
+            _row = _db.execute(
+                _t(
+                    "select genome from ai_strategies where account_id = :a and primary_symbol = :s "
+                    "and status = 'active' order by id desc limit 1"
+                ),
+                {"a": int(getattr(thesis, "account_id", 0) or 0), "s": str(symbol).upper()},
+            ).fetchone()
+        finally:
+            _db.close()
+        if _row and _row[0]:
+            import json as _json
+
+            _g = _row[0] if isinstance(_row[0], dict) else _json.loads(_row[0])
+            _es = str((_g or {}).get("entry_style") or "").strip().lower()
+            if _es in ("market_on_signal", "wait_pullback"):
+                return _es
+    except Exception:
+        pass
+    # ② 顺势启发式：论题方向与 regime 一致 ⇒ 信号即入
+    try:
+        _reg = str((((market_block or {}).get(str(symbol).upper()) or {}).get("regime")) or "").strip().lower()
+        _dir = str(getattr(thesis, "direction", "") or "").strip().lower()
+        _bull = _reg in ("up", "bull", "bullish")
+        _bear = _reg in ("down", "bear", "bearish")
+        if (_dir == "long" and _bull) or (_dir == "short" and _bear):
+            logger.info("[EntryStyle] %s %s 顺势(%s,%s) → market_on_signal", symbol, tier, _dir, _reg)
+            return "market_on_signal"
+    except Exception:
+        pass
+    # ③ 回退
+    return "wait_pullback"
 
 
 def _promotion_blocked_by_analysis(symbol: str, tier: str, market_block: Optional[Dict[str, Any]]):
@@ -1414,6 +1517,285 @@ def _framework_agree_adjust(llm_dir: str, fw_mean: float, require_agree: bool = 
     return d
 
 
+# ─────────────────────────────────────────────────────────────────────
+# [R24] OWM 接线失败的**限流告警**（默认开，回滚 MLTO_OWM_FAIL_WARN=false）
+#   动机：fail-open 分支原为 logger.debug ⇒ 生产 37 小时内 0 条可见记录，
+#   无法判断"权重没生效"是没数据、没接线、还是每次抛异常。
+# ─────────────────────────────────────────────────────────────────────
+_OWM_FAIL_LAST_TS: float = float("-inf")  # 语义 = "从未打过"（用 0.0 会让 now=0 的首次调用被误限流）
+
+
+def _owm_fail_warn_enabled() -> bool:
+    return (os.getenv("MLTO_OWM_FAIL_WARN", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _owm_fail_should_log(now: float) -> bool:
+    """限流：同一进程内最多每 MLTO_OWM_FAIL_WARN_SEC（默认 300s）打一次 WARNING。"""
+    global _OWM_FAIL_LAST_TS
+    try:
+        gap = float(os.getenv("MLTO_OWM_FAIL_WARN_SEC", "300") or 300)
+    except Exception:
+        gap = 300.0
+    if now - _OWM_FAIL_LAST_TS < gap:
+        return False
+    _OWM_FAIL_LAST_TS = now
+    return True
+
+
+def _kline_block_enabled() -> bool:
+    """[续作R18] 是否把真 K 线块注入活主脑 prompt（默认 **true** = 注入）。
+
+    背景（§52/§54.1 三条证据）：活主脑 prompt 里**没有 K 线本体**，只有派生标量；
+    9,037 字符的真 OHLCV 块只存在于另一条（agent/图表复核）路径。
+    现以紧凑形式注入（周期/根数/上限均可配）；失败只 debug。
+    回滚：MIDLONG_BRAIN_KLINE_BLOCK=false（非法值 fail-closed = 不注入）。
+    """
+    return (os.getenv("MIDLONG_BRAIN_KLINE_BLOCK", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _kline_block_periods() -> list:
+    raw = (os.getenv("MIDLONG_BRAIN_KLINE_BLOCK_PERIODS") or "1h,4h,1d").strip()
+    out = [p.strip() for p in raw.split(",") if p.strip()]
+    return out or ["1h", "4h", "1d"]
+
+
+def _kline_block_count() -> int:
+    try:
+        return int(os.getenv("MIDLONG_BRAIN_KLINE_BLOCK_COUNT", "12") or 12)
+    except (TypeError, ValueError):
+        return 12
+
+
+def _kline_block_max_chars() -> int:
+    try:
+        return int(os.getenv("MIDLONG_BRAIN_KLINE_BLOCK_MAX_CHARS", "3000") or 3000)
+    except (TypeError, ValueError):
+        return 3000
+
+
+def _feature_table_enabled() -> bool:
+    """[续作R14] 是否把量化特征表注入活主脑 prompt（默认 **true** = 注入）。
+
+    背景（台账 §45）：`render_quant_feature_table` 此前只被已停跑的
+    trend_agent / swing_agent 使用，活主脑 prompt 里没有这块
+    （MTF 偏向 / ATR% / regime / 同币最近 5 笔交易记忆 / 同向冷却 / 开仓配额）。
+    渲染器本身已离线实测可用（828 字符/39 行，占位符替换正确）。
+    注入失败只 debug，绝不影响 prompt 组装。
+    回滚：MIDLONG_BRAIN_FEATURE_TABLE=false（非法值也按 false = 不注入，fail-closed）。
+    """
+    return (os.getenv("MIDLONG_BRAIN_FEATURE_TABLE", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _owm_apply_mode() -> str:
+    """[R25] OWM 是否真的写进 `dto.llm_conviction`。
+
+    `conviction`（默认，保持现状）= 写入；`shadow` = 只计算并打日志、**不写入**。
+
+    为什么需要这个开关（可否证 A/B）：`brain.py` L1806-1808（轮136 2026-09-20 修复）
+    已明确"**不要把辩论折减写回 `dto.llm_conviction`**"，理由是该字段**同时是下游
+    开仓门槛的 confidence 输入**（`maybe_open(confidence=llm_conviction)`；
+    `[V5Gate] rule=confidence`）。而 OWM 这条路径恰恰**直接写它**，且在活跃会话
+    `fa_7e12e7a1b6` 上 `long llm` 已钉在 clamp 下界 0.5 —— 实测 09-23 21:20~09-24 12:28
+    的 `logs/brain_subprocess.log` 里 `OWM llm×0.500` 命中 **128 次**（全部 tier=long，
+    例如 `conviction 42→21 (VIRTUAL long)`），`×0.945` 命中 209 次（mid）。
+    ⇒ 长线每一条论题的信心都以**一半**的值进入门槛。
+    置 shadow 可在模拟仓量化"这半个信心值值多少笔开仓"，再决定去留。
+    回滚/对照：`MLTO_OWM_INTO_BRAIN_MODE=conviction|shadow`。
+    """
+    v = (os.getenv("MLTO_OWM_INTO_BRAIN_MODE") or "conviction").strip().lower()
+    return v if v in ("conviction", "shadow") else "conviction"
+
+
+_CONTEXT_AUDIT_TS = {}
+
+
+def _context_audit_enabled() -> bool:
+    """[R30] 活主脑 prompt 体检（默认 true，只读日志，零行为变化）。"""
+    return (os.getenv("MIDLONG_BRAIN_PROMPT_AUDIT", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _context_audit_gap_sec() -> float:
+    try:
+        return float(os.getenv("MIDLONG_BRAIN_PROMPT_AUDIT_SEC", "1800") or 1800)
+    except (TypeError, ValueError):
+        return 1800.0
+
+
+def _context_audit_should(symbol: str, now: float) -> bool:
+    gap = _context_audit_gap_sec()
+    last = _CONTEXT_AUDIT_TS.get(symbol)
+    if last is not None and now - last < gap:
+        return False
+    _CONTEXT_AUDIT_TS[symbol] = now
+    return True
+
+
+def _audit_context_prompt(symbol: str, tier: str, text: str) -> None:
+    """把"实际进入活主脑 prompt 的上下文块"记录成一行日志。
+
+    为什么需要：归档（`data/prompt_archives/trend_agent`）自 2026-08-17 起停跑
+    （见台账 §45），此后"提示词里到底注入了什么"只能靠离线重建推断。
+    本行日志让它在生产里**持续可核**：K 线/指标是否真在、块多大、指标项齐不齐。
+    只读、不修改 prompt；失败只 debug。
+    回滚：MIDLONG_BRAIN_PROMPT_AUDIT=false。节流：MIDLONG_BRAIN_PROMPT_AUDIT_SEC（默认 1800s/币）。
+    """
+    try:
+        if not _context_audit_enabled() or not _context_audit_should(str(symbol), time.time()):
+            return
+        t = text or ""
+        low = t.upper()
+        marks = [k for k in ("RSI", "EMA", "MACD", "ATR", "BOLL", "EMA200") if k in low]
+        kl_len = 0
+        kl_at = -1
+        for key in ("K线", "OHLCV", "开高低收", "kline", "KLINE"):
+            i = t.find(key)
+            if i >= 0:
+                kl_at = i
+                kl_len = len(t) - i
+                break
+        # [R34] 把探测器从"猜键名"改为**结构式**：R33 实测 `kline` 会先命中分析师评分键
+        # `kline_deep`（在 21393 字符的第 21022 位）⇒ 该指标既不等于 K 线块位置也不等于其长度。
+        # 现在同时记录三个锚点并**各打一段原文样本**（规矩②：度量必须附带被度量的原文）：
+        #   kl_at   = 首个 `K线/OHLCV/开高低收/kline` 标记（可能仍是 kline_deep）
+        #   arr_at  = 首个 `[[`（JSON 数组的数组 ⇒ 最可能是逐根 K 线序列）
+        #   rsi_at  = 首个 `RSI`（指标块锚点）
+        try:
+            _sn = int(os.getenv("MIDLONG_BRAIN_PROMPT_AUDIT_SAMPLE_CHARS", "200") or 200)
+        except (TypeError, ValueError):
+            _sn = 200
+        arr_at = t.find("[[")
+        rsi_at = low.find("RSI")
+        # [R35] 封掉 ④ 的最后一条边界：R34 的 `arr_at=-1` 只排除了"数组套数组"渲染，
+        # 若 K 线被渲染成**对象数组**（[{"open":…},…]）则测不到。这里直接数候选键名/形态。
+        _bar_hits = {
+            k: t.count(k) for k in (
+                '"open"', '"high"', '"low"', '"close"', '"ohlc"', '"ohlcv"', '},{"', "open_time",
+            )
+        }
+        _bar_hits = {k: v for k, v in _bar_hits.items() if v}
+
+        def _snip(idx: int, n: int) -> str:
+            if idx < 0 or n <= 0:
+                return ""
+            s = t[idx:idx + n].replace("\n", "\\n")
+            return s + ("…" if len(t) - idx > n else "")
+
+        logger.info(
+            "[PromptAudit] %s %s prompt_chars=%d lines=%d kline_at=%d kline_tail_chars=%d "
+            "arr_at=%d rsi_at=%d bar_keys=%s indicators=%s kline_sample=%r arr_sample=%r rsi_sample=%r",
+            symbol, tier, len(t), t.count("\n") + 1, kl_at, kl_len, arr_at, rsi_at,
+            _bar_hits or "none",
+            ",".join(marks) if marks else "none",
+            _snip(kl_at, _sn), _snip(arr_at, 150), _snip(rsi_at, 200),
+        )
+        # [R41] 与体检同一节流点落盘归档，便于随时核对原文（含 K 线/指标区域）。
+        _archive_context_prompt(symbol, tier, t)
+    except Exception as _pa_err:  # noqa: BLE001
+        logger.debug("[PromptAudit] skip: %s", _pa_err)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# [R41] 活主脑 prompt 的**落盘归档**（默认开；限流沿用体检节流，尺寸有上限，按天留存）
+#   动机：`data/prompt_archives/trend_agent` 自 2026-08-17 停跑（台账 §45），此后
+#   "模型实际看到什么"只能靠离线重建推断；R33/R34 更证明**只看指标名会误判**。
+#   归档后可直接从磁盘核对上下文块（含 K 线/指标区域）的原文与长度。
+#   范围说明：归档的是 `context_pack.to_prompt_text()` 的输出（即携带 K 线/指标的上下文块），
+#   **不是**整条 user prompt（后续还有 extras/风控提示等拼接），文件名与 payload 都写明这一点。
+#   开关/回滚：MIDLONG_BRAIN_PROMPT_ARCHIVE=false
+#   目录：MIDLONG_BRAIN_PROMPT_ARCHIVE_DIR（默认 data/prompt_archives/brain）
+#   上限：MIDLONG_BRAIN_PROMPT_ARCHIVE_MAX_BYTES（默认 400000，超出截断并标注）
+#   留存：MIDLONG_BRAIN_PROMPT_ARCHIVE_DAYS（默认 7，仅清理形如 YYYYMMDD 的子目录）
+# ─────────────────────────────────────────────────────────────────────
+def _prompt_archive_enabled() -> bool:
+    return (os.getenv("MIDLONG_BRAIN_PROMPT_ARCHIVE", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _prompt_archive_dir() -> str:
+    return (os.getenv("MIDLONG_BRAIN_PROMPT_ARCHIVE_DIR") or "data/prompt_archives/brain").strip()
+
+
+def _prompt_archive_max_bytes() -> int:
+    try:
+        return int(os.getenv("MIDLONG_BRAIN_PROMPT_ARCHIVE_MAX_BYTES", "400000") or 400000)
+    except (TypeError, ValueError):
+        return 400000
+
+
+def _prompt_archive_days() -> int:
+    try:
+        return int(os.getenv("MIDLONG_BRAIN_PROMPT_ARCHIVE_DAYS", "7") or 7)
+    except (TypeError, ValueError):
+        return 7
+
+
+def _prune_prompt_archive(base: str, keep_days: int) -> int:
+    """只清理 `base` 下形如 YYYYMMDD 的子目录，保留最近 keep_days 天。返回删除数。"""
+    import re as _re
+    import shutil as _sh
+    try:
+        if keep_days <= 0:
+            return 0
+        # 安全护栏：只在 prompt_archives 路径下动手
+        if "prompt_archives" not in str(base).replace("\\", "/"):
+            return 0
+        names = sorted(
+            n for n in os.listdir(base)
+            if _re.fullmatch(r"\d{8}", n) and os.path.isdir(os.path.join(base, n))
+        )
+        for n in names[:-keep_days]:
+            _sh.rmtree(os.path.join(base, n), ignore_errors=True)
+        return max(0, len(names) - keep_days)
+    except Exception:
+        return 0
+
+
+def _archive_context_prompt(symbol: str, tier: str, text: str) -> None:
+    """把上下文块原文落盘（失败只 debug，绝不影响主流程）。"""
+    try:
+        if not _prompt_archive_enabled():
+            return
+        import hashlib as _hl
+        import json as _json
+        from datetime import datetime as _dt
+
+        base = _prompt_archive_dir()
+        day = _dt.now().strftime("%Y%m%d")
+        d = os.path.join(base, day)
+        os.makedirs(d, exist_ok=True)
+        body = text or ""
+        truncated = False
+        cap = _prompt_archive_max_bytes()
+        if cap > 0 and len(body) > cap:
+            body = body[:cap]
+            truncated = True
+        h = _hl.sha256(body.encode("utf-8", "ignore")).hexdigest()[:10]
+        fn = f"{str(symbol).upper()}_{str(tier)}_{h}.json"
+        payload = {
+            "ts": _dt.now().isoformat(timespec="seconds"),
+            "symbol": str(symbol), "tier": str(tier),
+            "scope": "context_pack.to_prompt_text（不含 system/extras/风控提示）",
+            "prompt_chars": len(text or ""),
+            "archived_chars": len(body),
+            "truncated": truncated,
+            "text": body,
+        }
+        with open(os.path.join(d, fn), "w", encoding="utf-8") as fh:
+            _json.dump(payload, fh, ensure_ascii=False)
+        _prune_prompt_archive(base, _prompt_archive_days())
+    except Exception as _ar_err:  # noqa: BLE001
+        logger.debug("[PromptArchive] skip: %s", _ar_err)
+
+
 def _apply_owm_to_conviction(conviction: int, owm_w: float) -> int:
     """[M8 2026-09-14] OWM llm 乘子（clamp [0.5,1.5]）作用到 conviction。"""
     w = max(0.5, min(1.5, float(owm_w or 1.0)))
@@ -1462,9 +1844,65 @@ def refresh_thesis(
                 len(_extras_json), _BRAIN_EXTRAS_CHAR_BUDGET, symbol, tier,
             )
             _extras_json = _extras_json[:_BRAIN_EXTRAS_CHAR_BUDGET]
+        _cp_text = pack.to_prompt_text(_BRAIN_CONTEXT_TOKEN_BUDGET)
+        _audit_context_prompt(symbol, tier, _cp_text)
+        # [续作R14] 量化特征表注入（开关 `_feature_table_enabled`，默认 true）。
+        # 失败只 debug；用核心库会话（交易记忆/冷却/配额都在 core 表里，
+        # 与 trend_agent 当年传的会话同源）。
+        _feat_block = ""
+        if _feature_table_enabled():
+            try:
+                from backend.services.agent_quant_feature_table import (
+                    render_quant_feature_table,
+                )
+                from backend.database.connection import SessionLocal as _SL_FT
+                with _SL_FT() as _ftdb:
+                    _feat_block = render_quant_feature_table(
+                        symbol, market_summary or {}, _ftdb,
+                        _account_id_for_session(session_id),
+                        nature="trend_follow" if _tier3(tier) == "long" else "swing",
+                    ) or ""
+            except Exception as _ft_err:  # noqa: BLE001
+                logger.debug("[MidLongBrain] feature_table 注入跳过: %s", _ft_err)
+        # [续作R14] 与 PromptAudit 同节流打一条可见确认（归档只含 context_pack 本体，不含本段）
+        if _feat_block:
+            _fa_ts = globals().setdefault("_FEAT_AUDIT_TS", {})
+            _fa_last = _fa_ts.get(str(symbol), float("-inf"))
+            if time.time() - _fa_last >= _context_audit_gap_sec():
+                _fa_ts[str(symbol)] = time.time()
+                logger.info(
+                    "[MidLongBrain] feature_table 注入 chars=%d (%s %s)",
+                    len(_feat_block), symbol, tier,
+                )
+        # [续作R18] 真 K 线块注入（紧凑版；开关/周期/根数/上限可配）。
+        # 失败只 debug；成功后与体检同节流打一条可见确认。
+        _kline_block = ""
+        if _kline_block_enabled():
+            try:
+                from backend.services.agent_deep_context import build_kline_block
+                _kb = build_kline_block(
+                    symbol, _kline_block_periods(), _kline_block_count(),
+                ) or ""
+                _cap = _kline_block_max_chars()
+                if _cap > 0 and len(_kb) > _cap:
+                    _kb = _kb[:_cap] + "\n…(截断)"
+                _kline_block = _kb
+            except Exception as _kb_err:  # noqa: BLE001
+                logger.debug("[MidLongBrain] kline_block 注入跳过: %s", _kb_err)
+        if _kline_block:
+            _kb_ts = globals().setdefault("_KLINE_BLOCK_AUDIT_TS", {})
+            _kb_last = _kb_ts.get(str(symbol), float("-inf"))
+            if time.time() - _kb_last >= _context_audit_gap_sec():
+                _kb_ts[str(symbol)] = time.time()
+                logger.info(
+                    "[MidLongBrain] kline_block 注入 chars=%d (%s %s)",
+                    len(_kline_block), symbol, tier,
+                )
         user = (
             f"【标的】{symbol}  【周期】{tier}\n\n"
-            + pack.to_prompt_text(_BRAIN_CONTEXT_TOKEN_BUDGET)
+            + _cp_text
+            + ("\n\n【量化特征表】\n" + _feat_block if _feat_block else "")
+            + ("\n\n【K线块】\n" + _kline_block if _kline_block else "")
             + "\n\n【本币附加证据】\n"
             + _extras_json
         )
@@ -1701,13 +2139,37 @@ def refresh_thesis(
                 _owm_w = max(0.5, min(1.5, _owm_w))
                 if abs(_owm_w - 1.0) > 1e-6:
                     _old_conv = dto.llm_conviction
-                    dto.llm_conviction = _apply_owm_to_conviction(_old_conv, _owm_w)
-                    logger.info(
-                        "[MidLongBrain] OWM llm×%.3f: conviction %d→%d (%s %s)",
-                        _owm_w, _old_conv, dto.llm_conviction, symbol, tier,
-                    )
+                    if _owm_apply_mode() == "shadow":
+                        # [R25] 只观测不写入：让"这半个信心值值多少笔开仓"可被量化。
+                        logger.info(
+                            "[MidLongBrain] OWM llm×%.3f (shadow，未写入): "
+                            "conviction 将 %d→%d (%s %s)",
+                            _owm_w, _old_conv,
+                            _apply_owm_to_conviction(_old_conv, _owm_w), symbol, tier,
+                        )
+                    else:
+                        dto.llm_conviction = _apply_owm_to_conviction(_old_conv, _owm_w)
+                        logger.info(
+                            "[MidLongBrain] OWM llm×%.3f: conviction %d→%d (%s %s)",
+                            _owm_w, _old_conv, dto.llm_conviction, symbol, tier,
+                        )
         except Exception as _owm_err:
-            logger.debug("[MidLongBrain] OWM 接线跳过(fail-open): %s", _owm_err)
+            # [R24] 原为 logger.debug ⇒ fail-open 且**静默**：权重没生效时生产无痕。
+            # 【R25 更正】R24 曾据"backend.log 里 `MidLongBrain] OWM` 0 次"推断
+            #   "本块从未成功执行/每次抛异常" —— **该推断是错的**，原因是 grep 错了文件：
+            #   本函数跑在**出进程 brain 子进程**里，日志写 `logs/brain_subprocess.log`，
+            #   不写 `backend.log`。用正确靶子复核（09-23 21:20~09-24 12:28，约 15h）：
+            #   成功 **337** 条、失败 **0** 条，例如
+            #   `OWM llm×0.945: conviction 55→52 (TRX mid)`（12:27:57）。
+            #   所以本块是**正常工作**的；这里保留限流 WARNING 只是把"万一失败"从
+            #   不可见变为可见（纯观测性改进，不改变行为）。
+            # 回滚：MLTO_OWM_FAIL_WARN=false（退回 debug 静默）。
+            if _owm_fail_warn_enabled() and _owm_fail_should_log(time.time()):
+                logger.warning(
+                    "[MidLongBrain] OWM 接线失败(fail-open，本次权重未生效): %r", _owm_err,
+                )
+            else:
+                logger.debug("[MidLongBrain] OWM 接线跳过(fail-open): %s", _owm_err)
         # [轮130 2026-09-20 用户指令] 牛熊研究员对抗辩论 —— 接线到**活主脑**。
         # 架构：五分析师+六域信号 → 牛熊对抗辩论 → 风控官（否决权）→ 交易员。
         # 实测：`mlto/debate_layer.py` 此前唯一调用者是生产 0 调用点的 orchestrator（09-05 下线），
@@ -2576,6 +3038,12 @@ def run_midlong_open_sweep(
 
     def _bump(_k: str) -> None:
         _skip_stat[_k] = int(_skip_stat.get(_k, 0)) + 1
+        # [2026-10-09 中线漏斗探针] 逐币打印死因：此前只有聚合计数器，
+        # 无法知道"探针标记之后在哪一步被丢弃"（中线 9 月以来仅 1 笔持仓的根因定位需要它）。
+        try:
+            logger.info("[MidLongFunnel] %s tier=%s reason=%s", sym, tier_l, _k)
+        except Exception:
+            pass
 
     for sym_raw in (symbols or []):
         sym = str(sym_raw).upper()
@@ -2610,7 +3078,14 @@ def run_midlong_open_sweep(
                 _pn = True
             _probe_dir = ""
             if _dir_raw in ("long", "short"):
-                _probe_why = "waiting_pullback"
+                # [2026-10-09 入场方式] 不再一律"等回踩"：按策略类型分派。
+                _probe_style = resolve_entry_style(sym, tier_l, dto, market_summary)
+                if _probe_style == "market_on_signal":
+                    _blocked_es, _why_es = _promotion_blocked_by_analysis(sym, tier_l, market_summary)
+                    if _blocked_es:
+                        logger.info("[EntryStyle] %s %s market_on_signal 被守卫拦下: %s", sym, tier_l, _why_es)
+                        _probe_style = "wait_pullback"
+                _probe_why = _probe_style
                 _probe_dir = _dir_raw
             elif _pn:
                 try:
@@ -2650,7 +3125,8 @@ def run_midlong_open_sweep(
             try:
                 dto = copy.copy(dto)
                 dto.direction = _probe_dir
-                dto.recommend_open = False   # ⇒ NIBBLE 档（小仓）
+                # market_on_signal ⇒ 用策略自己的仓位档；wait_pullback ⇒ 保持 NIBBLE 小仓
+                dto.recommend_open = bool(_probe_why == "market_on_signal")
                 # [轮121] 显式标记：`can_open_block_reason` 据此放行 rec_open_false
                 # （否则上面这行会把自己刚放进来的试探拒掉 —— 实测三个试探全灭）
                 dto._probe_entry = _probe_why

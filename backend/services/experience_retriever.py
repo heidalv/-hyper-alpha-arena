@@ -218,6 +218,15 @@ class ExperienceRetriever:
             wins.sort(key=lambda s: s.pnl or 0, reverse=True)
             losses.sort(key=lambda s: s.pnl or 0)
 
+            def _factor_votes_of(s) -> list:
+                """[流B] 决策时因子投票（market_snapshot_json.factor_votes，无则空）。"""
+                try:
+                    m = s.market_snapshot_json or {}
+                    fv = m.get("factor_votes") if isinstance(m, dict) else None
+                    return [str(x)[:30] for x in (fv or [])][:5]
+                except Exception:
+                    return []
+
             def _snap_to_dict(s) -> Dict:
                 return {
                     "date": s.timestamp.strftime("%m/%d") if s.timestamp else "?",
@@ -229,6 +238,7 @@ class ExperienceRetriever:
                     "regime": s.regime_at_decision or "?",
                     "quality": s.quality_label or "?",
                     "lesson": (s.lesson_extracted or "")[:100],
+                    "factor_votes": _factor_votes_of(s),
                 }
 
             return {

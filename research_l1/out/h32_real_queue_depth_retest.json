@@ -1,0 +1,87 @@
+{
+  "hours": 72.0,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "BNB",
+    "SOL",
+    "DOGE",
+    "XRP",
+    "ASTER"
+  ],
+  "theta": 0.5,
+  "summary": {
+    "P0 两侧都挂": {
+      "n_dec": 106337,
+      "n_fill": 30267,
+      "fill_rate": 0.284632818304071,
+      "net_bp_per_fill": 0.08558923860760471,
+      "net_bp_per_dec": 0.0259841578187207
+    },
+    "P2 反势挂": {
+      "n_dec": 67731,
+      "n_fill": 12223,
+      "fill_rate": 0.180463893933354,
+      "net_bp_per_fill": 0.22639762516453646,
+      "net_bp_per_dec": 0.04085659701445614
+    },
+    "P3 择时": {
+      "n_dec": 106337,
+      "n_fill": 22799,
+      "fill_rate": 0.2144032650911724,
+      "net_bp_per_fill": 0.1239211710170801,
+      "net_bp_per_dec": 0.027394180455518793
+    }
+  },
+  "diagnostics": {
+    "BTC": {
+      "buckets": 17255,
+      "depth_matched": 17250,
+      "la_bid_med": 0.278,
+      "top5_over5_med": 38445.220779999996,
+      "depth_snapshots": 2254223
+    },
+    "ETH": {
+      "buckets": 17232,
+      "depth_matched": 17227,
+      "la_bid_med": 2.522,
+      "top5_over5_med": 15552.960347999999,
+      "depth_snapshots": 2231302
+    },
+    "BNB": {
+      "buckets": 17245,
+      "depth_matched": 1360,
+      "la_bid_med": 0.29,
+      "top5_over5_med": 11315.54314,
+      "depth_snapshots": 175141
+    },
+    "SOL": {
+      "buckets": 17279,
+      "depth_matched": 17274,
+      "la_bid_med": 479.945,
+      "top5_over5_med": 105629.72514,
+      "depth_snapshots": 2268069
+    },
+    "DOGE": {
+      "buckets": 17235,
+      "depth_matched": 1357,
+      "la_bid_med": 116525.0,
+      "top5_over5_med": 49289.244806,
+      "depth_snapshots": 175082
+    },
+    "XRP": {
+      "buckets": 17271,
+      "depth_matched": 17266,
+      "la_bid_med": 10223.599999999999,
+      "top5_over5_med": 28128.823448,
+      "depth_snapshots": 2265989
+    },
+    "ASTER": {
+      "buckets": 17225,
+      "depth_matched": 17220,
+      "la_bid_med": 9653.3,
+      "top5_over5_med": 15120.036175199999,
+      "depth_snapshots": 2169300
+    }
+  }
+}

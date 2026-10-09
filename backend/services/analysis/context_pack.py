@@ -123,10 +123,27 @@ class ContextPack:
 
         def _render(layers_obj: Dict[str, Any]) -> str:
             body = json.dumps(layers_obj, ensure_ascii=False, separators=(",", ":"), default=str)
+            # [续作R3] 标签澄清：这行**是给模型看的**。`data_cutoff_ms` 由
+            #   `context_pack.py:1189-1193 cutoff = min(now, market.as_of_ms + 1)` 得到，
+            #   而 `as_of_ms` 取自 `kl_1d[-1]`（最后一根**日线**，4h 仅兜底，见 L434-436）
+            #   ⇒ 它的分辨率是**天**（当天恒为 00:00 UTC），并非"数据截止到此刻"。
+            #   旧标签「数据截止（UTC ms）=…」会让模型误以为数据停在某个整点而低估新鲜度。
+            #   全仓审计（§59）：后端/前端**无任何消费者**用它算年龄或做新鲜度判定，
+            #   它只用于"同 pack 回放"，所以这里只改标签、不改值、不改任何判据。
+            #   回滚：CONTEXT_PACK_CUTOFF_LABEL_EXPLICIT=false（恢复旧标签）。
+            _explicit = (os.getenv("CONTEXT_PACK_CUTOFF_LABEL_EXPLICIT", "true") or "true"
+                         ).strip().lower() in ("1", "true", "yes", "on")
+            if _explicit:
+                _cut_line = (
+                    f"\n__meta__：数据截止（**日线口径**，取最后一根 1d K 线，UTC ms）="
+                    f"{self.data_cutoff_ms}；"
+                )
+            else:
+                _cut_line = f"\n__meta__：数据截止（UTC ms）={self.data_cutoff_ms}；"
             tail = (
-                f"\n__meta__：数据截止（UTC ms）={self.data_cutoff_ms}；"
-                f"pack hash={self.hash[:16]}；"
-                f"缺失层/错误={'; '.join(self.errors) if self.errors else '无'}"
+                _cut_line
+                + f"pack hash={self.hash[:16]}；"
+                + f"缺失层/错误={'; '.join(self.errors) if self.errors else '无'}"
             )
             return body + tail
 
@@ -591,7 +608,9 @@ def build_flows_layer(symbols: Sequence[str], errors: List[str], *, events_hours
             from backend.services.events.funding_universe import rate_8h
         except Exception:
             def rate_8h(ex: str, rate: float) -> float:  # type: ignore
-                return float(rate)
+                # [R29] 兜底也必须归一到 8h：否则 hyperliquid 的 1h 费率被当 8h（高估 8×）。
+                _hrs = {"hyperliquid": 1.0}.get(str(ex or "").lower(), 8.0)
+                return float(rate) * (8.0 / _hrs) if _hrs > 0 else float(rate)
         extremes: List[Dict[str, Any]] = []
         for r in rows:
             b = _base(r["symbol"])

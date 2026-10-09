@@ -1,0 +1,36 @@
+轮132 致命修复: apply_regime_to_open 日志用了作用域外的 tier ⇒ 中线/长线开仓全挂（24 次失败）
+
+## 事故（实测，与 轮117 `name 'side' is not defined` 同类）
+11:47 起 backend.log 反复出现：
+  [MidLong] stage=fuse tier=mid symbol=AAVE 熔断窄带 paper 缩仓×0.25（…）
+  [MidLongBrain] 开仓失败 AAVE mid: name 'tier' is not defined   ← 24 次
+回溯定位：`full_auto/midlong_executor.py:316`（`apply_regime_to_open()` 的 ranging 分支）
+`logger.info("[MidLong] stage=fuse tier=%s symbol=%s regime=ranging action=%s size×%.2f (probe)",
+            tier, sym_u, act, reg_size*0.5)` —— 该函数**形参里没有 `tier`**。
+当前最常见的 regime 就是 ranging ⇒ 每次开仓走到这里必抛 NameError，被 maybe_open 兜成
+「开仓失败」，**中线零成交**（AAVE 11:47 accepted=1 rec_open=1 却无成交即此因）。
+同函数 `ranging_block` 分支的日志还有 **2 个 %s 只给 1 个实参**；调用点也漏传 tier；
+`execute_midlong_open` 里 `tier=%s … action=hold regime=%s reason=%s`（6 个 %s）只给 5 个实参。
+根因：轮124/125 批量给 [MidLong] 日志补 `tier=%s` 时，未校验该名字是否在函数作用域内。
+
+## 修复
+- `apply_regime_to_open` 补 `tier: str = ""` 形参（docstring 记录事故与回归防护）；
+- 三处日志实参补齐；调用点 `tier=str(tier or "")`；
+- `execute_midlong_open` 的 6-vs-5 实参补齐。
+
+## 防回退（新守卫，全库扫描，非只测一函数）
+`backend/tests/unit/test_midlong_log_scope_guard_20260920.py`：
+  1. 日志**占位符数 == 位置实参数**（抓静默 logging 错误）；
+  2. 日志实参里的裸名字必须在**本函数/外层函数（闭包）/模块级**任一作用域内（抓 NameError）；
+  3. 专门的 `tier=%s` 作用域检查（轮124 遗留风险面）；
+  4. 运行时：`apply_regime_to_open` 四个 regime 分支 + 不传 tier 的情形都要能跑通。
+（首版守卫有误报——模块常量与闭包被当成"作用域外"；已按 Python 作用域语义精确化后再用。）
+
+## 同时：按用户指令去掉"为省 LLM 预算"的限制
+用户原话：「强调过，先不要考虑 llm 预算，你怎么还想给我省，你这个省会坏大事情」。
+`brain_debate` 默认值改为：风控角色**也走 LLM**（LLM_RISK=true）、MAX_ROUNDS 2、
+HOURLY_CAP 0（**不限**）、COOLDOWN 120s（仅防同 tick 重复）。保留的开关只作可控性/回滚，
+不再是省钱手段；env_registry 注释同步更正。
+
+测试：守卫 8 项 + 辩论 18 项 = 26 passed。
+回滚：本次修复是纯修 bug；辩论默认值可用 MIDLONG_DEBATE_* 随时改回。

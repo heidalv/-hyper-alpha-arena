@@ -341,6 +341,20 @@ def initialize_sync_services():
         # 独立数据中心进程模式下由 worker 负责，主 API 跳过以免双开抢资源。
         _dc_mode = (os.environ.get("DATA_CENTER_MODE") or "embedded").strip().lower()
         _dc_external = _dc_mode in ("standalone", "external", "worker", "separate")
+
+        # [2026-10-03 补齐] Hermes 四级链路驱动 —— **必须在 _dc_mode 分支之外**：
+        # 它不是行情采集，而是学习进化链路的驱动，归本 API 进程。实测本机 `DATA_CENTER_MODE=standalone`，
+        # 若放在下面的 else 分支里会被整段跳过（第一次修正即踩到这个坑，日志：
+        # "[Startup] DATA_CENTER_MODE=standalone → 跳过主进程内 market_flow / 多所资金费采集"）。
+        # 背景：`task_run_log` 里 23 个 hermes_*/opencode_* 任务最后一次运行全部停在 2026-08-16
+        # （`opencode_scheduler` 于 08-17 被删，无替代）⇒ L1 停止累积、L3 堆到 286 pending/0 裁决、
+        # L4 468 候选 0 晋升。这里接回后端 APScheduler：L1/L4 默认开，L2/L3（LLM 改写类）默认关。
+        try:
+            from backend.services.scheduler import start_hermes_scheduler
+            start_hermes_scheduler()
+        except Exception as _e:
+            logger.error(f"Hermes 调度器启动失败（非致命）: {_e}")
+
         if _dc_external:
             logger.info(
                 "[Startup] DATA_CENTER_MODE=%s → 跳过主进程内 market_flow / 多所资金费采集",

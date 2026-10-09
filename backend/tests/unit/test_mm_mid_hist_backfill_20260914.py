@@ -70,7 +70,9 @@ def _runner():
 def test_backfill_fills_window_in_time_order_and_anchors_src(monkeypatch):
     calls = []
     # DESC 顺序返回（最新在前）——实现必须反转成时间升序
-    rows = [{"timestamp": 1000 + i * 15000, "best_bid": 99.0 + i, "best_ask": 101.0 + i}
+    # [h376 2026-09-27] asterdex 场馆回填源 = asterdex_book_ticker（15s 桶降采样：
+    # ts 桶标签 + 桶内最新 bid/ask 的 bb/ba 别名）。
+    rows = [{"ts": 1000 + i * 15000, "bb": 99.0 + i, "ba": 101.0 + i}
             for i in range(9, -1, -1)]
     _patch_db(monkeypatch, {"BTC": rows}, calls)
 
@@ -110,12 +112,19 @@ def test_backfill_is_wired_into_get_runner():
 
 
 def test_backfill_uses_snapshot_mid_one_per_row():
-    """源码契约：每快照一条（与 F102 tick 追加口径一致）+ last_mid_src_ms 防重复。"""
+    """源码契约：每快照一条（与 F102 tick 追加口径一致）+ last_mid_src_ms 防重复。
+
+    [h376 2026-09-27] asterdex 场馆回填源修正为 asterdex_book_ticker（15s 桶）；
+    非 asterdex 场馆仍走 market_orderbook_snapshots（两分支都必须存在）。
+    """
     import inspect
     from backend.services.market_maker.runner import ShadowRunner
 
     src = inspect.getsource(ShadowRunner.backfill_mid_hist)
-    assert "market_orderbook_snapshots" in src
-    assert "best_bid>0 AND best_ask>best_bid" in src, "与实盘取值口径一致（过滤坏盘口）"
+    assert "asterdex_book_ticker" in src
+    assert "AS bb" in src and "AS ba" in src, "asterdex 分支读桶内最新 bid/ask"
+    assert "bid_px>0 AND ask_px>bid_px" in src, "与实盘取值口径一致（过滤坏盘口）"
+    assert "market_orderbook_snapshots" in src, "非 asterdex 场馆分支必须保留"
     assert "last_mid_src_ms" in src, "必须锚定来源快照，避免下一 tick 重复追加"
-    assert "ORDER BY timestamp DESC" in src, "取最近 N 条"
+    assert "ORDER BY ts DESC" in src, "asterdex 分支取最近 N 条（桶标签降序）"
+    assert "GROUP BY ts" in src, "15s 桶降采样（与 ~15s tick 追加口径一致）"

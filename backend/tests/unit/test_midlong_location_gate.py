@@ -82,9 +82,53 @@ def test_knife_catch_blocked(monkeypatch):
     assert not ok and "接刀" in reason
 
 
-def test_fractional_change_24h_caliber(monkeypatch):
+def test_percent_change_24h_not_inflated(monkeypatch):
+    """[2026-09-24 口径修复] −0.757%（百分比口径）**不得**被放大成 −75.7%。
+
+    依据（写测试前实测，`logs/backend.log` 2026-09-24）：位置闸 4 条
+    「24h已跌X% 逆势接刀」veto **全部是脏数据**——BNB −30.2%、UNI −71.8%/−75.7%；
+    同期 binance/okx/bybit/hyperliquid/asterdex 五所的 UNI 1h 序列 24h 真实涨跌
+    为 +2.0%~+3.2%（最大单小时跌幅 −6.62%）。成因是旧代码 `abs(v) <= 1.0 → v*100`
+    把百分比口径的 −0.757 当成小数口径放大 100 倍，导致**回调入场**被误判为崩盘接刀。
+    写入方口径（全部为百分比）：`midlong_helpers.py:2053` ×100、
+    `unified_data_pool.py:1989` ×100、hyperliquid `percentage24h = change/prev*100`、
+    CCXT `ticker['percentage']`。
+    """
     mod = _fresh(monkeypatch)
-    # 0~1 小数口径的 -0.06 应等同 -6%
+    ok, reason, detail = mod.location_gate_check(
+        "BTC", "buy", tier="mid", regime="ranging",
+        market_summary=_ms(105.0, [110.0] * 24, [100.0] * 24, chg24=-0.757),
+    )
+    assert ok, reason
+    assert detail["change_24h_pct"] == -0.757
+
+
+def test_percent_change_24h_six_percent_still_blocks(monkeypatch):
+    """百分比口径的 −6% 仍然按「接刀」拦（口径修复不影响真实大跌判断）。"""
+    mod = _fresh(monkeypatch)
+    ok, reason, detail = mod.location_gate_check(
+        "BTC", "buy", tier="mid", regime="ranging",
+        market_summary=_ms(105.0, [110.0] * 24, [100.0] * 24, chg24=-6.0),
+    )
+    assert not ok and "接刀" in reason
+    assert detail["change_24h_pct"] == -6.0
+
+
+def test_implausible_change_24h_treated_missing(monkeypatch):
+    """|24h 涨跌| > 上限（默认 60%）判为脏数据 → 按缺失处理（不在涨跌规则上否决）。"""
+    mod = _fresh(monkeypatch)
+    ok, reason, detail = mod.location_gate_check(
+        "BTC", "buy", tier="mid", regime="ranging",
+        market_summary=_ms(105.0, [110.0] * 24, [100.0] * 24, chg24=-75.7),
+    )
+    assert detail["change_24h_pct"] is None
+    assert "接刀" not in reason
+
+
+def test_legacy_fraction_caliber_switch_restores_old_behavior(monkeypatch):
+    """回滚开关 MIDLONG_LOCATION_CHG24_LEGACY_FRAC=true 时恢复旧的 ×100 行为。"""
+    monkeypatch.setenv("MIDLONG_LOCATION_CHG24_LEGACY_FRAC", "true")
+    mod = _fresh(monkeypatch)
     ok, reason, detail = mod.location_gate_check(
         "BTC", "buy", tier="mid", regime="ranging",
         market_summary=_ms(105.0, [110.0] * 24, [100.0] * 24, chg24=-0.06),
@@ -130,13 +174,14 @@ def test_disable_switch(monkeypatch):
 
 
 def test_short_mode_default_regime_gated(monkeypatch):
-    """[2026-09-09 二次修订] mid 空头默认 `regime_gated`（日线 regime 门），非机械全停。
+    """[2026-09-09 二次修订] mid 空头总开关 true 时默认 `regime_gated`（日线 regime 门），
+    非机械全停；false = off（显式回滚位，2026-09-27 用户指令撤销「不做空」封锁后不再是默认）。
 
     [第十三轮] down-regime 空头默认 flat（`MIDLONG_DOWN_SHORT_MODE=flat`）；
     allowed 时 down 放行。数据依据见 `test_midlong_regime_short_gate.py` 文件头。
     """
     monkeypatch.delenv("MIDLONG_SHORT_MODE", raising=False)
-    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "true")
     monkeypatch.setenv("MIDLONG_DOWN_SHORT_MODE", "allowed")  # 本用例验证 down 放行路径
     mod = importlib.import_module("backend.services.full_auto.midlong_circuit_gate")
     importlib.reload(mod)
@@ -148,3 +193,10 @@ def test_short_mode_default_regime_gated(monkeypatch):
     monkeypatch.setattr(mod, "_daily_regime", lambda sym: "up")
     ok, reason = mod.check_midlong_entry(14, "BTC", side="sell", tier="mid")
     assert not ok and "midlong_short_regime_block" in reason
+    # 总开关 false → off（显式回滚位）
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    importlib.reload(mod)
+    assert mod._short_mode() == "off"
+    monkeypatch.setattr(mod, "_daily_regime", lambda sym: "down")
+    ok, reason = mod.check_midlong_entry(14, "BTC", side="sell", tier="mid")
+    assert not ok and "midlong_short_off" in reason

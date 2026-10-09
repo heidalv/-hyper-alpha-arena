@@ -2,27 +2,11 @@
  "session_id": "fa_7e12e7a1b6",
  "weeks": [
   {
-   "week": "2026-W30",
-   "auto_pnl": 0.0,
-   "auto_n": 0,
-   "fixed_pnl": 11.135,
-   "fixed_n": 78,
-   "roi_diff": -11.135
-  },
-  {
-   "week": "2026-W31",
-   "auto_pnl": 0.0,
-   "auto_n": 0,
-   "fixed_pnl": 27.5127,
-   "fixed_n": 35,
-   "roi_diff": -27.5127
-  },
-  {
    "week": "2026-W32",
    "auto_pnl": 0.0,
    "auto_n": 0,
    "fixed_pnl": 1.664,
-   "fixed_n": 103,
+   "fixed_n": 97,
    "roi_diff": -1.664
   },
   {
@@ -67,12 +51,28 @@
   },
   {
    "week": "2026-W38",
+   "auto_pnl": 1.4639,
+   "auto_n": 7,
+   "fixed_pnl": 44.0351,
+   "fixed_n": 79,
+   "roi_diff": -42.5712
+  },
+  {
+   "week": "2026-W39",
+   "auto_pnl": 0.0,
+   "auto_n": 3,
+   "fixed_pnl": 11.5107,
+   "fixed_n": 81,
+   "roi_diff": -11.5107
+  },
+  {
+   "week": "2026-W40",
    "auto_pnl": 0.0,
    "auto_n": 0,
-   "fixed_pnl": 7.5878,
-   "fixed_n": 3,
-   "roi_diff": -7.5878
+   "fixed_pnl": 0.0,
+   "fixed_n": 1,
+   "roi_diff": 0.0
   }
  ],
- "generated_at": "2026-09-14T08:00:01.020095"
+ "generated_at": "2026-09-28T08:00:00.927380"
 }

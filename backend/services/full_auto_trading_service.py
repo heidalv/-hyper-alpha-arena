@@ -4358,7 +4358,17 @@ class FullAutoTradingService:
             except Exception as _th_ex:
                 logger.debug("[MidLongExit] 论题哨兵跳过 %s: %s", sym, _th_ex)
 
-            if _v2_active and tier == "long":
+            # [2026-09-24 用户指令 · 修复"长线从未被管理"] 原条件 `_v2_active and tier == "long"`
+            # 里 `_v2_active` 读的是**入场闸** `LONG_TREND_V2`（.env=0，且 MIDLONG_BRAIN_MODE
+            # 下再被静默否决）⇒ 该管理块（Chandelier 上移 / 保本 / 锁利 / 极端回撤 / 分档止盈）
+            # 对长线仓**从未执行过**；而 paper 引擎对趋势车道又跳过全部中短线保护（轮99）
+            # ⇒ 长线仓实际无人管理，只剩硬止损（用户反馈"长线从来没有止盈"的根因）。
+            # 修法：管理资格只由**仓位自身的车道身份**（tier=long，E1 已在上方 continue）
+            # 决定，与入场闸解耦（与轮99 `_is_trend_lane_member` 同口径）。
+            # 回滚：EXIT_TREND_MANAGE_DECOUPLED=false 恢复旧行为。
+            _decoupled = str(os.getenv("EXIT_TREND_MANAGE_DECOUPLED", "true")).strip().lower() in (
+                "1", "true", "yes", "on")
+            if (_decoupled and tier == "long") or (_v2_active and tier == "long"):
                 try:
                     _v2d = manage_long_position(db, account_id=acct_id, position=pos)
                     if _v2d.get("action") == "close":
@@ -4512,10 +4522,38 @@ class FullAutoTradingService:
                                         _rd["target_halve_done"] = True
                                     if "early_no_progress" in _rsn:
                                         _rd["early_np_done"] = True
+                                    # [2026-09-24 用户指令] 分档止盈幂等标记：[1,2,3] 累加写入
+                                    if "staged_tp" in _rsn:
+                                        try:
+                                            _stg = int(_v2d.get("stage") or 0)
+                                        except Exception:
+                                            _stg = 0
+                                        if _stg > 0:
+                                            _lst = _rd.get("staged_tp_done")
+                                            if not isinstance(_lst, list):
+                                                _lst = []
+                                            if _stg not in _lst:
+                                                _lst.append(_stg)
+                                            _rd["staged_tp_done"] = _lst
                                     _rrow.exit_state_json = _json_r.dumps(_rd, ensure_ascii=False)
                                     db.commit()
                             except Exception as _re:
                                 logger.debug("[MidLongExit][V2] 减半幂等标记写入失败: %s", _re)
+                            # [2026-09-24 用户指令] 分档止盈触发后把 SL 推保本（decide_long 的 new_sl）
+                            # 标注为 staged_tp（**不是** trailing）：它是分档止盈的锁利推进，
+                            # 与"ATR 追踪派生"语义不同；test_long_lane_stop_harvest_20260918
+                            # 要求 trailing 标注点可枚举（本文件恰为 2 处）。
+                            if _v2d.get("new_sl"):
+                                try:
+                                    paper_engine.update_position_tp_sl(
+                                        db, int(pos.get("id") or 0),
+                                        sl_price=float(_v2d["new_sl"]),
+                                        sl_source="staged_tp",
+                                    )
+                                    logger.info("[MidLongExit][V2][staged_tp] SL 推保本 %s → %s",
+                                                sym, _v2d["new_sl"])
+                                except Exception as _sl_e:
+                                    logger.debug("[MidLongExit][V2] 分档后推保本失败 %s: %s", sym, _sl_e)
                 except Exception as _v2e:
                     logger.warning("[MidLongExit][V2] 管理异常 %s: %s", sym, _v2e)
                 continue

@@ -165,11 +165,28 @@ def test_deployed_env_keys_present():
     from dotenv import load_dotenv
 
     load_dotenv(str(ROOT / ".env"), override=False)
-    # [调研轮23 2026-09-17] mid 上限 0.02 → **0.015**：出场结构网格（14 天 41 笔）
-    # 显示 SL 1.0-1.5% 档比 2.0% 档好约 $95-100 且跨 TP 结构一致；轮7 反事实
-    # （cap=1.5% 时 0/18 赢家被误杀、区间净额 +110.28 vs 2% 的 +73.54）交叉支持。
-    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_MID", "0")) == pytest.approx(0.015)
-    assert float(os.environ.get("MIDLONG_MAX_SL_PCT_MID", "0")) == pytest.approx(0.015), (
+    # [调研轮23 2026-09-17] mid 上限 0.02 → 0.015（**依据含 09-15 前样本**）；
+    # [2026-09-24 第5轮] 按用户「09-15 前作废」规则重验后 **0.015 → 0.03**：
+    #   `cf_mid_trail_grid.py --days 9`（n=114 中线已平仓，双价源，基线=活体 SL×1.0+追踪5.0/2.5）：
+    #   SL×1.25 +1.535/+1.609、SL×1.5 +1.586/+1.525、**SL×2.0 +1.788/+1.714（最高，尾部最优 −3.955）**；
+    #   SL×0.75 后半 Δ 转负 ⇒ 收紧被否。两个拼写必须同步（引擎层+提案层）。
+    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_MID", "0")) == pytest.approx(0.03)
+    assert float(os.environ.get("MIDLONG_MAX_SL_PCT_MID", "0")) == pytest.approx(0.03), (
         "两个拼写必须一致（引擎层与提案层），否则上下限会打架"
     )
-    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_LONG", "0")) == pytest.approx(0.03)
+    assert float(os.environ.get("MIDLONG_SL_MAX_PCT_LONG", "0")) == pytest.approx(0.08), (
+        # [R8 2026-09-24] long 上限 0.03 → 0.08。旧依据是 `.env` 里的
+        #   `[§88 执行 2026-09-11]`（"SL 6.52% vs MAE 1.41%"）——属 **09-15 前样本**，
+        #   按用户「09-15 之前一律作废」规则失效。
+        # 重验（`scripts/cf_long_sl_cap_revalidate_20260924.py`：真实 long 入场点 +
+        #   生产 `ExitPolicy.for_lane("long")`，只改止损宽度，两个样本都过全部五条预登记判据）：
+        #   09-15 后 n=14：3% +60.72 → 6% +179.35 → **8% +186.51**（Δ尾 +31.88、单币 ETH 32%）
+        #   09-19 起 n=7 ：3% −36.88 → 6% +13.31  → **8% +20.47**（Δ尾 +28.52、单币 XRP 29%）
+        # 对照：同脚本 mid 层仍以 3% 最优、放宽全部变差且后半恶化 ⇒ 方法可信，
+        #   long 的结论不是方法伪影。机制：long 是趋势车道（7 天持有、分批 8/15/25%、−8% 硬闸），
+        #   3% 止损与 8% 首档目标自相矛盾；日志实测该上限在夹掉 6.50%/9.85% 的结构止损。
+        # 风险：止损放宽 2.7× ⇒ long 单笔风险同比例上升，与台账 6.5 未决项一并看。
+    )
+    assert float(os.environ.get("MIDLONG_MAX_SL_PCT_LONG", "0")) == pytest.approx(0.08), (
+        "两个拼写必须一致（引擎层与提案层），否则上下限会打架"
+    )

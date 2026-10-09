@@ -383,7 +383,29 @@ class _HealthHandler(BaseHTTPRequestHandler):
 
 
 def _start_health_server(port: int) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer(("0.0.0.0", port), _HealthHandler)
+    """启动 /health。**绑定失败必须明确退出，不能变成僵尸**。
+
+    [F331 2026-09-21] 现场：审计发现**两个** `market_data_center` 进程，
+    其中一个只有 1 线程 / 4MB / CPU 零增长。原因就是本函数：
+    `ThreadingHTTPServer(("0.0.0.0", port), ...)` 在端口被占时抛
+    `OSError: [Errno 10048]`，异常从 `main()` 冒出 ⇒ 进程**没进事件循环**，
+    但（在 InteractiveToken 计划任务下）**没有干净退出**，
+    留下一个"起得来、不干活、也看不出死了"的僵尸 ✗。
+
+    危害不是双写（实测它一行都没写过），而是**可观测性被污染**：
+    巡检看到进程存在就以为数据中心在跑，而实际上采集未必健康；
+    且它占着任务槽位（`MultipleInstancesPolicy=IgnoreNew`）。
+
+    修法：端口占用 ⇒ 打日志 + **sys.exit(3)**，让计划任务/看门狗能看出失败。
+    """
+    try:
+        httpd = ThreadingHTTPServer(("0.0.0.0", port), _HealthHandler)
+    except OSError as e:
+        logger.error(
+            "[DataCenter] /health 端口 %s 绑定失败（%s）⇒ **另一个数据中心实例"
+            "很可能在运行**。本进程退出，避免留下不采集的僵尸进程。"
+            " 请先确认：curl http://127.0.0.1:%s/health", port, e, port)
+        raise SystemExit(3)
     t = threading.Thread(target=httpd.serve_forever, name="dc-health", daemon=True)
     t.start()
     logger.info("[DataCenter] health http://0.0.0.0:%s/health", port)
@@ -625,6 +647,21 @@ async def _run_collectors(stop: asyncio.Event) -> None:
     # 至少 K 线起来才算 ok
     _STATE["ok"] = comps.get("kline_realtime_collector") == "up"
     logger.info("[DataCenter] ready ok=%s components=%s", _STATE["ok"], comps)
+
+    # 12) [2026-09-18 数据中心优化·③] K 线**陈旧清单**周期常态可见。
+    # 事故教训：SUI 的 1d 陈旧 102 小时无人发现，直到主脑因它判 `K线:*` 硬缺项、
+    # 论题被自动拒（报告 §12）⇒ 把"陈旧清单"做成日志里的常态一行，
+    # 而不是只能靠临时脚本查。纯观察：不写库、不改采集行为。
+    try:
+        from backend.services.kline_freshness_watch import start_watch_thread
+
+        start_watch_thread(stop)
+        comps["freshness_watch"] = "up"
+        logger.info("[DataCenter] freshness_watch started (interval=%ss)",
+                    int(os.getenv("KLINE_FRESHNESS_WATCH_INTERVAL_S", "1800") or 1800))
+    except Exception as e:  # noqa: BLE001
+        comps["freshness_watch"] = f"skip:{e}"
+        logger.info("[DataCenter] freshness_watch: %s", e)
 
     await stop.wait()
 

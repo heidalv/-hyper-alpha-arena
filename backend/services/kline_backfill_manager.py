@@ -14,6 +14,32 @@ from .kline_data_service import kline_service
 
 logger = logging.getLogger(__name__)
 
+#: [2026-09-18 数据中心优化] 周期 → 分钟数。用于**按周期**估算应有 K 线根数。
+_PERIOD_MINUTES = {
+    "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30,
+    "1h": 60, "2h": 120, "4h": 240, "6h": 360, "12h": 720,
+    "1d": 1440, "3d": 4320, "1w": 10080, "1M": 43200,
+}
+
+
+def expected_records_for(start: datetime, end: datetime, period: str) -> int:
+    """按 `period` 估算窗口内应有的 K 线根数（至少 1）。
+
+    [修] 原实现写死 `(end-start)/60`（**一律按 1 分钟**）⇒ 非 1m 任务的
+    `total_records` 会成倍虚报：4h 虚报 **240×**、1d 虚报 **1440×**、1w 虚报 **10080×**。
+    该字段会进 `kline_collection_tasks.total_records`，运维看"预计 N 条"时会被误导。
+    （`progress` 是按**时间窗**算的，与本字段无关，故此前只有"预计条数"失真。）
+    """
+    try:
+        mins = int(_PERIOD_MINUTES.get(str(period or "1m").strip(), 1))
+    except Exception:  # noqa: BLE001
+        mins = 1
+    try:
+        secs = (end - start).total_seconds()
+    except Exception:  # noqa: BLE001
+        return 1
+    return max(1, int(secs / max(1, mins * 60)))
+
 
 class BackfillManager:
     """补漏任务管理器"""
@@ -48,9 +74,10 @@ class BackfillManager:
                 # 确保数据服务已初始化
                 await kline_service.initialize()
 
-                # 计算预期的记录数（1分钟间隔）
+                # 计算预期的记录数（**按周期**，非一律 1 分钟）
                 time_diff = task.end_time - task.start_time
-                expected_records = int(time_diff.total_seconds() / 60)
+                expected_records = expected_records_for(
+                    task.start_time, task.end_time, task.period)
                 task.total_records = expected_records
                 db.commit()
 

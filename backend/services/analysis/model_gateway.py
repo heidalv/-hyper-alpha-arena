@@ -917,6 +917,42 @@ class ModelGateway:
                 res.ok = valid
                 if not valid:
                     res.error = "schema 校验失败: " + "; ".join(errs[:6])
+
+            # [2026-10-03 修复 · mlto_debate 21% 失败的根因]
+            # 实测：`ok` 只由"能否提取 JSON + schema 是否通过"决定，而**重试只在抛异常时**发生
+            # ⇒ 模型明明答了（1,351 条失败行 out_tokens p50=702，比成功行 644 还高，
+            # 且**不是截断**：max=1135 远低于上限 2500），却因 JSON 不合法/字段不符被记为失败，
+            # 且没有任何补救 ⇒ 辩论降级、大脑只能 hold。
+            # 现在：解析/schema 失败再给**一次**严格 JSON 重试（附"只输出 JSON"的纠错指令），
+            # 成功则覆盖结果；仍失败保持原判定（不掩盖问题）。回滚：MODEL_GATEWAY_JSON_RETRY=0。
+            if not res.ok and int(os.getenv("MODEL_GATEWAY_JSON_RETRY", "1") or 0) > 0:
+                try:
+                    _strict = (
+                        user
+                        + "\n\n【格式纠错｜必须遵守】上一次回复无法被解析为合法 JSON（"
+                        + str(res.error or "")[:120]
+                        + "）。请**只输出一个 JSON 对象**，不要 markdown 代码块、不要任何解释文字；"
+                        "字符串内的引号必须转义。"
+                    )
+                    raw2 = tr.complete(system, _strict, max_tokens=max_out, temperature=0.0,
+                                       timeout_s=timeout_s, task=task, images=images)
+                    txt2 = getattr(raw2, "text", "") or ""
+                    obj2 = extract_json(txt2)
+                    if obj2 is not None:
+                        valid2, errs2 = schemas.validate(schema_task or task, obj2)
+                        if valid2:
+                            res.text = txt2
+                            res.json = obj2
+                            res.schema_errors = []
+                            res.ok = True
+                            res.error = None
+                            res.input_tokens = (res.input_tokens or 0) + (getattr(raw2, "input_tokens", 0) or 0)
+                            res.output_tokens = (res.output_tokens or 0) + (getattr(raw2, "output_tokens", 0) or 0)
+                            logger.info("[ModelGateway] %s/%s JSON 纠错重试成功", transport, task)
+                        else:
+                            res.schema_errors = errs2
+                except Exception as _json_retry_err:  # noqa: BLE001
+                    logger.debug("[ModelGateway] JSON 纠错重试异常（保持原判定）: %s", _json_retry_err)
         except Exception as exc:
             # [2026-09-11 修复] 传输层断连重试：opencode sidecar 每 ~15min 崩溃重启
             # （exit 15），崩溃窗口内的调用以 ReadError/ConnectError 失败（实测

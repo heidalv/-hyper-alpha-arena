@@ -25,15 +25,18 @@ pwin>=0.60 档只有 215 条样本、边际 +5.18bp，覆盖不了滑点与执�
 
 设计取舍
 --------
-1. **默认关闭，而非删除**。闸门放在 `log_signal` 之后，做空信号照常落库、
-   triple-barrier 标签继续结算 —— 样本持续积累，等做空自己转正（可用本模块的
-   `short_lane_stats()` 复核）再放开。这是"独立实验车道"，不是把做空从学习闭环
-   里摘掉。
-2. **保留一条可配的实验缝隙**。`SCALP_SHORT_MIN_PWIN` 默认 999（等价全关）；
-   想按 pwin>=0.60 小仓试水时设成 0.60 即可，无需改代码。
+1. **默认开启做空信号闸，而非焊死关闭**。闸门放在 `log_signal` 之后，做空信号照常落库、
+   triple-barrier 标签继续结算——样本持续积累。原本（2026-09-02）是「默认关闭」，
+   但用户 2026-09-27 明确指令撤销一切「不做空」封锁（「交易是周期性的，趋势转空还一直
+   做多等于自杀」「之前就命令禁止这个行为、让解开，不许有这个限制」），故：
+   - `SCALP_SHORT_ENABLED` 默认 **true**；
+   - `SCALP_SHORT_MIN_PWIN` 默认 **0.60**（模块自身的实验缝隙值：该档回溯 215 条、
+     胜率 49.3%、净 +5.18bp；样本偏薄，属受控试水，不再用 999 全关哨兵）。
+2. **质量闸仍在**：pwin < 下限或缺失时不开（做空的负期望结论在有 pwin 的样本上得出，
+   无 pwin 等于没有任何质量证据）。
 3. **只拦新开仓**。已有空头持仓的平仓/止损/减仓完全不受影响 —— 闸门位于开仓
    路径上，不参与退出决策。
-4. **fail-closed**。调用方在本模块异常时不放行做空（见 scalp_loop）。
+4. **fail-closed 仍保留为显式回滚位**：`SCALP_SHORT_ENABLED=false` 即恢复全关。
 """
 from __future__ import annotations
 
@@ -55,15 +58,18 @@ def _env_bool(key: str, default: bool) -> bool:
 
 
 def short_lane_enabled() -> bool:
-    """做空车道总开关。默认 False —— 依据见模块 docstring 的回溯表。"""
-    return _env_bool("SCALP_SHORT_ENABLED", False)
+    """做空车道总开关。默认 True（2026-09-27 用户指令撤销「不做空」封锁）。
+
+    false 仍是显式回滚位（SCALP_SHORT_ENABLED=false）。
+    """
+    return _env_bool("SCALP_SHORT_ENABLED", True)
 
 
 def short_min_pwin() -> float:
-    """做空所需的 pwin 下限。默认 999（等价全关）。
+    """做空所需的 pwin 下限。默认 0.60（2026-09-27 用户指令解锁）。
 
-    设为 0.60 可开启"高 pwin 小仓实验"：该档回溯 215 条、胜率 49.3%、净 +5.18bp
-    —— 样本偏薄，仅供受控试水，不建议直接当生产门槛。
+    0.60 档回溯 215 条、胜率 49.3%、净 +5.18bp——样本偏薄，属受控试水；
+    设 999 即回到全关（显式回滚位）。
     """
     try:
         v = os.getenv("SCALP_SHORT_MIN_PWIN", "")
@@ -71,7 +77,7 @@ def short_min_pwin() -> float:
             return float(v)
     except (TypeError, ValueError):
         pass
-    return _ALL_CLOSED
+    return 0.60
 
 
 def short_min_score() -> float:

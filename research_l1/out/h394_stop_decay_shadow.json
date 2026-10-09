@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-09-27T10:06:38.387213+00:00",
+  "n_rows": 1073,
+  "n_stops": 17,
+  "cluster_pairs": 13,
+  "per_frac": {
+    "0.25": {
+      "NEAR": {
+        "affected_legs": 43,
+        "usd": -3.383
+      },
+      "ADA": {
+        "affected_legs": 5,
+        "usd": -0.032
+      },
+      "SUI": {
+        "affected_legs": 50,
+        "usd": -1.051
+      },
+      "ARB": {
+        "affected_legs": 2,
+        "usd": 1.587
+      },
+      "ENA": {
+        "affected_legs": 7,
+        "usd": 0.116
+      }
+    },
+    "0.5": {
+      "NEAR": {
+        "affected_legs": 43,
+        "usd": -3.383
+      },
+      "ADA": {
+        "affected_legs": 5,
+        "usd": -0.032
+      },
+      "SUI": {
+        "affected_legs": 50,
+        "usd": -1.051
+      },
+      "ARB": {
+        "affected_legs": 2,
+        "usd": 1.587
+      },
+      "ENA": {
+        "affected_legs": 7,
+        "usd": 0.116
+      }
+    }
+  }
+}

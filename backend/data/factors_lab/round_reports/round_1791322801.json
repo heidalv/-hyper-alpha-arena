@@ -1,0 +1,152 @@
+{
+  "ok": true,
+  "round_ts": 1791322801.3615744,
+  "iso": "2026-10-06T21:40:01.361574+00:00",
+  "stages": {
+    "literature": {
+      "ok": true,
+      "fetched": 8,
+      "fed": 7,
+      "dup": 1
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 4,
+      "rejected": 0
+    },
+    "engineer": {
+      "candidates": 6,
+      "unit_pass": 2
+    },
+    "backtest": {
+      "evaluated": 0,
+      "best_ic": 0.0
+    },
+    "feedback": {
+      "stats": {
+        "pass": 0,
+        "reject": 0,
+        "fail": 6
+      },
+      "guidance": "按当前假设池分布自由探索，注意与近 30 天假设的异质性。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1791322860336_0",
+      "expr_id": "af552914626f7d73",
+      "hyp": "h1791322855630_0",
+      "note": "20日动量差分除以前20日动量绝对值，负向",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791322860354_1",
+      "expr_id": "6e1efdf8756b098b",
+      "hyp": "h1791322855630_0",
+      "note": "动量差分除以前期动量绝对值加1，避免除零",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791322869482_0",
+      "expr_id": "62dd808496a9bd3a",
+      "hyp": "h1791322855652_1",
+      "note": "20日收益对成交量回归斜率绝对值",
+      "unit": "unit_pass",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "timeout",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "timeout",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791322869553_1",
+      "expr_id": "6c28e20252986306",
+      "hyp": "h1791322855652_1",
+      "note": "20日收益量相关除以量波动，近似beta绝对值",
+      "unit": "unit_pass",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "timeout",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "timeout",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791323029153_0",
+      "expr_id": "c94a03768b05a97a",
+      "hyp": "h1791322855664_2",
+      "note": "20日高低区间位置序列的时序排名绝对值，捕捉分布偏度",
+      "unit": "align_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(align_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(align_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1791323029172_1",
+      "expr_id": "376e443368b6ac1e",
+      "hyp": "h1791322855664_2",
+      "note": "20日高低区间位置偏离中位的绝对值，代理分布偏度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 240.0
+}

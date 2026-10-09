@@ -67,11 +67,19 @@ def test_env_override_present():
 
 
 def test_stop_distance_untouched_by_this_round():
-    """本轮只动止盈：放宽止损在网格里更差（3.0% → +0.158 vs 1.5% → +0.237），
-    所以 `MIDLONG_MAX_SL_PCT_MID` 必须仍是 1.5% —— 否则每笔风险变了、
-    仓位乘子也要重算（这轮明确**不做**）。"""
+    """[2026-09-19 原文] 本轮只动止盈：放宽止损在网格里更差（3.0% → +0.158 vs 1.5% → +0.237），
+    所以 `MIDLONG_MAX_SL_PCT_MID` 必须仍是 1.5%。
+
+    [2026-09-24 第5轮 · 用户指令「中线按 09-15 后样本重验并落地」] **改为 3.0%**：
+      依据 `cf_mid_trail_grid.py --days 9`（n=114 中线已平仓，双价源，基线=活体 SL×1.0 + 追踪5.0/2.5）：
+      SL×1.25 Δ+1.535/+1.609、SL×1.5 +1.586/+1.525、**SL×2.0 +1.788/+1.714（最高且尾部最优 −3.955）**；
+      SL×0.75 后半 Δ 转负 ⇒ 收紧被否。
+      09-19 那版结论基于"14 天 41 笔"（含 09-15 前样本），按用户"作废线"规则已失效。
+      风险守恒：仓位由 `atr_size_multiplier`（止损越宽 ⇒ 仓位越小，夹 0.25~1.0）自动缩小，
+      故每笔风险不会因止损变宽而放大。
+    """
     from backend.config.settings import MIDLONG_MAX_SL_PCT_MID as cap
-    assert cap == pytest.approx(0.015), cap
+    assert cap == pytest.approx(0.03), cap
 
 
 def test_grid_arithmetic_selfcheck():

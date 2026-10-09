@@ -45,7 +45,7 @@ export default function FullAutoPage({ ws }: PageProps) {
   const [selSymbols, setSelSymbols] = useState<string[]>(['BTC', 'ETH'])
   const [selRiskMode, setSelRiskMode] = useState('ai_dynamic')
   const [selTradingMode, setSelTradingMode] = useState('paper')
-  const [selAutoCoin, setSelAutoCoin] = useState(false)
+  // [2026-09-17] selAutoCoin 已随「AI 自动选币」开关移除（短线车道停用）
   const [advMaxStrats, setAdvMaxStrats] = useState('25')
   const [advDrawdown, setAdvDrawdown] = useState('30')
   const [advDailyLoss, setAdvDailyLoss] = useState('5')
@@ -133,7 +133,7 @@ export default function FullAutoPage({ ws }: PageProps) {
         symbols: selSymbols,
         risk_mode: selRiskMode,
         trading_mode: selTradingMode,
-        auto_coin_enabled: selAutoCoin,
+        // [2026-09-17] 短线车道已停：auto_coin_enabled（短线自动选币池）不再随创建开启
       }
       if (selPaperId && selTradingMode === 'paper') body.paper_account_id = selPaperId
       if (showAdvanced) {
@@ -522,19 +522,7 @@ export default function FullAutoPage({ ws }: PageProps) {
             </div>
           </div>
 
-          {/* Auto Coin */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">AI 自动选币</p>
-              <p className="text-xs text-terminal-muted">AI 自动发现交易机会</p>
-            </div>
-            <button
-              onClick={() => setSelAutoCoin(!selAutoCoin)}
-              className={`w-10 h-6 rounded-full relative transition-colors ${selAutoCoin ? 'bg-terminal-primary' : 'bg-terminal-border'}`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${selAutoCoin ? 'left-[18px]' : 'left-[2px]'}`} />
-            </button>
-          </div>
+          {/* [2026-09-17] 「AI 自动选币」开关已随短线车道停用移除（喂的是已停的短线 auto 池） */}
 
           {/* Advanced Config */}
           <div>

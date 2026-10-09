@@ -556,6 +556,95 @@ def start_multi_venue_funding_collector():
         logger.error("[MultiVenueFunding] 启动失败: %s", e, exc_info=True)
 
 
+def start_hermes_scheduler():
+    """[2026-10-03 补齐] 恢复 Hermes 四级链路的**定时驱动**（此前自 2026-08-17 起完全缺失）。
+
+    背景（实测证据）：
+      · `data/hermes_evolution.db.task_run_log` 里 23 个 `opencode_*` / `hermes_*` 任务的最后一次
+        运行时间**全部停在 2026-08-16**（例如 `hermes_strategy_genesis` last_status=error
+        "timed out"；`hermes_wisdom_accumulate` ok 818 次后不再增长）；
+      · `backend/api/hermes_routes.py` 的注释写着「[2026-08-17] opencode_scheduler 已删除」——
+        驱动被整体删除后**没有任何替代**，于是学习进化链路虽然接口都能读，却再没有任何一环自动推进：
+        L1 智慧库停止累积、L2 提示词 0 个新版本、L3 提案堆积（967 中 286 pending、0 裁决）、
+        L4 候选 468（345 incubating、123 failed，`paper_trades` 全为 0）⇒ 成熟度 L4=0。
+
+    本次接回后端内置 APScheduler：
+      · L1 `hermes_wisdom_accumulate`（确定性：把已实现交易聚合成智慧）—— 默认**开**
+      · L4 `hermes_genesis_check`（确定性：用 paper 指标校验孵化候选）—— 默认**开**
+      · L3 `hermes_architecture_evolution`（LLM 生成架构提案）—— 默认**关**（`HERMES_L3_ENABLED`）
+      · L2 `hermes_prompt_optimize` + `hermes_ab_test_eval`（LLM 改写提示词，会直接影响交易行为）
+        —— 默认**关**（`HERMES_L2_ENABLED`），需人工显式开启
+
+    回滚：`HERMES_SCHEDULER_ENABLED=false`（默认 true，即默认恢复 L1/L4 驱动）。
+    """
+    import os as _os
+
+    if str(_os.getenv("HERMES_SCHEDULER_ENABLED", "true")).strip().lower() not in ("1", "true", "yes", "on"):
+        logger.info("[Hermes] 调度器未启用（HERMES_SCHEDULER_ENABLED=false）")
+        return
+
+    def _tick(job_id: str, fn_name: str):
+        """统一包装：注入 RLS 身份 → 调 orchestrator → 记录 task_run_log（失败不抛出）。"""
+        import time as _time
+
+        def _run():
+            t0 = _time.time()
+            ok, note = True, ""
+            try:
+                from backend.core.tenant import set_system_identity
+                set_system_identity()
+                from backend.services.hermes_orchestrator import hermes as _orch
+
+                fn = getattr(_orch, fn_name, None)
+                if not callable(fn):
+                    ok, note = False, f"orchestrator 缺方法 {fn_name}"
+                else:
+                    res = fn()
+                    note = str(res)[:200] if res is not None else ""
+            except Exception as e:  # 单任务失败不影响其它任务
+                ok, note = False, str(e)[:200]
+                logger.warning("[Hermes] %s 执行失败: %s", job_id, e)
+            try:
+                from backend.services.hermes_db import increment_task_run_count, hermes_execute
+                increment_task_run_count(job_id)
+                hermes_execute(
+                    "UPDATE task_run_log SET last_status=?, last_error=?, "
+                    "last_finished_at=datetime('now'), last_run_duration_ms=? WHERE job_id=?",
+                    ("ok" if ok else "error", "" if ok else note,
+                     int((_time.time() - t0) * 1000), job_id),
+                )
+            except Exception as e:
+                logger.debug("[Hermes] task_run_log 写入跳过: %s", e)
+            logger.info("[Hermes] %s %s %s", job_id, "ok" if ok else "error", note[:120])
+
+        return _run
+
+    jobs = [
+        ("hermes_wisdom_accumulate", "accumulate_wisdom", 900),
+        ("hermes_genesis_check", "check_genesis_candidates", 3600),
+    ]
+    if str(_os.getenv("HERMES_L3_ENABLED", "false")).strip().lower() in ("1", "true", "yes", "on"):
+        jobs.append(("hermes_architecture_evolution", "run_architecture_evolution", 21600))
+    if str(_os.getenv("HERMES_L2_ENABLED", "false")).strip().lower() in ("1", "true", "yes", "on"):
+        jobs.append(("hermes_prompt_optimize", "run_prompt_optimization", 43200))
+        jobs.append(("hermes_ab_test_eval", "evaluate_ab_tests", 21600))
+
+    try:
+        if not task_scheduler.is_running():
+            task_scheduler.start()
+        for job_id, fn_name, interval in jobs:
+            if task_scheduler.scheduler and task_scheduler.scheduler.get_job(job_id):
+                task_scheduler.remove_task(job_id)
+            task_scheduler.add_interval_task(
+                task_func=_tick(job_id, fn_name),
+                interval_seconds=interval,
+                task_id=job_id,
+            )
+            logger.info("[Hermes] 已注册 %s（每 %ds）", job_id, interval)
+    except Exception as e:
+        logger.error("[Hermes] 调度器启动失败: %s", e, exc_info=True)
+
+
 def start_asset_curve_broadcast():
     """Start asset curve broadcast task - broadcasts every 60 seconds"""
     from backend.api.ws import broadcast_asset_curve_update

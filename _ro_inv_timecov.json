@@ -1,0 +1,539 @@
+{
+ "alpha_arena": {
+  "public.signal_trade_feedback": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-07-18 04:20:34.073448",
+     "2026-09-18 09:25:29.007484"
+    ]
+   ],
+   "count": 622358
+  },
+  "public.scalp_signal_log": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-07-18 03:12:06.631673",
+     "2026-09-05 11:21:19.493699"
+    ]
+   ],
+   "count": 365024
+  },
+  "public.signal_ledger": {
+   "ts": [],
+   "count": null
+  },
+  "public.signal_weight_history": {
+   "ts": [
+    [
+     "computed_at",
+     "timestamp without time zone",
+     "2026-04-06 06:05:41",
+     "2026-09-18 05:10:00.927822"
+    ]
+   ],
+   "count": 2916
+  },
+  "public.paper_orders": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-30 19:40:28.741136",
+     "2026-09-18 09:25:37.846052"
+    ],
+    [
+     "filled_at",
+     "timestamp without time zone",
+     "2026-06-30 19:40:28.911754",
+     "2026-09-18 09:25:24.935092"
+    ]
+   ],
+   "count": 13615
+  },
+  "public.paper_positions": {
+   "ts": [
+    [
+     "last_add_at",
+     "timestamp without time zone",
+     "2026-07-16 22:20:20.937103",
+     "2026-09-03 10:29:28.779782"
+    ],
+    [
+     "last_reduce_at",
+     "timestamp without time zone",
+     "2026-08-17 01:04:12.773884",
+     "2026-09-17 01:22:40.512495"
+    ],
+    [
+     "opened_at",
+     "timestamp without time zone",
+     "2026-06-30 19:40:28.741136",
+     "2026-09-18 09:25:24.680753"
+    ],
+    [
+     "closed_at",
+     "timestamp without time zone",
+     "2026-06-30 21:40:29.273564",
+     "2026-09-18 05:04:50.358415"
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     "2026-06-30 21:40:29.352479",
+     "2026-09-18 09:42:03.459725"
+    ]
+   ],
+   "count": 3520
+  },
+  "public.position_exit_events": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-30 20:10:53.058486",
+     "2026-09-18 05:04:52.056299"
+    ]
+   ],
+   "count": 5800
+  },
+  "public.strategy_trades": {
+   "ts": [
+    [
+     "opened_at",
+     "timestamp without time zone",
+     "2026-07-14 14:48:53.900327",
+     "2026-09-17 14:40:18.872719"
+    ],
+    [
+     "closed_at",
+     "timestamp without time zone",
+     "2026-07-14 15:44:15.45348",
+     "2026-09-17 21:04:51.491174"
+    ]
+   ],
+   "count": 2368
+  },
+  "public.trade_memory_records": {
+   "ts": [
+    [
+     "opened_at",
+     "timestamp without time zone",
+     "2026-06-30 19:40:29.337755",
+     "2026-09-17 22:40:42.849716"
+    ],
+    [
+     "closed_at",
+     "timestamp without time zone",
+     "2026-06-30 21:40:29.333972",
+     "2026-09-18 05:04:51.847546"
+    ]
+   ],
+   "count": 3485
+  },
+  "public.trade_facts": {
+   "ts": [
+    [
+     "ts",
+     "timestamp with time zone",
+     "2026-08-02 00:58:45.216374+08",
+     "2026-09-18 05:04:51.20609+08"
+    ]
+   ],
+   "count": 2498
+  },
+  "public.trade_journals": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-04-11 04:04:43",
+     "2026-09-18 09:23:56.870212"
+    ]
+   ],
+   "count": 585
+  },
+  "public.lane_ledger": {
+   "ts": [
+    [
+     "ts",
+     "timestamp with time zone",
+     "2026-09-09 10:53:52.395767+08",
+     "2026-09-17 09:20:01.05319+08"
+    ]
+   ],
+   "count": 5298
+  },
+  "public.paper_funding_ledger": {
+   "ts": [
+    [
+     "settled_at",
+     "timestamp without time zone",
+     "2026-06-30 21:40:29.189615",
+     "2026-09-18 09:25:37.353072"
+    ]
+   ],
+   "count": 759
+  },
+  "public.rebate_orders": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-08 16:36:00.880274",
+     "2026-06-19 19:39:00.494168"
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     "2026-06-08 16:36:00.880274",
+     "2026-06-19 19:39:00.494168"
+    ]
+   ],
+   "count": 305
+  },
+  "public.rebate_positions": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-08 16:36:00.880274",
+     "2026-06-19 19:39:00.494168"
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     "2026-06-08 21:09:36.086517",
+     "2026-06-19 19:55:22.365149"
+    ]
+   ],
+   "count": 305
+  },
+  "public.rebate_trade_outcomes": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-08 21:09:36.088297",
+     "2026-06-19 19:55:22.368395"
+    ]
+   ],
+   "count": 277
+  },
+  "public.rebate_performance_logs": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-05-26 05:59:20",
+     "2026-09-18 09:41:14.029782"
+    ]
+   ],
+   "count": 279
+  },
+  "public.decision_snapshots": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     null,
+     null
+    ],
+    [
+     "timestamp",
+     "timestamp without time zone",
+     null,
+     null
+    ]
+   ],
+   "count": 0
+  },
+  "public.trades": {
+   "ts": [
+    [
+     "trade_time",
+     "timestamp without time zone",
+     null,
+     null
+    ]
+   ],
+   "count": 0
+  },
+  "public.orders": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     null,
+     null
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     null,
+     null
+    ]
+   ],
+   "count": 0
+  },
+  "public.positions": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     null,
+     null
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     null,
+     null
+    ]
+   ],
+   "count": 0
+  },
+  "public.brain_attribution": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-08-25 17:03:34.480888",
+     "2026-09-18 05:04:50.385035"
+    ]
+   ],
+   "count": 797
+  },
+  "public.evolution_events": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-22 17:41:03.620085",
+     "2026-09-16 09:12:07.09838"
+    ]
+   ],
+   "count": 425
+  },
+  "public.backtest_trades": {
+   "ts": [],
+   "count": null
+  },
+  "public.agent_predictions": {
+   "ts": [],
+   "count": null
+  },
+  "public.strategy_memories": {
+   "ts": [
+    [
+     "last_reduce_at",
+     "timestamp without time zone",
+     null,
+     null
+    ],
+    [
+     "updated_at",
+     "timestamp without time zone",
+     "2026-07-18 20:06:28.738077",
+     "2026-09-18 09:25:06.712587"
+    ]
+   ],
+   "count": 600
+  }
+ },
+ "alpha_analytics": {
+  "public.decision_snapshots": {
+   "ts": [
+    [
+     "timestamp",
+     "timestamp without time zone",
+     "2026-09-11 10:08:36.528111",
+     "2026-09-18 09:30:19.480691"
+    ]
+   ],
+   "count": 5941
+  },
+  "public.factor_performance_logs": {
+   "ts": [
+    [
+     "recorded_at",
+     "timestamp without time zone",
+     "2026-08-21 05:10:37.192163",
+     "2026-09-18 05:10:52.912729"
+    ]
+   ],
+   "count": 355417
+  },
+  "public.factor_exposure_snapshots": {
+   "ts": [
+    [
+     "ts",
+     "timestamp with time zone",
+     "2026-09-04 09:28:58.959036+08",
+     "2026-09-18 09:32:38.205758+08"
+    ]
+   ],
+   "count": 706331
+  },
+  "public.factor_evolution_log": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-07-23 14:46:47.992081",
+     "2026-09-18 06:27:15.249372"
+    ]
+   ],
+   "count": 17564
+  },
+  "public.factor_quality_reports": {
+   "ts": [
+    [
+     "report_date",
+     "date",
+     "2026-07-23",
+     "2026-07-23"
+    ],
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-07-23 14:39:24.08901",
+     "2026-07-23 14:39:24.08901"
+    ]
+   ],
+   "count": 925
+  },
+  "public.factor_active_set": {
+   "ts": [
+    [
+     "activated_at",
+     "timestamp without time zone",
+     "2026-08-02 00:42:34.931344",
+     "2026-09-18 06:27:15.185997"
+    ],
+    [
+     "deactivated_at",
+     "timestamp without time zone",
+     "2026-08-02 00:52:14.336076",
+     "2026-09-17 14:33:24.963297"
+    ],
+    [
+     "last_evaluated_at",
+     "timestamp without time zone",
+     "2026-08-10 04:11:24.967855",
+     "2026-09-18 09:11:15.97885"
+    ]
+   ],
+   "count": 25
+  },
+  "public.strategic_reports": {
+   "ts": [
+    [
+     "timestamp",
+     "timestamp without time zone",
+     "2026-06-02 05:35:18.585248",
+     "2026-09-18 09:23:24.568347"
+    ]
+   ],
+   "count": 1044
+  },
+  "public.strategic_macro_snapshots": {
+   "ts": [
+    [
+     "timestamp",
+     "timestamp without time zone",
+     "2026-06-02 05:35:18.585248",
+     "2026-09-18 09:23:24.568347"
+    ]
+   ],
+   "count": 1044
+  },
+  "public.decision_retrospectives": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-06-11 01:01:09.619447",
+     "2026-09-18 05:04:50.636983"
+    ]
+   ],
+   "count": 3959
+  },
+  "public.market_analysis_snapshots": {
+   "ts": [
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-04-17 14:21:11",
+     "2026-09-18 09:40:03.931549"
+    ]
+   ],
+   "count": 56081
+  },
+  "public.walk_forward_reports": {
+   "ts": [
+    [
+     "run_at",
+     "timestamp with time zone",
+     "2026-08-02 00:55:12.959034+08",
+     "2026-09-18 06:27:13.164133+08"
+    ]
+   ],
+   "count": 2213
+  },
+  "public.ai_decision_logs": {
+   "ts": [
+    [
+     "decision_time",
+     "timestamp without time zone",
+     "2026-09-04 09:23:57.620174",
+     "2026-09-18 09:40:26.745186"
+    ],
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-09-04 09:23:57.620174",
+     "2026-09-18 09:40:26.745186"
+    ],
+    [
+     "pnl_updated_at",
+     "timestamp without time zone",
+     null,
+     null
+    ]
+   ],
+   "count": 10337
+  },
+  "public.mlto_thesis_events": {
+   "ts": [
+    [
+     "ts",
+     "timestamp without time zone",
+     "2026-08-31 00:17:29.746112",
+     "2026-09-18 09:40:26.934817"
+    ]
+   ],
+   "count": 8736
+  },
+  "public.mlto_episodes": {
+   "ts": [
+    [
+     "outcome_ts",
+     "timestamp without time zone",
+     "2026-09-07 16:54:14.946149",
+     "2026-09-18 05:04:50.483862"
+    ],
+    [
+     "created_at",
+     "timestamp without time zone",
+     "2026-09-07 16:54:14.904584",
+     "2026-09-18 09:40:26.946624"
+    ]
+   ],
+   "count": 2883
+  }
+ }
+}

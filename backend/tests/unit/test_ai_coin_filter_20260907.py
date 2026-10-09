@@ -93,8 +93,14 @@ def test_quality_gate_drops_no_hl_and_illiquid(monkeypatch):
 
     out = filter_tradeable_ai_symbols(["BTC", "BULLA", "DOLO", "DOGE", "TSLA"])
     assert "BTC" in out and "DOGE" in out
-    assert "BULLA" not in out  # no HL
-    assert "DOLO" not in out  # low vol + rank
+    # [2026-09-24 用例口径更新] BULLA 现在**应当放行**：2026-09-18 起
+    # `ai_coin_unified.filter_tradeable_ai_symbols` 去掉了「必须上 Hyperliquid」的
+    # HY 时代残留（见该文件 211-215 行注释：在活跃所上架的币只按成交量判，
+    # venue/rank 门槛仅用于「快照未能确认在活跃所」的币；开关 AI_COIN_REQUIRE_HYPERLIQUID）。
+    # BULLA 在活跃所 binance（exchanges 含 binance）、vol=1e8 ≥ min_vol=2e6 ⇒ 放行。
+    # 旧断言 `"BULLA" not in out  # no HL` 编码的是 09-18 之前的行为，已失效。
+    assert "BULLA" in out  # on active venue(binance) + vol≥min_vol
+    assert "DOLO" not in out  # vol<min_vol（不在活跃所时 rank 门槛才生效，此处按量踢）
     assert "TSLA" not in out
 
 

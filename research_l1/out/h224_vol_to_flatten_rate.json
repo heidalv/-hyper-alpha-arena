@@ -1,0 +1,80 @@
+{
+  "cells": 1373,
+  "table": [
+    {
+      "band": "0–1",
+      "cells": 77,
+      "maker": 321,
+      "flat": 5,
+      "rate_pct": 1.534,
+      "maker_usd": -4.33,
+      "flat_usd": 0.07
+    },
+    {
+      "band": "1–2",
+      "cells": 157,
+      "maker": 1320,
+      "flat": 26,
+      "rate_pct": 1.932,
+      "maker_usd": -22.86,
+      "flat_usd": -2.06
+    },
+    {
+      "band": "2–3",
+      "cells": 315,
+      "maker": 3813,
+      "flat": 59,
+      "rate_pct": 1.524,
+      "maker_usd": -8.54,
+      "flat_usd": -9.42
+    },
+    {
+      "band": "3–5",
+      "cells": 477,
+      "maker": 6101,
+      "flat": 77,
+      "rate_pct": 1.246,
+      "maker_usd": -29.74,
+      "flat_usd": -13.3
+    },
+    {
+      "band": "5–8",
+      "cells": 252,
+      "maker": 2749,
+      "flat": 61,
+      "rate_pct": 2.171,
+      "maker_usd": -2.73,
+      "flat_usd": -23.84
+    },
+    {
+      "band": "8–12",
+      "cells": 60,
+      "maker": 337,
+      "flat": 26,
+      "rate_pct": 7.163,
+      "maker_usd": 3.49,
+      "flat_usd": -11.15
+    },
+    {
+      "band": "12–20",
+      "cells": 16,
+      "maker": 67,
+      "flat": 4,
+      "rate_pct": 5.634,
+      "maker_usd": 1.02,
+      "flat_usd": -6.03
+    },
+    {
+      "band": "20+",
+      "cells": 19,
+      "maker": 33,
+      "flat": 6,
+      "rate_pct": 15.385,
+      "maker_usd": -0.14,
+      "flat_usd": -6.34
+    }
+  ],
+  "flat_rate_pct": 1.759,
+  "days": 2,
+  "hi_wins": 2
+}

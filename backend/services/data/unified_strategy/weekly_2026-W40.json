@@ -1,0 +1,206 @@
+{
+  "ok": true,
+  "generated_at": "2026-09-28T00:15:20.347510+00:00",
+  "week": 40,
+  "thesis_channel": {
+    "available": true,
+    "n_outcomed": 26,
+    "hit_rate": 0.423,
+    "by_tier": {
+      "mid": {
+        "n": 8,
+        "hit": 4,
+        "hit_rate": 0.5
+      },
+      "long": {
+        "n": 13,
+        "hit": 3,
+        "hit_rate": 0.231
+      },
+      "short": {
+        "n": 5,
+        "hit": 4,
+        "hit_rate": 0.8
+      }
+    },
+    "agent_scores": {
+      "trend_agent_score": -0.00768,
+      "funding": 0.001101,
+      "oi": 0.001101,
+      "liquidation": 0.001101,
+      "news": 0.001553
+    },
+    "ic_thesis_mixed": null,
+    "ic_fused": null,
+    "ic_days": 0
+  },
+  "factor_contribution": {
+    "available": true,
+    "n_factors": 359,
+    "top3": [
+      [
+        "evo_s5m_1b4e366342f844c1",
+        0.013366
+      ],
+      [
+        "evo_s5m_d78b6892abd5f2af",
+        0.011007
+      ],
+      [
+        "evo_s5m_d430c9c51387cd25",
+        0.009121
+      ]
+    ],
+    "bottom3": [
+      [
+        "evo_e308a625265101da",
+        -0.013212
+      ],
+      [
+        "evo_intra_3d51976a92a07bea",
+        -0.008827
+      ],
+      [
+        "evo_s5m_4e2570492b514f50",
+        -0.008701
+      ]
+    ]
+  },
+  "paper_live_divergence": {
+    "available": false
+  },
+  "factors_lab": {
+    "available": true,
+    "recent_rounds": [
+      {
+        "round_ts": 1790372400.0131109,
+        "ok": true,
+        "elapsed_sec": 108.5,
+        "stats": {
+          "pass": 0,
+          "reject": 4,
+          "fail": 4
+        }
+      },
+      {
+        "round_ts": 1790458801.3061717,
+        "ok": true,
+        "elapsed_sec": 47.6,
+        "stats": {
+          "pass": 0,
+          "reject": 1,
+          "fail": 6
+        }
+      },
+      {
+        "round_ts": 1790545202.639103,
+        "ok": true,
+        "elapsed_sec": 630.1,
+        "stats": {
+          "pass": 0,
+          "reject": 2,
+          "fail": 6
+        }
+      }
+    ],
+    "hypotheses_total": 56,
+    "hypotheses_outcomed": 51,
+    "candidates_passed": 6
+  },
+  "backtest_factor_attr": {
+    "available": true,
+    "runs": 5,
+    "latest": {
+      "run_id": "lp_0f138dd603",
+      "symbol": "BTC",
+      "tier": "mid",
+      "ts": 1789699715.0381632,
+      "by_dir": {
+        "0": {
+          "n": 3,
+          "pnl": 209.34862017,
+          "notional": 48354.1823,
+          "win_rate": 1.0,
+          "avg_pnl": 69.78287339,
+          "avg_bp": 43.2948
+        },
+        "1": {
+          "n": 5,
+          "pnl": -1019.95161218,
+          "notional": 79920.3757,
+          "win_rate": 0.4,
+          "avg_pnl": -203.99032244,
+          "avg_bp": -127.621
+        },
+        "-1": {
+          "n": 2,
+          "pnl": 35.87329386,
+          "notional": 33434.7514,
+          "win_rate": 0.5,
+          "avg_pnl": 17.93664693,
+          "avg_bp": 10.7293
+        }
+      },
+      "by_name_top": {
+        "evo_s5m_1b4e366342f844c1": {
+          "n_long": 0,
+          "n_short": 10,
+          "pnl_long": 0.0,
+          "pnl_short": -774.72969815,
+          "bp_long": 0.0,
+          "coverage": 1.0,
+          "avg_bp_long": 0.0,
+          "avg_bp_short": -48.1894
+        },
+        "evo_s5m_5a0c7a226b5446a4": {
+          "n_long": 4,
+          "n_short": 6,
+          "pnl_long": -603.8235228,
+          "pnl_short": -170.90617535,
+          "coverage": 1.0,
+          "avg_bp_long": -97.9794,
+          "avg_bp_short": -14.996
+        },
+        "evo_s5m_fa81777dc6215969": {
+          "n_long": 1,
+          "n_short": 9,
+          "pnl_long": -398.98009812,
+          "pnl_short": -375.74960003,
+          "coverage": 1.0,
+          "avg_bp_long": -253.4125,
+          "avg_bp_short": -25.3868
+        },
+        "evo_3d51976a92a07bea": {
+          "n_long": 5,
+          "n_short": 5,
+          "pnl_long": -1019.95161218,
+          "pnl_short": 245.22191402,
+          "coverage": 1.0,
+          "avg_bp_long": -129.1011,
+          "avg_bp_short": 32.7224
+        },
+        "evo_180ee6eedd1fe9cc": {
+          "n_long": 5,
+          "n_short": 5,
+          "pnl_long": -576.9746916,
+          "pnl_short": -197.75500655,
+          "coverage": 1.0,
+          "avg_bp_long": -75.085,
+          "avg_bp_short": -21.2937
+        },
+        "evo_5a0c7a226b5446a4": {
+          "n_long": 4,
+          "n_short": 6,
+          "pnl_long": -603.8235228,
+          "pnl_short": -170.90617535,
+          "coverage": 1.0,
+          "avg_bp_long": -97.9794,
+          "avg_bp_short": -14.996
+        }
+      },
+      "attr_note": "by_name=coverage attribution (NOT incremental alpha)"
+    },
+    "note": "回测侧归因；by_name 为覆盖度归因（非增量 alpha），与线上 factor_contribution 并列比对"
+  },
+  "guidance": "thesis通道命中率42%（偏弱，打折扣）。 正贡献因子：evo_s5m_1b4e366342f844c1(+1.3%)、evo_s5m_d78b6892abd5f2af(+1.1%)、evo_s5m_d430c9c51387cd25(+0.9%)。 拖累因子：evo_e308a625265101da(-1.3%)、evo_intra_3d51976a92a07bea(-0.9%)、evo_s5m_4e2570492b514f50(-0.9%)。"
+}

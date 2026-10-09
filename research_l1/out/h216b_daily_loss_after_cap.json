@@ -1,0 +1,80 @@
+{
+  "days": 14,
+  "cap_mult": 3.0,
+  "cap_usd": 491.42,
+  "median_notional": 163.81,
+  "equity": 262.8534560000001,
+  "baseline_net": -238.14,
+  "results": [
+    {
+      "pct": 3.0,
+      "fired": 3,
+      "cut": 167.73,
+      "counterfactual": -70.41,
+      "reduction_pct": 70.4
+    },
+    {
+      "pct": 5.0,
+      "fired": 2,
+      "cut": 149.79,
+      "counterfactual": -88.34,
+      "reduction_pct": 62.9
+    },
+    {
+      "pct": 8.0,
+      "fired": 2,
+      "cut": 125.44,
+      "counterfactual": -112.7,
+      "reduction_pct": 52.7
+    },
+    {
+      "pct": 10.0,
+      "fired": 2,
+      "cut": 107.45,
+      "counterfactual": -130.69,
+      "reduction_pct": 45.1
+    },
+    {
+      "pct": 12.0,
+      "fired": 2,
+      "cut": 87.26,
+      "counterfactual": -150.88,
+      "reduction_pct": 36.6
+    },
+    {
+      "pct": 15.0,
+      "fired": 2,
+      "cut": 65.64,
+      "counterfactual": -172.5,
+      "reduction_pct": 27.6
+    },
+    {
+      "pct": 20.0,
+      "fired": 2,
+      "cut": 22.15,
+      "counterfactual": -215.99,
+      "reduction_pct": 9.3
+    },
+    {
+      "pct": 30.0,
+      "fired": 0,
+      "cut": 0.0,
+      "counterfactual": -238.14,
+      "reduction_pct": 0.0
+    },
+    {
+      "pct": 50.0,
+      "fired": 0,
+      "cut": 0.0,
+      "counterfactual": -238.14,
+      "reduction_pct": 0.0
+    },
+    {
+      "pct": 80.0,
+      "fired": 0,
+      "cut": 0.0,
+      "counterfactual": -238.14,
+      "reduction_pct": 0.0
+    }
+  ]
+}

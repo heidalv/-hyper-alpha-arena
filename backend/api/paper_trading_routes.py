@@ -5,7 +5,8 @@
 
 import logging
 import threading
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -104,6 +105,26 @@ class ClosePositionRequest(BaseModel):
 
 # ───── 初始化 / 重置 ─────
 
+def _running_sessions_for(db: Session, account_id: int) -> List[str]:
+    """该账户（owner 或 paper 维度）当前**运行中**的 FullAuto 会话 id。
+
+    [2026-10-02 修复 · 用户投诉「重置后仓位又回来了 = 重置无效」]
+    真相是：重置本身生效了，但该账户的运行中会话仍在交易循环里，几分钟后自然又开仓。
+    后端把事实回传给前端，由前端明确提示（而不是让用户以为重置没生效）。
+    """
+    try:
+        from backend.database.models import FullAutoSession
+        rows = db.query(FullAutoSession).filter(
+            FullAutoSession.status == "running",
+            ((FullAutoSession.account_id == account_id)
+             | (FullAutoSession.paper_account_id == account_id)),
+        ).all()
+        return [r.session_id for r in rows]
+    except Exception as e:  # 查询失败不影响重置本身
+        logger.debug("查询运行中会话失败: %s", e)
+        return []
+
+
 @router.post("/initialize")
 def initialize_paper_account(req: InitializeRequest, db: Session = Depends(get_db)):
     """初始化模拟账户（设置虚拟资金）"""
@@ -122,7 +143,12 @@ def reset_paper_balance(account_id: int, db: Session = Depends(get_db)):
     """软重置：仅归零盈亏和手续费，保留持仓/订单/交易对配置"""
     try:
         result = paper_engine.reset_balance_only(db, account_id)
-        return {"ok": True, "balance": result, "mode": "balance_only"}
+        return {
+            "ok": True,
+            "balance": result,
+            "mode": "balance_only",
+            "running_sessions": _running_sessions_for(db, account_id),
+        }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -133,14 +159,24 @@ def reset_paper_balance(account_id: int, db: Session = Depends(get_db)):
 class SetBalanceRequest(BaseModel):
     account_id: int
     initial_balance: float
+    #: [2026-10-03 用户口径] 默认 True = 改金额连带重置（清持仓/订单）。
+    #: 显式传 false 可退回旧口径（只改基准、保留持仓）。
+    reset_positions: bool = True
 
 
 @router.post("/set-balance")
 def set_paper_balance(req: SetBalanceRequest, db: Session = Depends(get_db)):
-    """修改模拟账户初始金额（仅无持仓时可用)"""
+    """修改模拟账户初始金额（= 前端「设置余额 / 分配金额」）。
+
+    [2026-10-03 用户口径] **默认连带重置**：金额改了就连同持仓/订单一起重置，避免两套基准拉扯
+    （见 `paper_engine.set_initial_balance` 的 docstring）。传 `reset_positions=false` 走旧口径。
+    [2026-10-02] 不再要求"必须先平掉全部持仓"；数值校验在引擎里（≤0 / 非有限 → 400 中文原因）。
+    """
     try:
-        result = paper_engine.set_initial_balance(db, req.account_id, req.initial_balance)
-        return {"ok": True, "balance": result}
+        result = paper_engine.set_initial_balance(
+            db, req.account_id, req.initial_balance, reset_positions=req.reset_positions,
+        )
+        return {"ok": True, "balance": result, "running_sessions": _running_sessions_for(db, req.account_id)}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -153,7 +189,12 @@ def reset_paper_account(account_id: int, db: Session = Depends(get_db)):
     """硬重置：清除所有持仓/订单，恢复初始资金（不影响交易对配置）"""
     try:
         result = paper_engine.reset_account(db, account_id)
-        return {"ok": True, "balance": result, "mode": "full"}
+        return {
+            "ok": True,
+            "balance": result,
+            "mode": "full",
+            "running_sessions": _running_sessions_for(db, account_id),
+        }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -266,20 +307,37 @@ def close_paper_position(req: ClosePositionRequest, db: Session = Depends(get_db
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/close-all/{account_id}")
+def close_all_paper_positions(account_id: int, db: Session = Depends(get_db)):
+    """**一键平仓**：平掉该账户全部 open 持仓。
+
+    [2026-10-03 用户需求] 「持仓里有手动平仓，但是没有一键平仓」。
+    逐笔复用 `paper_engine.close_position`（唯一平仓入口）⇒ 冷却/事件/盈亏口径与手动平仓同源。
+    返回 `closed/failed/closed_count/failed_count/target_count`，单笔失败不阻断其余。
+    """
+    from backend.core.tenant import set_system_identity
+    set_system_identity()
+    try:
+        result = paper_engine.close_all_positions(db, account_id)
+        return {"ok": True, **result}
+    except Exception as e:
+        logger.error(f"一键平仓失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ───── 查询 ─────
+#
+# [2026-09-18 前端刷新慢治理] 四个分节各自抽成 helper：单端点与本文件新增的
+# `/dashboard/{id}`（一屏一次请求）**调用同一份实现**，禁止复制逻辑 ⇒ 口径不会漂移。
+# 有测试钉住这一点（`test_paper_dashboard_aggregate_20260918.py`）。
 
-@router.get("/balance/{account_id}")
-def get_paper_balance(account_id: int, db: Session = Depends(get_db)):
-    """获取虚拟余额"""
-    result = paper_engine.get_balance(db, account_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="模拟账户未初始化")
-    return result
+def _paper_balance_payload(db: Session, account_id: int) -> Optional[Dict[str, Any]]:
+    """虚拟余额；账户未初始化返回 None（由调用方决定 404 还是 null）。"""
+    return paper_engine.get_balance(db, account_id)
 
 
-@router.get("/positions/{account_id}")
-def get_paper_positions(account_id: int, status: str = "open", db: Session = Depends(get_db)):
-    """获取虚拟持仓"""
+def _paper_positions_payload(db: Session, account_id: int, status: str = "open") -> List[Dict[str, Any]]:
+    """虚拟持仓（5s TTL 缓存；缓存键含 status，避免 open/closed 串味）。"""
     # [perf 2026-08-18] 前端 3s 轮询 + 每持仓多查询（净额/事件溯源对拍），
     # GIL 竞争下实测 3.9s。2.5s TTL 缓存：命中≈0ms，轮询间隔 3s 无感知差异。
     from backend.utils.ttl_cache import ttl_cached
@@ -289,6 +347,63 @@ def get_paper_positions(account_id: int, status: str = "open", db: Session = Dep
         5.0,
         lambda: paper_engine.get_positions(db, account_id, status),
     )
+
+
+def _paper_orders_payload(
+    db: Session, account_id: int, status: Optional[str] = None, limit: int = 50
+) -> List[Dict[str, Any]]:
+    return paper_engine.get_orders(db, account_id, status, limit)
+
+
+def _paper_summary_payload(db: Session, account_id: int) -> Dict[str, Any]:
+    return paper_engine.get_summary(db, account_id)
+
+
+@router.get("/balance/{account_id}")
+def get_paper_balance(account_id: int, db: Session = Depends(get_db)):
+    """获取虚拟余额"""
+    result = _paper_balance_payload(db, account_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="模拟账户未初始化")
+    return result
+
+
+@router.get("/positions/{account_id}")
+def get_paper_positions(account_id: int, status: str = "open", db: Session = Depends(get_db)):
+    """获取虚拟持仓"""
+    return _paper_positions_payload(db, account_id, status)
+
+
+@router.get("/dashboard/{account_id}")
+def get_paper_dashboard(
+    account_id: int, status: str = "open", db: Session = Depends(get_db)
+):
+    """模拟盘一屏数据（余额/持仓/订单/统计）——**单次请求**返回。
+
+    [2026-09-18 前端刷新慢治理] 实测：真实访问日志里 `/paper/*` 占全部请求的 50.7%
+    （余额/持仓/订单/统计各 5s 一次），而本进程 GIL 长期贴 1 核
+    （见 `backend/services/gil_watch.py`：无请求时进程 CPU 中位 ≈99%）——
+    **请求条数本身就是排队成本**。本端点让前端一次拿齐一屏。
+
+    四节**逐一调用与单端点相同的 helper**，因此数值口径完全一致；唯一差异：
+    账户未初始化时 `balance` 返回 `null` 而非 404（聚合响应里其余三节仍有意义，
+    且前端本就用 `!balance` 显示"初始化"引导），此时附 `warnings` 说明。
+    """
+    balance = _paper_balance_payload(db, account_id)
+    payload: Dict[str, Any] = {
+        "account_id": account_id,
+        "balance": balance,
+        "positions": _paper_positions_payload(db, account_id, status),
+        "orders": _paper_orders_payload(db, account_id, None, 50),
+        "summary": _paper_summary_payload(db, account_id),
+        "positions_status": status,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if balance is None:
+        payload["warnings"] = [
+            "balance: 模拟账户未初始化（返回 null，等价于单端点的 404）"
+        ]
+    return payload
 
 
 @router.get("/positions/{position_id}/health")
@@ -332,13 +447,13 @@ def get_paper_orders(
     db: Session = Depends(get_db),
 ):
     """获取订单历史"""
-    return paper_engine.get_orders(db, account_id, status, limit)
+    return _paper_orders_payload(db, account_id, status, limit)
 
 
 @router.get("/summary/{account_id}")
 def get_paper_summary(account_id: int, db: Session = Depends(get_db)):
     """获取交易统计摘要"""
-    return paper_engine.get_summary(db, account_id)
+    return _paper_summary_payload(db, account_id)
 
 
 @router.get("/equity-curve/{account_id}")
@@ -357,4 +472,34 @@ def get_paper_equity_curve(
         return build_paper_equity_curve(db, account_id, period=period)
     except Exception as e:
         logger.error("paper equity curve failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/equity-series/{account_id}")
+def get_paper_equity_series(
+    account_id: int,
+    period: str = "30d",
+    db: Session = Depends(get_db),
+):
+    """[2026-09-23 新方法] 已实现权益事件溯源序列（权威口径 + 末点对账 + 保极值降采样）。
+
+    与旧 `/equity-curve` 的区别见 `services/paper_equity_curve.build_paper_equity_series` docstring：
+    旧实现用订单账本累加、末点强改含浮动 ⇒ 历史段与末点口径混杂；本接口按 `closed_at` 逐笔平仓
+    累加 `unrealized_pnl − 手续费 − 资金费`，浮动只体现在末点，并把"已实现+浮动 vs total_equity"的
+    对账差异原样回传（`reconcile`），口径可复核。
+
+    period: 7d | 30d | 90d | all
+    前端 5s 轮询 → 走 5s TTL 缓存（与 /dashboard 同源治理）。
+    """
+    try:
+        from backend.utils.ttl_cache import ttl_cached
+        from backend.services.paper_equity_curve import build_paper_equity_series
+
+        return ttl_cached(
+            f"paper_equity_series:{account_id}:{period}",
+            5.0,
+            lambda: build_paper_equity_series(db, account_id, period=period),
+        )
+    except Exception as e:
+        logger.error("paper equity series failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

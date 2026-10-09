@@ -1,0 +1,100 @@
+{
+  "hours": 24.0,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "ASTER"
+  ],
+  "entry_wait_s": 120.0,
+  "exit_wait_s": 300.0,
+  "maker_fee_bp": 0.0,
+  "per_symbol": [
+    {
+      "symbol": "BTC",
+      "n_roundtrips": 1332,
+      "n_no_entry": 1782,
+      "n_stuck": 1118,
+      "stuck_rate": 0.4563265306122449,
+      "gross_bp_mean": 0.21669332189813117,
+      "gross_bp_median": 0.012446975881652765,
+      "net_bp_mean": 0.21669332189813117,
+      "net_bp_median": 0.012446975881652765,
+      "hold_ms_median": 21483.0,
+      "hold_ms_p75": 94265.5,
+      "win_rate": 1.0,
+      "maker_fee_bp": 0.0
+    },
+    {
+      "symbol": "ETH",
+      "n_roundtrips": 1742,
+      "n_no_entry": 1429,
+      "n_stuck": 838,
+      "stuck_rate": 0.3248062015503876,
+      "gross_bp_mean": 0.34044909836707277,
+      "gross_bp_median": 0.11406889853419233,
+      "net_bp_mean": 0.34044909836707277,
+      "net_bp_median": 0.11406889853419233,
+      "hold_ms_median": 14777.5,
+      "hold_ms_p75": 55643.5,
+      "win_rate": 1.0,
+      "maker_fee_bp": 0.0
+    },
+    {
+      "symbol": "SOL",
+      "n_roundtrips": 87,
+      "n_no_entry": 4351,
+      "n_stuck": 521,
+      "stuck_rate": 0.8569078947368421,
+      "gross_bp_mean": 1.2850214522580332,
+      "gross_bp_median": 0.9239582370868432,
+      "net_bp_mean": 1.2850214522580332,
+      "net_bp_median": 0.9239582370868432,
+      "hold_ms_median": 17737.0,
+      "hold_ms_p75": 104875.5,
+      "win_rate": 1.0,
+      "maker_fee_bp": 0.0
+    },
+    {
+      "symbol": "XRP",
+      "n_roundtrips": 122,
+      "n_no_entry": 4380,
+      "n_stuck": 591,
+      "stuck_rate": 0.8288920056100981,
+      "gross_bp_mean": 1.1162689338368386,
+      "gross_bp_median": 0.7265066016750743,
+      "net_bp_mean": 1.1162689338368386,
+      "net_bp_median": 0.7265066016750743,
+      "hold_ms_median": 21282.0,
+      "hold_ms_p75": 126572.5,
+      "win_rate": 1.0,
+      "maker_fee_bp": 0.0
+    },
+    {
+      "symbol": "ASTER",
+      "n_roundtrips": 313,
+      "n_no_entry": 3824,
+      "n_stuck": 896,
+      "stuck_rate": 0.7411083540115798,
+      "gross_bp_mean": 1.4645203060768295,
+      "gross_bp_median": 1.3480722566728092,
+      "net_bp_mean": 1.4645203060768295,
+      "net_bp_median": 1.3480722566728092,
+      "hold_ms_median": 47588.0,
+      "hold_ms_p75": 128482.0,
+      "win_rate": 1.0,
+      "maker_fee_bp": 0.0
+    }
+  ],
+  "summary": {
+    "n_roundtrips": 3596,
+    "gross_bp_mean": 0.4416224600112187,
+    "net_bp_mean": 0.4416224600112187,
+    "net_bp_median_sym": 0.7265066016750743,
+    "hold_ms_median": 20409.434927697443,
+    "win_rate": 1.0,
+    "stuck_rate": 0.5243386243386243,
+    "usd_per_roundtrip_30leg": 0.001324867380033656
+  }
+}

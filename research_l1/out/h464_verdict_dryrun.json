@@ -1,0 +1,97 @@
+{
+  "trial": {
+    "legs": 142,
+    "net_bp": -496.4318999999998,
+    "legs_per_hour": 68.32697538530655
+  },
+  "verdict": "INCONCLUSIVE",
+  "why": "confounded_window：Welch p=0.095 delta=-2.611bp 为负，但试跑窗内含已知制度断点 ['2026-09-29T01:24:55.786739+00:00', '2026-09-29T01:48:11.023510+00:00']（与本次改动无关、影响更大）⇒ 该对比不具因果性，**不据此回滚**（需要人工裁决或另开干净窗口）",
+  "judged_at": "2026-09-29T03:28:18.255146+00:00",
+  "hours": 2.0782421466666667,
+  "baseline": {
+    "legs": 745,
+    "net_bp": -659.4098000000006,
+    "legs_per_hour": 62.083333333333336
+  },
+  "welch": {
+    "t": -1.6763166520170667,
+    "p": 0.09538112803829868,
+    "mean_trial": -3.4959992957746477,
+    "mean_base": -0.8851138255033557,
+    "n_trial": 142,
+    "n_base": 745,
+    "delta": -2.610885470271292
+  },
+  "freq_ok": true,
+  "sub": {
+    "trial": {
+      "entry_vs_exit": {
+        "entry_legs": 114,
+        "net_bp_per_entry_leg": 0.5303850877192984,
+        "fee_bp_per_entry_leg": 0.0,
+        "exit_legs": 28,
+        "net_bp_per_exit_leg": -19.88913571428571
+      },
+      "round_trips": {
+        "exit_legs_as_trips": 28,
+        "distinct_position_id_unreliable": 7
+      }
+    },
+    "baseline": {
+      "entry_vs_exit": {
+        "entry_legs": 630,
+        "net_bp_per_entry_leg": 0.7990082539682537,
+        "fee_bp_per_entry_leg": 0.0,
+        "exit_legs": 115,
+        "net_bp_per_exit_leg": -10.111173913043482
+      },
+      "round_trips": {
+        "exit_legs_as_trips": 115,
+        "distinct_position_id_unreliable": 14
+      }
+    }
+  },
+  "two_halves": {
+    "mid": "2026-09-29T02:25:57.419282+00:00",
+    "first_half": {
+      "entry_vs_exit": {
+        "entry_legs": 52,
+        "net_bp_per_entry_leg": 1.084573076923077,
+        "fee_bp_per_entry_leg": 0.0,
+        "exit_legs": 13,
+        "net_bp_per_exit_leg": -24.985207692307693
+      },
+      "round_trips": {
+        "exit_legs_as_trips": 13,
+        "distinct_position_id_unreliable": 6
+      }
+    },
+    "second_half": {
+      "entry_vs_exit": {
+        "entry_legs": 62,
+        "net_bp_per_entry_leg": 0.06558225806451637,
+        "fee_bp_per_entry_leg": 0.0,
+        "exit_legs": 15,
+        "net_bp_per_exit_leg": -15.47254
+      },
+      "round_trips": {
+        "exit_legs_as_trips": 15,
+        "distinct_position_id_unreliable": 6
+      }
+    }
+  },
+  "breaks_in_window": [
+    "2026-09-29T01:24:55.786739+00:00",
+    "2026-09-29T01:48:11.023510+00:00"
+  ],
+  "covered": {
+    "trial_h": 2.0,
+    "trial_ratio": 0.9624,
+    "baseline_h": 12.017,
+    "legs_per_hour_covered": 71.0,
+    "baseline_legs_per_hour_covered": 62.0,
+    "legs_per_hour_wall": 68.33,
+    "baseline_legs_per_hour_wall": 62.08
+  },
+  "dry_run": true
+}

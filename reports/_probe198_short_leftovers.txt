@@ -1,0 +1,67 @@
+﻿
+====================================================================================================
+① 车道/扫描侧的 tier 列表
+   backend/services/full_auto/loops/midlong_loop.py:168: _fixed_long = (
+   backend/services/full_auto/loops/midlong_loop.py:212: _ai_long: List[str] = []
+   backend/services/full_auto/loops/midlong_loop.py:220: get_ai_long_candidates_for_session,
+   backend/services/full_auto/loops/midlong_loop.py:222: _ai_long = list(get_ai_long_candidates_for_session(_session_id
+, db=db) or [])
+   backend/services/full_auto/loops/midlong_loop.py:223: except Exception as _ai_long_err:
+   backend/services/full_auto/loops/midlong_loop.py:224: logger.debug("[MidLongAgent独立] AI 长线候选查询跳过: %s", _ai_long_err)
+   backend/services/full_auto/loops/midlong_loop.py:226: _ai_long_hold: List[str] = []
+   backend/services/full_auto/loops/midlong_loop.py:236: if _su and _su not in _fixed_long and _su not in _ai_long_hold
+:
+   backend/services/full_auto/loops/midlong_loop.py:237: _ai_long_hold.append(_su)
+   backend/services/full_auto/loops/midlong_loop.py:240: symbols = list(dict.fromkeys(list(_fixed_long) + list(_ai_long
+) + list(_ai_long_hold)))
+   backend/services/full_auto/loops/midlong_loop.py:248: f"[MidLongAgent独立] tick#{tick} 固定long={list(_fixed_long)} ai_l
+ong={_ai_long} "
+   backend/services/full_auto/loops/midlong_loop.py:249: f"long_hold={_ai_long_hold} long_universe={symbols} 固定mid={lis
+t(_fixed_mid)} "
+   backend/services/full_auto/loops/midlong_loop.py:250: f"ai_mid={_ai_mid} hold={_ai_mid_hold} mid_universe={_mid_univ
+erse}"
+   backend/services/full_auto/loops/midlong_loop.py:317: f"[MidLongAgent独立] tick#{tick} {session_id} tiers={due} symbol
+s={len(symbols)}"
+   backend/services/full_auto/loops/midlong_loop.py:355: fixed_mid=_fixed_mid,
+   backend/services/full_auto/loops/midlong_loop.py:367: "[MidLongAgent独立] batch=%s mid=%s long=%s scan_n=%d ai_mid=%s 
+mid_u=%s",
+   backend/services/full_auto/loops/midlong_loop.py:378: "[MidLongAgent独立] cross_tier portfolio=%d tiers=%s",
+   backend/services/full_auto/loops/midlong_loop.py:468: run_mid=_run_mid,
+   backend/services/full_auto/loops/midlong_loop.py:469: run_long=_run_long,
+   backend/config/settings.py:182: # - TIER_MID_ENABLED=false  → 中线 SwingAgent 不再调度（仅影响 AI 决策，
+   backend/config/settings.py:184: # - TIER_LONG_ENABLED=false → 长线 TrendAgent + MLTO 长线段不再调度
+   backend/config/settings.py:190: TIER_MID_ENABLED: bool = os.getenv("TIER_MID_ENABLED", "true").lower() in (
+   backend/config/settings.py:193: TIER_LONG_ENABLED: bool = os.getenv("TIER_LONG_ENABLED", "true").lower() in (
+
+   sessions 表里的 tier 配置：
+     fa_185f162052 status=stopped mode=live symbols=['ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI', 'XRP'] auto
+=['DOGE', 'SYN']
+     fa_7e12e7a1b6 status=running mode=paper symbols=['BTC', 'ETH', 'SOL', 'BNB', 'VIRTUAL', 'ASTER', 'XPL', 'UNI'] aut
+o=['DOGE', 'SYN']
+
+====================================================================================================
+② 审计里的 short 相关拦截（JSONL 近 24h）
+   命中 40 行：
+     tier=mid    ×40   risk_officer_veto:debate_opposes:intraday:short!=long
+
+   日志里 short 模板族拦截（全日志）：
+     short_template_source / tpl_short 命中 = 7457
+
+====================================================================================================
+③ 这 10 条 short active 策略的引用检查
+   共 10 条：
+     tpl_short_range_3c830c
+     tpl_short_range_b144c5
+     auto_fc605b2958
+     tpl_short_range_f3d458
+     tpl_short_range_311f5b
+     tpl_short_range_b55aa9
+     tpl_short_range_48a96c
+     tpl_short_range_722362
+     tpl_short_range_39e5ae
+     tpl_short_range_982f08
+   被持仓引用（任意 status）：（无）
+   被订单引用（全历史）：0
+   被会话 active_strategy_ids 引用：['fa_7e12e7a1b6']
+
+

@@ -1,0 +1,30 @@
+{
+  "h463": {
+    "verdict": "INCONCLUSIVE",
+    "why": "welch_p=0.183 delta=-2.525bp",
+    "hours": 2.24,
+    "legs_per_hour": 63.0,
+    "baseline_legs_per_hour": 61.9,
+    "freq_ok": true,
+    "welch_p": 0.183,
+    "delta_bp": -2.525,
+    "breaks_in_window": [
+      "2026-09-28T18:32:15+00:00",
+      "2026-09-28T19:48:47+00:00"
+    ]
+  },
+  "h472": {
+    "verdict": "INCONCLUSIVE",
+    "why": "welch_p=0.237 delta=-2.450bp",
+    "hours": 2.03,
+    "legs_per_hour": 61.6,
+    "baseline_legs_per_hour": 61.2,
+    "freq_ok": true,
+    "welch_p": 0.237,
+    "delta_bp": -2.45,
+    "breaks_in_window": [
+      "2026-09-28T19:48:47+00:00"
+    ],
+    "taker_share_trial": 0.7667
+  }
+}

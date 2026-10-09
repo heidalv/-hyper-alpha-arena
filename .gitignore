@@ -484,3 +484,6 @@ data/symbol_penalty_state.json
 
 # scratch/ptmp dirs
 _ptmp/
+
+# ÁÙÊ± env ĞŞ¸´¼ş(º¬ÃÜÔ¿,¾ø²»Èë¿â)
+data/tmp_env_repair/

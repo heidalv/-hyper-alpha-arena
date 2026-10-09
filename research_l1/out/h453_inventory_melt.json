@@ -1,0 +1,59 @@
+{
+  "n_epochs": 1288,
+  "fit": {
+    "beta": [
+      4.904756336080806,
+      -0.05804328309441011,
+      0.020533336346017814
+    ],
+    "t": [
+      21.995971366392112,
+      -1.058308893558739,
+      0.661232750008019
+    ],
+    "r2": 0.0010918405357032146,
+    "n": 1262
+  },
+  "by_path": {
+    "round": {
+      "n": 1078,
+      "dur_median": 91.021432,
+      "peak_median": 291.42387347503603
+    },
+    "timeout_hard_taker": {
+      "n": 102,
+      "dur_median": 306.293973,
+      "peak_median": 154.20114411110842
+    },
+    "jump_exit_taker": {
+      "n": 27,
+      "dur_median": 92.0131,
+      "peak_median": 154.84787999922378
+    },
+    "stop_loss_taker": {
+      "n": 34,
+      "dur_median": 109.317954,
+      "peak_median": 147.67126846061373
+    },
+    "ofi_flatten_taker": {
+      "n": 24,
+      "dur_median": 45.767109,
+      "peak_median": 144.4426331286286
+    },
+    "reversal_decay_taker": {
+      "n": 7,
+      "dur_median": 15.498024,
+      "peak_median": 31.097250000000003
+    },
+    "take_profit_taker": {
+      "n": 12,
+      "dur_median": 582.790944,
+      "peak_median": 229.68555749999996
+    },
+    "trail_lock_taker": {
+      "n": 4,
+      "dur_median": 277.336886,
+      "peak_median": 292.2986801324112
+    }
+  }
+}

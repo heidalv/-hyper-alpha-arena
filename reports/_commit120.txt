@@ -1,0 +1,26 @@
+轮120: 用户拍板「马上恢复，允许小仓位」
+
+## 一、恢复"单币连亏冻结"（只冻那个币）
+record_midlong_outcome() 原写着「[2026-09-11 用户指令] 模拟账户直接返回：不做任何
+亏损触发的冷却/熔断记账」⇒ 实测 data/midlong_circuit_state.json **mtime 停在 09-10
+20:48（9 天没写）**，今天 UNI 连吃 3 个 SL（−13.43）却没有任何"单币 12h 冷却"。
+按用户 2026-09-19 口径「单币亏钱，就是冻结单个亏钱的币」恢复记账：
+  * 新开关 MIDLONG_CIRCUIT_PAPER_LOCK（默认 true；false = 回到 09-11 行为）；
+  * **粒度不变**：只按 (account, symbol) 记账与禁开，不引入任何全局冻结。
+
+## 二、允许小仓位试探（MIDLONG_NEUTRAL_PROBE_ENABLED，默认 true）
+现场（reports/_probe119.txt）：12 个被扫描的币里，9 个固定币全部 accepted=0（LLM 判
+neutral）或 recommend_open=0（"等回踩"）⇒ 候选=0 ⇒ 中线整天一单不开。用户口径：中线
+应当能开、除非极端反转；允许小仓位。两条小仓路径（都在 run_midlong_open_sweep）：
+  * 方向明确但 recommend_open=false（模型在等回踩）⇒ 用原方向、NIBBLE 档（0.15）试探；
+  * direction=neutral 且 regime=up/down ⇒ 用 regime 定向后小仓试探；**震荡不猜方向**。
+尺寸由轮117 的分档系数保证是"小仓"（recommend_open=False ⇒ NIBBLE 0.15 档），且照旧过
+V5/预算/组合/宪法全部闸门；每步写审计 probe_entry:<原因>，日志打
+`[MidLongBrain] 小仓试探 ...`。
+
+## 三、验证
+新增 test_probe_and_symbol_lock_20260919.py(5)：单币连亏 3 笔必须装配该币冷却且
+**不波及其他币**、两条试探路径的行为（等回踩进、neutral+up 定向 long 进、
+neutral+震荡不进、试探一律 recommend_open=False）；
+test_mid_sweep_zombie_candidate 的源码窗口改为取整个函数体（函数变长后旧窗口假红）；
+轮117/118/119/120 共 24 条测试全绿；两个新开关已登记 env_registry。

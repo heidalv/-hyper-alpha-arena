@@ -182,13 +182,25 @@ class SignalFeedbackTracker:
                     f"[SignalFeedback] 样本不足 ({len(all_records)}/{MIN_TRADES_FOR_UPDATE})，跳过权重更新")
                 return None
 
-            # 全局平均 PnL
-            global_avg_pnl = sum(r.trade_pnl_pct or 0 for r in all_records) / len(all_records)
+            # [F329 2026-09-18 复查修复] 同 F327/F328：`trade_pnl_pct or 0` 把 NULL 当 PnL=0。
+            # 本函数是**信号权重更新**的入口（增量价值 → 权重层），口径污染的后果比前两处更直接。
+            _valid = [r for r in all_records if r.trade_pnl_pct is not None]
+            if len(_valid) < MIN_TRADES_FOR_UPDATE:
+                logger.info(
+                    f"[SignalFeedback] 有效 pct 样本不足 ({len(_valid)}/{MIN_TRADES_FOR_UPDATE})，"
+                    f"跳过权重更新（已排除 NULL {len(all_records) - len(_valid)} 行）")
+                return None
+            if len(_valid) != len(all_records):
+                logger.info("[SignalFeedback] 权重更新排除 trade_pnl_pct 为空的行: %d/%d",
+                            len(all_records) - len(_valid), len(all_records))
 
-            # 按信号类型分组
+            # 全局平均 PnL（仅有效样本）
+            global_avg_pnl = sum(float(r.trade_pnl_pct) for r in _valid) / len(_valid)
+
+            # 按信号类型分组（仅有效样本）
             sig_groups: Dict[str, List[float]] = {}
-            for r in all_records:
-                sig_groups.setdefault(r.signal_type, []).append(r.trade_pnl_pct or 0)
+            for r in _valid:
+                sig_groups.setdefault(r.signal_type, []).append(float(r.trade_pnl_pct))
 
             # 计算每个信号的增量价值
             incremental_values: Dict[str, float] = {}
@@ -253,19 +265,29 @@ class SignalFeedbackTracker:
 
             all_records = query.all()
 
-            if len(all_records) < MIN_TRADES_FOR_UPDATE // 2:  # 因子样本放宽到10
+            # [F327 2026-09-18 复查修复] 原实现两处用 `r.trade_pnl_pct or 0` ⇒ 把 **NULL 当 PnL=0**
+            # 计入均值（复查实测该表 6.2% / 38,374 行 trade_pnl_pct 为 NULL）⇒ 全局均值与各因子均值
+            # 同时被系统性拉向 0，而"贡献 = 因子均值 − 全局均值"正是建立在这两个均值上 ⇒ 口径受污染。
+            # 修法：只用**有 pct 值**的记录参与统计，并把被排除的行数显式写进日志（不再静默）。
+            _valid = [r for r in all_records if r.trade_pnl_pct is not None]
+            _skipped = len(all_records) - len(_valid)
+            if len(_valid) < MIN_TRADES_FOR_UPDATE // 2:  # 因子样本放宽到10
                 logger.info(
-                    f"[FactorFeedback] 因子样本不足 ({len(all_records)}/10)，跳过贡献度分析")
+                    f"[FactorFeedback] 有效 pct 样本不足 ({len(_valid)}/{MIN_TRADES_FOR_UPDATE // 2})，"
+                    f"跳过贡献度分析（已排除 NULL {_skipped} 行）")
                 return {}
+            if _skipped:
+                logger.info("[FactorFeedback] 贡献度统计排除 trade_pnl_pct 为空的行: %d/%d",
+                            _skipped, len(all_records))
 
-            # 全局平均 PnL
-            global_avg_pnl = sum(r.trade_pnl_pct or 0 for r in all_records) / len(all_records)
+            # 全局平均 PnL（仅有效样本）
+            global_avg_pnl = sum(float(r.trade_pnl_pct) for r in _valid) / len(_valid)
 
-            # 按 factor 分组
+            # 按 factor 分组（仅有效样本）
             factor_groups: Dict[str, List[float]] = {}
-            for r in all_records:
+            for r in _valid:
                 factor_name = r.signal_type.replace("factor:", "", 1)
-                factor_groups.setdefault(factor_name, []).append(r.trade_pnl_pct or 0)
+                factor_groups.setdefault(factor_name, []).append(float(r.trade_pnl_pct))
 
             # 计算每个因子的增量贡献
             contributions: Dict[str, float] = {}
@@ -285,6 +307,61 @@ class SignalFeedbackTracker:
 
         except Exception as e:
             logger.error(f"[FactorFeedback] 因子贡献度分析失败: {e}")
+            return {}
+
+    def analyze_all_signal_contribution(
+        self,
+        db: Session,
+        strategy_id: Optional[str] = None,
+        lookback_days: int = LOOKBACK_DAYS,
+    ) -> Dict[str, float]:
+        """[统一策略 2026-09-18] 全信号类型增量归因（不限 factor:%）。
+
+        analyze_factor_contribution 只看 factor: 前缀——swing_agent_score /
+        trend_agent_score（LLM 分析师分数）、whale、fear_greed 等被排除在战绩
+        体系外。本方法同口径计算全类型增量（因子活跃期 avgPnL − 全局 avgPnL），
+        供主控战绩块与周外循环评估 LLM 分析师的真实战绩。
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from backend.database.models import SignalTradeFeedback
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        try:
+            records = (
+                db.query(SignalTradeFeedback)
+                .filter(
+                    SignalTradeFeedback.created_at >= cutoff,
+                    SignalTradeFeedback.trade_pnl.isnot(None),
+                )
+                .all()
+            )
+            if len(records) < 10:
+                return {}
+            # [F328 2026-09-18 复查修复] 同 F327：`trade_pnl_pct or 0` 把 NULL 当 PnL=0 计入
+            # 均值。本函数是**主控 prompt"LLM 分析师/信号源战绩"块的数据源**
+            # （trading_analysts.py → analyze_all_signal_contribution），
+            # 该块显示的 swing/trend/whale 等数值因此被系统性稀释 ⇒ 必须同口径修掉。
+            _valid = [r for r in records if r.trade_pnl_pct is not None]
+            if len(_valid) < 10:
+                logger.info("[FactorFeedback] analyze_all 有效 pct 样本不足 (%d/10)，"
+                            "排除 NULL %d 行后返回空", len(_valid), len(records) - len(_valid))
+                return {}
+            if len(_valid) != len(records):
+                logger.info("[FactorFeedback] analyze_all 排除 trade_pnl_pct 为空的行: %d/%d",
+                            len(records) - len(_valid), len(records))
+            global_avg = sum(float(r.trade_pnl_pct) for r in _valid) / len(_valid)
+            groups: Dict[str, List[float]] = {}
+            for r in _valid:
+                groups.setdefault(str(r.signal_type or "?"), []).append(float(r.trade_pnl_pct))
+            out: Dict[str, float] = {}
+            for name, pnls in groups.items():
+                if len(pnls) < 3:
+                    continue
+                out[name] = round(sum(pnls) / len(pnls) - global_avg, 6)
+            return out
+        except Exception as e:
+            logger.error(f"[SignalFeedback] 全信号归因失败: {e}")
             return {}
 
     def apply_factor_feedback(

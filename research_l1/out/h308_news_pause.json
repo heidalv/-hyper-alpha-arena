@@ -1,0 +1,26 @@
+{
+  "base": {
+    "n": 28655,
+    "paused": 0,
+    "net_mean_bp": -0.106,
+    "mae_mean_bp": -1.279,
+    "exits": {
+      "decay": 25545,
+      "tp": 1446,
+      "timeout": 1664
+    }
+  },
+  "news_pause": {
+    "n": 25961,
+    "paused": 3812,
+    "net_mean_bp": -0.112,
+    "mae_mean_bp": -1.279,
+    "exits": {
+      "decay": 23189,
+      "tp": 1303,
+      "timeout": 1469
+    }
+  },
+  "news_min": 15.0,
+  "n_news": 75
+}

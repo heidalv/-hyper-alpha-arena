@@ -1,0 +1,336 @@
+{
+  "trial_start_local": "2026-09-29T09:48:00",
+  "windows": {
+    "A_judge_aligned": {
+      "local": [
+        "2026-09-28T09:48:00",
+        "2026-09-28T21:48:00"
+      ],
+      "wall_h": 12.0,
+      "legs": 749,
+      "per_leg_n": 749,
+      "covered_h": 12.017,
+      "coverage": 1.0,
+      "rate_covered": 62.33,
+      "rate_wall": 62.42,
+      "per_coin": {
+        "BNB": 343,
+        "XRP": 179,
+        "NEAR": 104,
+        "ARB": 80,
+        "ENA": 43
+      },
+      "h463_mech": {
+        "hold_window": {
+          "legs": 749,
+          "exit_legs": 111,
+          "add_legs": 638,
+          "legs_per_trip": 6.7477,
+          "taker_legs": 120,
+          "timeout_legs": 53,
+          "stop_legs": 25,
+          "entry_net_bp": 0.842,
+          "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+        }
+      }
+    },
+    "B_judge_fallback": {
+      "local": [
+        "2026-09-28T21:48:00",
+        "2026-09-29T09:48:00"
+      ],
+      "wall_h": 12.0,
+      "legs": 463,
+      "per_leg_n": 463,
+      "covered_h": 7.4,
+      "coverage": 0.6167,
+      "rate_covered": 62.57,
+      "rate_wall": 38.58,
+      "per_coin": {
+        "BNB": 247,
+        "NEAR": 106,
+        "XRP": 51,
+        "ARB": 31,
+        "ENA": 28
+      },
+      "h463_mech": {
+        "hold_window": {
+          "legs": 463,
+          "exit_legs": 130,
+          "add_legs": 333,
+          "legs_per_trip": 3.5615,
+          "taker_legs": 144,
+          "timeout_legs": 17,
+          "stop_legs": 26,
+          "entry_net_bp": 0.463,
+          "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+        }
+      }
+    },
+    "C_clean_0p5": {
+      "local": [
+        "2026-09-28T23:17:00",
+        "2026-09-29T09:48:00"
+      ],
+      "wall_h": 10.517,
+      "legs": 398,
+      "per_leg_n": 398,
+      "covered_h": 5.917,
+      "coverage": 0.5626,
+      "rate_covered": 67.27,
+      "rate_wall": 37.84,
+      "per_coin": {
+        "BNB": 197,
+        "NEAR": 97,
+        "XRP": 51,
+        "ARB": 29,
+        "ENA": 24
+      },
+      "h463_mech": {
+        "hold_window": {
+          "legs": 398,
+          "exit_legs": 107,
+          "add_legs": 291,
+          "legs_per_trip": 3.7196,
+          "taker_legs": 117,
+          "timeout_legs": 17,
+          "stop_legs": 24,
+          "entry_net_bp": 0.532,
+          "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+        }
+      }
+    },
+    "D_prev24h": {
+      "local": [
+        "2026-09-28T09:48:00",
+        "2026-09-29T09:48:00"
+      ],
+      "wall_h": 24.0,
+      "legs": 1212,
+      "per_leg_n": 1212,
+      "covered_h": 19.4,
+      "coverage": 0.8083,
+      "rate_covered": 62.47,
+      "rate_wall": 50.5,
+      "per_coin": {
+        "BNB": 590,
+        "XRP": 230,
+        "NEAR": 210,
+        "ARB": 111,
+        "ENA": 71
+      },
+      "h463_mech": {
+        "hold_window": {
+          "legs": 1212,
+          "exit_legs": 241,
+          "add_legs": 971,
+          "legs_per_trip": 5.029,
+          "taker_legs": 264,
+          "timeout_legs": 70,
+          "stop_legs": 51,
+          "entry_net_bp": 0.716,
+          "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+        }
+      }
+    },
+    "E_night_0p15": {
+      "local": [
+        "2026-09-28T21:48:00",
+        "2026-09-28T23:17:00"
+      ],
+      "wall_h": 1.483,
+      "legs": 65,
+      "per_leg_n": 65,
+      "covered_h": 1.5,
+      "coverage": 1.0,
+      "rate_covered": 43.33,
+      "rate_wall": 43.82,
+      "per_coin": {
+        "BNB": 50,
+        "NEAR": 9,
+        "ENA": 4,
+        "ARB": 2
+      },
+      "h463_mech": {
+        "hold_window": {
+          "legs": 65,
+          "exit_legs": 23,
+          "add_legs": 42,
+          "legs_per_trip": 2.8261,
+          "taker_legs": 27,
+          "timeout_legs": 0,
+          "stop_legs": 2,
+          "entry_net_bp": -0.033,
+          "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+        }
+      }
+    }
+  },
+  "timeline": [
+    {
+      "at": "2026-09-28T18:35:01.577433+00:00",
+      "kind": "",
+      "key": "{'legs': 3441, 'net_bp': -2256.848400000002, 'legs_per_hour': 137.71754738140595}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:35:01.577433+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:35:02.511982+00:00",
+      "kind": "",
+      "key": "{'legs': 3441, 'net_bp': -2256.848400000002, 'legs_per_hour': 137.71477053771144}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:35:02.511982+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:35:03.517374+00:00",
+      "kind": "",
+      "key": "{'legs': 3441, 'net_bp': -2256.848400000002, 'legs_per_hour': 137.71668321992826}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:35:03.517374+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:37:01.606933+00:00",
+      "kind": "",
+      "key": "{'legs': 3450, 'net_bp': -2355.9410999999927, 'legs_per_hour': 137.82304680647556}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T18:37:01.606933+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T19:38:03.758200+00:00",
+      "kind": "",
+      "key": "{'legs': 5392, 'net_bp': -1152.668700000032, 'notional': 1317589.421677856, 'legs_per_hour': 105.74908435983721, 'net_bp_per_leg': -0.21377386869436796}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T19:40:03.392845+00:00",
+      "kind": "",
+      "key": "{'legs': 3296, 'net_bp': -2208.6416999999965, 'legs_per_hour': 131.8652779891878}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T19:40:03.392845+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-28T20:39:15.695034+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:10:26.684695+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:10:27.471294+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:17:01.854522+00:00",
+      "kind": "",
+      "key": "{'legs': 458, 'net_bp': -980.4157999999998, 'legs_per_hour': 38.21710138257438}",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:23:35.808708+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:23:36.583418+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:24:55.118387+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:24:55.786739+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    },
+    {
+      "at": "2026-09-29T01:48:11.023510+00:00",
+      "kind": "",
+      "key": "",
+      "old": null,
+      "new": null
+    }
+  ],
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "trials": {
+    "h448_trial": {
+      "started_at": "2026-09-28T15:17:23.302017+00:00",
+      "verdict": "SUPERSEDED"
+    },
+    "h463_trial": {
+      "started_at": "2026-09-29T01:48:11.023510+00:00",
+      "verdict": null
+    },
+    "h472_trial": {
+      "started_at": "2026-09-28T18:33:15.457988+00:00",
+      "verdict": null
+    },
+    "h464_trial": {
+      "started_at": "2026-09-29T01:23:36.583418+00:00",
+      "verdict": "ROLLBACK"
+    }
+  }
+}

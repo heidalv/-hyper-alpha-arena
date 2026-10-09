@@ -49,6 +49,99 @@ _FLIP_COOLDOWN_SEC = 30 * 60            # 反向翻转冷却：30 分钟
 _MASTER_CLOSE_MIN_COOLDOWN = 60 * 60    # 总控全平最低冷却：60 分钟
 _LOSS_HISTORY_WINDOW_SEC = 4 * 3600     # 亏损历史统计窗口：4 小时
 
+# [P3 大轮回 2026-09-27] 当日止损计数：key="{account}_{symbol}_{tier}" -> [ts,...]
+_daily_sl: Dict[str, List[float]] = {}
+
+
+def _daily_sl_key(account_id: int, symbol: str, tier: str) -> str:
+    _t = (tier or "").strip().lower() or "mid"
+    return f"{account_id}_{(symbol or '').strip().upper()}_{_t}"
+
+
+#: 止损标签词表（[2026-10-02 修复 · 口径脱节]）
+# 旧词表只有 `sl/stop_loss/liquidation/margin_call` 前缀，而 2026-09-29 起新出场栈落库的是
+# `barrier:sl`（障碍阶梯，paper_trading_engine:4037/4047/4060）、`exit_policy:sl` /
+# `exit_policy:sl_pct`（ExitPolicy 层）⇒ 真止损拿不到 SL 档 12h/48h 冷却，也不进
+# 「同币当日 ≥3 次止损禁开」计数（实测 7 天日志 `[ReentryDailySL]` 仅出现 2 次，
+# 而同期 SL 类平仓几十笔）。现在：前缀匹配 + 任意命名空间 `:sl` / `:sl_pct` 结尾匹配。
+_SL_PREFIXES = ("sl", "stop_loss", "liquidation", "margin_call", "barrier:sl", "exit_policy:sl")
+
+
+def _is_sl_reason(reason_l: str) -> bool:
+    r = str(reason_l or "").strip().lower()
+    if r.startswith(_SL_PREFIXES):
+        return True
+    return r.endswith(":sl") or r.endswith(":sl_pct")
+
+
+def _today_bounds() -> tuple:
+    """本地日界（unix 秒起止）。"""
+    from datetime import datetime
+    now = datetime.now()
+    start = datetime(now.year, now.month, now.day).timestamp()
+    return start, start + 86400
+
+
+def _count_today_sl(key: str) -> int:
+    _lo, _hi = _today_bounds()
+    with _lock:
+        vals = _daily_sl.get(key, [])
+        vals = [t for t in vals if _lo <= t < _hi]
+        _daily_sl[key] = vals
+        return len(vals)
+
+
+def _daily_sl_limit(tier: str) -> int:
+    """当日止损次数上限（0=关闭）。默认 3（§6.1）。"""
+    _t = (tier or "mid").strip().lower() or "mid"
+    try:
+        v = os.getenv(f"REENTRY_DAILY_SL_LIMIT_{_t.upper()}") or os.getenv("REENTRY_DAILY_SL_LIMIT", "3")
+        return int(v or 0)
+    except (TypeError, ValueError):
+        return 3
+
+
+def _daily_sl_db_count(account_id: int, symbol: str, tier: str) -> int:
+    """DB 兜底：当日该 (account,symbol,tier) 的止损平仓数（重启后仍生效）。"""
+    try:
+        from backend.database.connection import SessionLocal
+        from sqlalchemy import text
+        _lo, _hi = _today_bounds()
+        with SessionLocal() as db:
+            rows = db.execute(text("""
+                SELECT COUNT(*) FROM paper_positions
+                WHERE account_id = :a AND symbol = :s AND status='closed'
+                  AND timeframe_tier = :t
+                  AND closed_at >= to_timestamp(:lo) AND closed_at < to_timestamp(:hi)
+                  AND (close_reason LIKE 'sl%' OR close_reason LIKE 'stop_loss%'
+                       OR close_reason LIKE 'liquidation%' OR close_reason LIKE 'margin_call%'
+                       OR close_reason LIKE 'exit_policy:sl%' OR close_reason LIKE 'barrier:sl%'
+                       OR close_reason LIKE '%:sl' OR close_reason LIKE '%:sl_pct')
+            """), {"a": account_id, "s": str(symbol).upper(),
+                   "t": (tier or "mid").lower(), "lo": _lo, "hi": _hi}).fetchone()
+        return int(rows[0] or 0)
+    except Exception as exc:
+        logger.debug("[ReentryDailySL] DB 兜底查询失败(按内存口径): %s", exc)
+        return 0
+
+
+def _daily_sl_blocked(account_id: int, symbol: str, tier: str) -> Tuple[bool, str]:
+    """同币当日 ≥N 次止损后当日禁开（§6.1）。内存优先，DB 兜底（重启不蒸发）。"""
+    limit = _daily_sl_limit(tier)
+    if limit <= 0:
+        return False, ""
+    key = _daily_sl_key(account_id, symbol, tier)
+    if _count_today_sl(key) >= limit:
+        return True, f"同币当日已达 {limit} 次止损，当日禁开（§6.1 重入规则）"
+    # 内存不足 → DB 兜底（进程重启后仍生效）
+    cnt = _daily_sl_db_count(account_id, symbol, tier)
+    if cnt >= limit:
+        # 回填内存（供本进程内后续调用免查库）
+        with _lock:
+            _daily_sl[key] = [time.time()] * cnt
+        return True, f"同币当日已达 {limit} 次止损，当日禁开（§6.1，DB 口径 {cnt} 次）"
+    return False, ""
+
 
 def _get_cooldown_sec(tier: str) -> int:
     """根据 tier 获取同向冷却时间（秒）"""
@@ -183,7 +276,7 @@ def record_full_close(
     # 不足以打断恶性循环。sl/liquidation 是硬止损事件，冷却应远长于普通平仓。
     # 配置：REENTRY_SL_COOLDOWN_SEC_BY_TIER（env 可覆盖）
     #   mid: 12 小时 / long: 48 小时（对齐 04 综合方案 §2.3.5 分层冷却矩阵）
-    if _reason_l in ("sl", "stop_loss", "stop loss", "liquidation", "margin_call"):
+    if _is_sl_reason(_reason_l):
         try:
             _sl_cd_env = {
                 "mid": "43200",    # 12h
@@ -220,6 +313,17 @@ def record_full_close(
     with _lock:
         _state[key] = (position_side, time.time(), _norm_tier, multiplier, effective_cd)
 
+    # [P3 大轮回 2026-09-27] 当日止损计数（§6.1：同币当日 ≥3 次止损后当日禁开）
+    if _is_sl_reason(_reason_l):
+        now = time.time()
+        with _lock:
+            _daily_sl.setdefault(_daily_sl_key(account_id, symbol, _norm_tier), []).append(now)
+        logger.info(
+            "[ReentryDailySL] %s/%s/%s 当日止损 +1（累计 %d）",
+            account_id, symbol, _norm_tier,
+            _count_today_sl(_daily_sl_key(account_id, symbol, _norm_tier)),
+        )
+
     logger.info(
         f"[ReentryCooldown] 记录全平 account={account_id} {symbol} {position_side} "
         f"tier={_norm_tier} master={is_master_close} pnl={close_pnl:+.2f} "
@@ -252,6 +356,12 @@ def reopen_blocked(
     _nt = (new_tier or "").strip().lower()
     if _nt not in ("short", "mid", "long"):
         _nt = ""  # 未指定 tier → 逐桶检查
+
+    # [P3 大轮回 2026-09-27] 当日止损上限（§6.1 重入规则）：先于同向冷却判定
+    if _nt:
+        _dsl_blocked, _dsl_reason = _daily_sl_blocked(account_id, symbol, _nt)
+        if _dsl_blocked:
+            return True, _dsl_reason
 
     # 要检查的 key 列表（v5 tier 隔离）
     _keys_to_check = []

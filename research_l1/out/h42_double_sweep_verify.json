@@ -1,0 +1,95 @@
+{
+  "hours": 24.0,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "ASTER"
+  ],
+  "w_bp": 0.5,
+  "per_symbol": [
+    {
+      "symbol": "BTC",
+      "w_bp": 0.5,
+      "n_quotes": 5280,
+      "n_complete": 5099,
+      "n_incomplete": 181,
+      "complete_rate": 0.965719696969697,
+      "gap_ms_median": 2073.0,
+      "gap_ms_p25": 1343.5,
+      "gap_ms_p75": 2796.0,
+      "gap_ms_p90": 4094.2,
+      "pnl_bp_mean": 0.04280207412470201,
+      "pnl_bp_median": 0.0,
+      "win_rate": 0.34889193959599923
+    },
+    {
+      "symbol": "ETH",
+      "w_bp": 0.5,
+      "n_quotes": 5314,
+      "n_complete": 5041,
+      "n_incomplete": 273,
+      "complete_rate": 0.9486262702295822,
+      "gap_ms_median": 2144.0,
+      "gap_ms_p25": 1070.0,
+      "gap_ms_p75": 3403.0,
+      "gap_ms_p90": 8245.0,
+      "pnl_bp_mean": 0.13641547115086367,
+      "pnl_bp_median": 0.037941160848585474,
+      "win_rate": 0.583415988891093
+    },
+    {
+      "symbol": "SOL",
+      "w_bp": 0.5,
+      "n_quotes": 5316,
+      "n_complete": 4473,
+      "n_incomplete": 843,
+      "complete_rate": 0.8414221218961625,
+      "gap_ms_median": 11412.0,
+      "gap_ms_p25": 4552.0,
+      "gap_ms_p75": 32561.0,
+      "gap_ms_p90": 92221.0,
+      "pnl_bp_mean": 1.3348432359534441,
+      "pnl_bp_median": 0.9210647508524561,
+      "win_rate": 0.9074446680080482
+    },
+    {
+      "symbol": "XRP",
+      "w_bp": 0.5,
+      "n_quotes": 5309,
+      "n_complete": 4331,
+      "n_incomplete": 978,
+      "complete_rate": 0.8157845168581653,
+      "gap_ms_median": 10446.0,
+      "gap_ms_p25": 4403.5,
+      "gap_ms_p75": 27781.0,
+      "gap_ms_p90": 91833.0,
+      "pnl_bp_mean": 1.858407467782587,
+      "pnl_bp_median": 1.4480162177814797,
+      "win_rate": 0.9254213807434772
+    },
+    {
+      "symbol": "ASTER",
+      "w_bp": 0.5,
+      "n_quotes": 5240,
+      "n_complete": 4445,
+      "n_incomplete": 795,
+      "complete_rate": 0.8482824427480916,
+      "gap_ms_median": 7784.0,
+      "gap_ms_p25": 1132.0,
+      "gap_ms_p75": 29488.0,
+      "gap_ms_p90": 94257.79999999999,
+      "pnl_bp_mean": 1.4300121405109598,
+      "pnl_bp_median": 1.330849081713987,
+      "win_rate": 0.8814398200224972
+    }
+  ],
+  "summary": {
+    "n_complete": 23389,
+    "complete_rate": 0.8839714274915907,
+    "gap_ms_median": 7784.0,
+    "pnl_bp_mean": 0.9099080194959475,
+    "win_rate": 0.7142246355124203
+  }
+}

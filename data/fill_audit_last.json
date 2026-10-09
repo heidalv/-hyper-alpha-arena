@@ -1,0 +1,16 @@
+{
+  "ts": 1791565082.5382895,
+  "window_h": 6.0,
+  "mode": "exact_window",
+  "fills": 179,
+  "checked": 0,
+  "skipped": 179,
+  "strict_ok": 0,
+  "strict_phantom": 0,
+  "strict_rate": 0.0,
+  "strict_net_usd": 0.0,
+  "strict_per_leg_bp": null,
+  "phantom_net_usd": 0.0,
+  "phantom_per_leg_bp": null,
+  "verdict": "样本不足"
+}

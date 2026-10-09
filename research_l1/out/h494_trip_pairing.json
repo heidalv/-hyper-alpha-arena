@@ -1,0 +1,529 @@
+{
+  "hours": 6.0,
+  "rows": 391,
+  "trips": 117,
+  "closed": 116,
+  "diag": {
+    "flatten_at_zero": 114,
+    "flatten_nonzero": 18,
+    "unclosed": 1
+  },
+  "hold_p50": 76.082259,
+  "old_trips": 99,
+  "verdict": "新口径仍需检查（有 >320s 往返）",
+  "sample": [
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-28 23:05:36.268494+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 144.24949778024208,
+      "cost": 0.0,
+      "qty": 714.6547983860987,
+      "exit_ts": "2026-09-28 23:06:36.792802+08:00",
+      "exit_net_bp": 18.7343,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 60.524308
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 00:09:41.009761+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 145.06251236061775,
+      "cost": 0.0,
+      "qty": 713.8024965462799,
+      "exit_ts": "2026-09-29 00:10:43.433017+08:00",
+      "exit_net_bp": -21.7421,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1",
+        "mm:ARB:2"
+      ],
+      "hold": 62.423256
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 00:16:49.782774+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 144.22926614782517,
+      "cost": 0.0,
+      "qty": 713.3882336976636,
+      "exit_ts": "2026-09-29 00:17:05.424310+08:00",
+      "exit_net_bp": -61.5512,
+      "exit_path": "stop_loss_taker",
+      "pids": [
+        "mm:ARB:2"
+      ],
+      "hold": 15.641536
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 00:56:29.563019+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 143.6425920149368,
+      "cost": 0.0,
+      "qty": 700.0638059065566,
+      "exit_ts": "2026-09-29 00:57:00.573917+08:00",
+      "exit_net_bp": -4.9731000000000005,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 31.010898
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 01:09:55.112739+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 51.8378688,
+      "cost": 0.0,
+      "qty": 255.51,
+      "exit_ts": "2026-09-29 01:10:25.960680+08:00",
+      "exit_net_bp": 4.877200000000002,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1",
+        "mm:ARB:2"
+      ],
+      "hold": 30.847941
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 01:10:41.242531+08:00",
+      "legs": 3,
+      "entry_legs": 2,
+      "exit_legs": 1,
+      "entry_notional": 53.948259553720135,
+      "cost": 0.0,
+      "qty": 266.54999999999995,
+      "exit_ts": "2026-09-29 01:11:41.747163+08:00",
+      "exit_net_bp": 83.17099999999999,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 60.504632
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 01:24:28.152580+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 143.79952651979093,
+      "cost": 0.0,
+      "qty": 696.4500618466687,
+      "exit_ts": "2026-09-29 01:26:29.689468+08:00",
+      "exit_net_bp": 27.0951,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1",
+        "mm:ARB:2"
+      ],
+      "hold": 121.536888
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 01:38:39.179726+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 143.35829980852805,
+      "cost": 0.0,
+      "qty": 700.6845137820748,
+      "exit_ts": "2026-09-29 01:39:55.146311+08:00",
+      "exit_net_bp": -18.8878,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 75.966585
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 02:16:00.488891+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 143.4616883694305,
+      "cost": 0.0,
+      "qty": 691.4899363487318,
+      "exit_ts": "2026-09-29 02:19:49.999573+08:00",
+      "exit_net_bp": -37.6041,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 229.510682
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 02:34:52.335891+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 142.8262473556006,
+      "cost": 0.0,
+      "qty": 693.575395979656,
+      "exit_ts": "2026-09-29 02:37:10.586673+08:00",
+      "exit_net_bp": -53.0592,
+      "exit_path": "stop_loss_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 138.250782
+    },
+    {
+      "sym": "ARB",
+      "open_ts": "2026-09-29 02:42:30.166438+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 71.16137894172451,
+      "cost": 0.0,
+      "qty": 345.6785142413509,
+      "exit_ts": "2026-09-29 02:47:35.554787+08:00",
+      "exit_net_bp": -9.3413,
+      "exit_path": "timeout_hard_taker",
+      "pids": [
+        "mm:ARB:1"
+      ],
+      "hold": 305.388349
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:06:28.607958+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 289.5078720866574,
+      "cost": 0.0,
+      "qty": 0.378335333320253,
+      "exit_ts": "2026-09-28 22:07:00.191358+08:00",
+      "exit_net_bp": -6.2212,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 31.5834
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:08:00.960902+08:00",
+      "legs": 3,
+      "entry_legs": 1,
+      "exit_legs": 2,
+      "entry_notional": 234.33785999999998,
+      "cost": 0.0,
+      "qty": 0.306,
+      "exit_ts": "2026-09-28 22:08:31.451466+08:00",
+      "exit_net_bp": -3.8694,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 30.490564
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:09:47.778683+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 48.2335875,
+      "cost": 0.0,
+      "qty": 0.063,
+      "exit_ts": "2026-09-28 22:11:49.625849+08:00",
+      "exit_net_bp": -5.6329,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 121.847166
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:17:54.637983+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 71.0024775,
+      "cost": 0.0,
+      "qty": 0.093,
+      "exit_ts": "2026-09-28 22:18:25.348979+08:00",
+      "exit_net_bp": -7.8626000000000005,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 30.710996
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:27:17.524479+08:00",
+      "legs": 4,
+      "entry_legs": 3,
+      "exit_legs": 1,
+      "entry_notional": 592.6705598881572,
+      "cost": 0.0,
+      "qty": 0.7753923248614012,
+      "exit_ts": "2026-09-28 22:31:51.501670+08:00",
+      "exit_net_bp": 7.304,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 273.977191
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:32:06.918142+08:00",
+      "legs": 4,
+      "entry_legs": 2,
+      "exit_legs": 2,
+      "entry_notional": 318.95325739171005,
+      "cost": 0.0,
+      "qty": 0.41914004381550113,
+      "exit_ts": "2026-09-28 22:34:23.924357+08:00",
+      "exit_net_bp": 11.6944,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 137.006215
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:37:25.913105+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 20.594317500000002,
+      "cost": 0.0,
+      "qty": 0.027,
+      "exit_ts": "2026-09-28 22:39:12.679533+08:00",
+      "exit_net_bp": 4.332099999999999,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 106.766428
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:39:28.130517+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 288.9761907987798,
+      "cost": 0.0,
+      "qty": 0.3792614351657575,
+      "exit_ts": "2026-09-28 22:39:58.311312+08:00",
+      "exit_net_bp": 7.5358,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 30.180795
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:42:31.145986+08:00",
+      "legs": 3,
+      "entry_legs": 1,
+      "exit_legs": 2,
+      "entry_notional": 289.8728759568771,
+      "cost": 0.0,
+      "qty": 0.38079289044365683,
+      "exit_ts": "2026-09-28 22:44:17.766949+08:00",
+      "exit_net_bp": -27.3056,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 106.620963
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:44:33.161090+08:00",
+      "legs": 7,
+      "entry_legs": 5,
+      "exit_legs": 2,
+      "entry_notional": 757.7356715452702,
+      "cost": 0.0,
+      "qty": 0.9979433216776308,
+      "exit_ts": "2026-09-28 22:49:37.672734+08:00",
+      "exit_net_bp": 5.4284,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 304.511644
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 22:58:15.140296+08:00",
+      "legs": 6,
+      "entry_legs": 5,
+      "exit_legs": 1,
+      "entry_notional": 217.2404524824944,
+      "cost": 0.0,
+      "qty": 0.2860782758961192,
+      "exit_ts": "2026-09-28 23:06:51.931401+08:00",
+      "exit_net_bp": -9.7256,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 516.791105
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:09:39.282409+08:00",
+      "legs": 3,
+      "entry_legs": 2,
+      "exit_legs": 1,
+      "entry_notional": 271.78223488534013,
+      "cost": 0.0,
+      "qty": 0.35786129648974124,
+      "exit_ts": "2026-09-28 23:11:45.813528+08:00",
+      "exit_net_bp": -6.1722,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 126.531119
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:12:16.381513+08:00",
+      "legs": 3,
+      "entry_legs": 2,
+      "exit_legs": 1,
+      "entry_notional": 134.31132519133925,
+      "cost": 0.0,
+      "qty": 0.177,
+      "exit_ts": "2026-09-28 23:15:03.622365+08:00",
+      "exit_net_bp": -4.0737,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 167.240852
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:15:34.223098+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 144.60552497304957,
+      "cost": 0.0,
+      "qty": 0.19053995034115756,
+      "exit_ts": "2026-09-28 23:16:04.574613+08:00",
+      "exit_net_bp": -7.2273,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 30.351515
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:18:35.852184+08:00",
+      "legs": 5,
+      "entry_legs": 3,
+      "exit_legs": 2,
+      "entry_notional": 434.05313759226044,
+      "cost": 0.0,
+      "qty": 0.5725218499596374,
+      "exit_ts": "2026-09-28 23:23:59.125473+08:00",
+      "exit_net_bp": 12.633000000000001,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 323.273289
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:24:17.471982+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 144.4426331293811,
+      "cost": 0.0,
+      "qty": 0.1905170974626512,
+      "exit_ts": "2026-09-28 23:25:04.347191+08:00",
+      "exit_net_bp": 20.4727,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 46.875209
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:25:19.461019+08:00",
+      "legs": 4,
+      "entry_legs": 3,
+      "exit_legs": 1,
+      "entry_notional": 59.31820148327459,
+      "cost": 0.0,
+      "qty": 0.078,
+      "exit_ts": "2026-09-28 23:46:59.718223+08:00",
+      "exit_net_bp": 2.6859,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 1300.257204
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:47:31.112397+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 27.467889723641598,
+      "cost": 0.0,
+      "qty": 0.036,
+      "exit_ts": "2026-09-28 23:48:47.117060+08:00",
+      "exit_net_bp": -2.8859,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 76.004663
+    },
+    {
+      "sym": "BNB",
+      "open_ts": "2026-09-28 23:50:04.323184+08:00",
+      "legs": 2,
+      "entry_legs": 1,
+      "exit_legs": 1,
+      "entry_notional": 59.48865000000001,
+      "cost": 0.0,
+      "qty": 0.078,
+      "exit_ts": "2026-09-28 23:51:04.829061+08:00",
+      "exit_net_bp": 3.3370000000000006,
+      "exit_path": "ofi_flatten_taker",
+      "pids": [
+        "mm:BNB:1"
+      ],
+      "hold": 60.505877
+    }
+  ]
+}

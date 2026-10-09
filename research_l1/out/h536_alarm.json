@@ -1,0 +1,48 @@
+{
+  "ts": "2026-10-10T00:54:02",
+  "legs_window": 7,
+  "legs_60m": 24,
+  "last_leg": "2026-10-10 00:51:19.213027+08:00",
+  "market_lag_s": 32.4,
+  "stream_health": [
+    {
+      "stream": "book",
+      "msgs": 139925093654907,
+      "reconnects": 33,
+      "last_event_ms": 1791564842226
+    },
+    {
+      "stream": "depth",
+      "msgs": 80405103204231,
+      "reconnects": 71,
+      "last_event_ms": 1791564842227
+    },
+    {
+      "stream": "trades",
+      "msgs": 1216484819443,
+      "reconnects": 30,
+      "last_event_ms": 1791564839839
+    }
+  ],
+  "proxy_targets": [
+    {
+      "host": "fapi.asterdex.com:443",
+      "ok": true,
+      "detail": "隧道内 TLS 握手成功（TLSv1.3）"
+    },
+    {
+      "host": "fstream.asterdex.com:443",
+      "ok": true,
+      "detail": "隧道内 TLS 握手成功（TLSv1.3）"
+    }
+  ],
+  "proxy": {
+    "ok": true,
+    "detail": "fapi.asterdex.com:443 ✓；fstream.asterdex.com:443 ✓"
+  },
+  "critical": [],
+  "warn": [
+    "近 60 分钟仅 24 腿（< 60/h 硬约束）"
+  ],
+  "verdict": "WARN"
+}

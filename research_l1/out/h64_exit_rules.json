@@ -1,0 +1,188 @@
+{
+  "hours": 24.0,
+  "spread_mult": 0.9,
+  "maker_fee_bp": 0.0,
+  "taker_fee_bp": 4.0,
+  "summary": {
+    "R1b maker 30s（上界）": {
+      "mean": -0.5782,
+      "median": -0.496,
+      "p1": -13.8209,
+      "p5": -7.3939,
+      "worst": -39.6916,
+      "win": 0.45,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1b maker 60s（上界）": {
+      "mean": -0.6828,
+      "median": -0.6478,
+      "p1": -18.5407,
+      "p5": -10.4158,
+      "worst": -57.8797,
+      "win": 0.4496,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1b maker 300s（上界）": {
+      "mean": -1.1789,
+      "median": -0.643,
+      "p1": -41.9224,
+      "p5": -24.1003,
+      "worst": -88.8559,
+      "win": 0.4781,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1b maker 30s（50%成交）": {
+      "mean": -2.7544,
+      "median": -2.6711,
+      "p1": -16.0615,
+      "p5": -9.5812,
+      "worst": -41.9289,
+      "win": 0.1941,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1b maker 60s（50%成交）": {
+      "mean": -2.8589,
+      "median": -2.8195,
+      "p1": -20.7538,
+      "p5": -12.6169,
+      "worst": -60.2967,
+      "win": 0.2722,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1b maker 300s（50%成交）": {
+      "mean": -3.3551,
+      "median": -2.7888,
+      "p1": -44.1909,
+      "p5": -26.3077,
+      "worst": -91.2092,
+      "win": 0.3939,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1 固定10s 强平": {
+      "mean": -4.7456,
+      "median": -4.318,
+      "p1": -12.2975,
+      "p5": -8.5327,
+      "worst": -27.0642,
+      "win": 0.02,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1 固定30s 强平": {
+      "mean": -4.9305,
+      "median": -4.8386,
+      "p1": -18.3235,
+      "p5": -11.7891,
+      "worst": -44.1662,
+      "win": 0.0859,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R3 止损10+移动5": {
+      "mean": -4.9513,
+      "median": -6.3925,
+      "p1": -17.2631,
+      "p5": -15.0513,
+      "worst": -31.206,
+      "win": 0.2015,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R2 止损5bp+300s超时": {
+      "mean": -4.9557,
+      "median": -8.8111,
+      "p1": -14.7034,
+      "p5": -11.6569,
+      "worst": -26.2139,
+      "win": 0.2148,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1 固定60s 强平": {
+      "mean": -5.0351,
+      "median": -4.9894,
+      "p1": -22.9507,
+      "p5": -14.8156,
+      "worst": -62.7136,
+      "win": 0.1603,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1 固定120s 强平": {
+      "mean": -5.0795,
+      "median": -5.0354,
+      "p1": -29.9694,
+      "p5": -19.0373,
+      "worst": -77.9411,
+      "win": 0.2335,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R3 止损20+移动10": {
+      "mean": -5.1038,
+      "median": -6.5206,
+      "p1": -26.0425,
+      "p5": -20.9544,
+      "worst": -40.5794,
+      "win": 0.2703,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R2 止损10bp+300s超时": {
+      "mean": -5.2548,
+      "median": -9.0278,
+      "p1": -18.7515,
+      "p5": -16.0285,
+      "worst": -31.3244,
+      "win": 0.2776,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R2 止损20bp+300s超时": {
+      "mean": -5.4699,
+      "median": -5.3286,
+      "p1": -28.0538,
+      "p5": -24.0437,
+      "worst": -44.5016,
+      "win": 0.3093,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R1 固定300s 强平": {
+      "mean": -5.5312,
+      "median": -4.9526,
+      "p1": -46.4288,
+      "p5": -28.5064,
+      "worst": -93.5626,
+      "win": 0.316,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R2 止损30bp+300s超时": {
+      "mean": -5.5805,
+      "median": -5.1337,
+      "p1": -37.4312,
+      "p5": -28.7537,
+      "worst": -54.112,
+      "win": 0.3131,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    },
+    "R2 止损60bp+300s超时": {
+      "mean": -5.6325,
+      "median": -4.9884,
+      "p1": -48.8501,
+      "p5": -28.9383,
+      "worst": -78.4961,
+      "win": 0.3158,
+      "positive_symbols": 0,
+      "n_symbols": 6
+    }
+  }
+}

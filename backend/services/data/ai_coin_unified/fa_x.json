@@ -2,11 +2,9 @@
   "version": 1,
   "session_id": "fa_x",
   "mid": {
-    "symbols": [
-      "TON"
-    ],
-    "updated_at": 1789320226.6608715,
+    "symbols": [],
+    "updated_at": 1790662698.868795,
     "reason": "manual_adopt midlong_board"
   },
-  "updated_at": 1789320226.6608715
+  "updated_at": 1790662698.868795
 }

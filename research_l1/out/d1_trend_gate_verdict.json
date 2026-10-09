@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-10-01T06:00:36.626109+00:00",
+  "lane_id": "mm_asterdex_live",
+  "trial_start": null,
+  "trial_end": null,
+  "baseline_hours": 12.0,
+  "baseline": {
+    "rate_per_h": 0.0,
+    "legs_per_h": 0.0,
+    "n": 0,
+    "all": {
+      "n": 0,
+      "net_bp": null
+    },
+    "with": {
+      "n": 0,
+      "net_bp": null
+    },
+    "against": {
+      "n": 0,
+      "net_bp": null
+    },
+    "unknown": {
+      "n": 0,
+      "net_bp": null
+    }
+  },
+  "trial": {
+    "rate_per_h": 0.0,
+    "legs_per_h": 0.0,
+    "legs_per_h_ok": false,
+    "hours": 0.0,
+    "n": 0,
+    "all": {
+      "n": 0,
+      "net_bp": null
+    },
+    "with": {
+      "n": 0,
+      "net_bp": null
+    },
+    "against": {
+      "n": 0,
+      "net_bp": null
+    },
+    "unknown": {
+      "n": 0,
+      "net_bp": null
+    }
+  },
+  "verdict": "NO_TRIAL",
+  "stats": {},
+  "unknown_share_warn": false,
+  "note": "预览模式:未裁决"
+}

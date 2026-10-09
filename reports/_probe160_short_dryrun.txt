@@ -1,0 +1,39 @@
+﻿
+====================================================================================================
+待归档 short tier（active/paused/frozen）= 27
+   auto_fc605b2958            BTC      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_2ed563     NEAR     status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_311f5b     SOL      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_389205     FARTCOIN status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_39e5ae     UNI      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_3c830c     BTC      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_3df4c6     KAITO    status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_4295fa     PUMP     status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_48a96c     VIRTUAL  status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_4d994f     VVV      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_55262b     ETHFI    status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_5ed379     ONDO     status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_69cda1     CRV      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_722362     ASTER    status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_8e311f     LDO      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_92abc0     KBONK    status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_982f08     ETH      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_a0d282     ZEC      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_a96e06     XLM      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_ab48b6     SPX      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_b144c5     XPL      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_b55aa9     XRP      status=active   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_cb100a     ENA      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_da7f8f     CHIP     status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_eeeb7c     WLD      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_f0e375     LIT      status=paused   持仓=0（open=0） 订单=0 last_trade=None
+   tpl_short_range_f3d458     BNB      status=active   持仓=0（open=0） 订单=0 last_trade=None
+
+   ⚠️ open 持仓合计 = 0
+
+   会话 fa_7e12e7a1b6 的 active_strategy_ids 含 9 条：['tpl_short_range_b144c5', 'auto_fc605b2958', 'tpl_short_range_f3d458',
+ 'tpl_short_range_311f5b']…
+
+[干跑] 未改动任何数据。加 --apply 落库。
+
+

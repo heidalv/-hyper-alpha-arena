@@ -1,0 +1,319 @@
+{
+  "hours": 168,
+  "under_60": 18,
+  "by_clock": {
+    "3": [
+      25,
+      206,
+      249,
+      109,
+      82,
+      87,
+      231,
+      49
+    ],
+    "4": [
+      261,
+      164,
+      246,
+      124,
+      66,
+      130,
+      256
+    ],
+    "5": [
+      199,
+      122,
+      147,
+      89,
+      70,
+      124,
+      208
+    ],
+    "6": [
+      250,
+      275,
+      154,
+      95,
+      63,
+      116,
+      213
+    ],
+    "7": [
+      303,
+      27,
+      118,
+      100,
+      41,
+      141,
+      218
+    ],
+    "8": [
+      151,
+      136,
+      79,
+      74,
+      111,
+      206
+    ],
+    "9": [
+      152,
+      151,
+      136,
+      111,
+      66,
+      104,
+      235
+    ],
+    "10": [
+      209,
+      238,
+      138,
+      104,
+      63,
+      125,
+      226
+    ],
+    "11": [
+      110,
+      164,
+      127,
+      111,
+      34,
+      81,
+      237
+    ],
+    "12": [
+      178,
+      234,
+      128,
+      71,
+      50,
+      128,
+      225
+    ],
+    "13": [
+      230,
+      201,
+      138,
+      86,
+      38,
+      157,
+      65
+    ],
+    "14": [
+      244,
+      137,
+      111,
+      77,
+      32,
+      60,
+      61
+    ],
+    "15": [
+      203,
+      184,
+      147,
+      98,
+      6,
+      288,
+      64
+    ],
+    "16": [
+      181,
+      179,
+      147,
+      114,
+      74,
+      282,
+      56
+    ],
+    "17": [
+      210,
+      200,
+      186,
+      96,
+      151,
+      261,
+      76
+    ],
+    "18": [
+      269,
+      170,
+      149,
+      106,
+      83,
+      229,
+      60
+    ],
+    "19": [
+      261,
+      194,
+      137,
+      141,
+      34,
+      229,
+      89
+    ],
+    "20": [
+      288,
+      209,
+      141,
+      145,
+      16,
+      178,
+      72
+    ],
+    "21": [
+      205,
+      253,
+      180,
+      161,
+      15,
+      247,
+      58
+    ],
+    "22": [
+      196,
+      277,
+      182,
+      208,
+      18,
+      231,
+      42
+    ],
+    "23": [
+      223,
+      228,
+      165,
+      151,
+      20,
+      229,
+      50
+    ],
+    "0": [
+      71,
+      251,
+      191,
+      162,
+      117,
+      251,
+      83
+    ],
+    "1": [
+      82,
+      233,
+      149,
+      105,
+      112,
+      201,
+      71
+    ],
+    "2": [
+      196,
+      318,
+      113,
+      99,
+      105,
+      212,
+      95
+    ]
+  },
+  "skip_by_bucket": {
+    "活跃(08-20)": {
+      "ticks": 24355,
+      "d": {
+        "ct_trend_up": 3348,
+        "below_step": 40,
+        "ofi_toxic_buy": 4874,
+        "ct_trend_down": 2266,
+        "trend_up": 6974,
+        "vol_pause": 10340,
+        "ofi_toxic_sell": 6494,
+        "trend_down": 8312,
+        "net_exposure": 1473,
+        "toxic_streak": 22,
+        "symbol_exposure": 10225,
+        "gross_exposure": 1699,
+        "stale_quote_cleared": 80,
+        "timeout_maker_only": 4759,
+        "take_profit": 10,
+        "sudden_move": 3406,
+        "model_below_thr": 16793,
+        "stop_loss": 1,
+        "vol_regime": 5564,
+        "reversal_decay": 1,
+        "ofi_confirm_sell": 76,
+        "ofi_confirm_buy": 46,
+        "trend_only_flat": 125,
+        "vpin_high": 153,
+        "vwap_revert_down": 2343,
+        "vwap_revert_up": 4374
+      }
+    },
+    "夜(20-24)": {
+      "ticks": 9180,
+      "d": {
+        "ofi_toxic_buy": 1521,
+        "toxic_streak": 16,
+        "ofi_toxic_sell": 2314,
+        "trend_down": 3406,
+        "symbol_exposure": 3846,
+        "trend_up": 2550,
+        "ct_trend_down": 468,
+        "net_exposure": 1672,
+        "vol_pause": 7460,
+        "ct_trend_up": 414,
+        "stale_quote_cleared": 3,
+        "gross_exposure": 3340,
+        "timeout_maker_only": 1500,
+        "take_profit": 3,
+        "sudden_move": 1490,
+        "reversal_decay": 1,
+        "model_below_thr": 4781,
+        "vol_regime": 2460,
+        "ofi_confirm_sell": 32,
+        "ofi_confirm_buy": 18,
+        "vpin_high": 709,
+        "vwap_revert_down": 774,
+        "vwap_revert_up": 1743,
+        "vwap_flow_away_sell": 42,
+        "trend_only_flat": 15,
+        "vwap_flow_away_buy": 1
+      }
+    },
+    "安静(00-08)": {
+      "ticks": 17120,
+      "d": {
+        "ofi_toxic_buy": 3361,
+        "toxic_streak": 25,
+        "ofi_toxic_sell": 4785,
+        "trend_down": 6470,
+        "symbol_exposure": 7795,
+        "trend_up": 7334,
+        "ct_trend_down": 1547,
+        "net_exposure": 2237,
+        "vol_pause": 10891,
+        "ct_trend_up": 2486,
+        "gross_exposure": 368,
+        "stale_quote_cleared": 45,
+        "timeout_maker_only": 4016,
+        "take_profit": 3,
+        "sudden_move": 1820,
+        "daily_loss": 486,
+        "reversal_decay": 1,
+        "model_below_thr": 9976,
+        "vol_regime": 3326,
+        "ofi_confirm_sell": 55,
+        "ofi_confirm_buy": 47,
+        "vpin_high": 0,
+        "vwap_revert_down": 1145,
+        "vwap_revert_up": 2624,
+        "vwap_flow_away_buy": 0,
+        "trend_only_flat": 763,
+        "ofi_flatten_maker": 35,
+        "timeout_hard_taker": 1
+      }
+    }
+  }
+}

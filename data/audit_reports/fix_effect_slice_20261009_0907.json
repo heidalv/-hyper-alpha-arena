@@ -1,0 +1,100 @@
+{
+  "boundary": "2026-09-11 10:19",
+  "days": 30,
+  "totals": {
+    "before": {
+      "n": 0,
+      "net": 0.0,
+      "avg": 0.0,
+      "wr": 0.0,
+      "hold": 0.0
+    },
+    "after": {
+      "n": 17,
+      "net": -12.690179208304569,
+      "avg": -0.7464811299002687,
+      "wr": 0.058823529411764705,
+      "hold": 36.52119697655229
+    }
+  },
+  "channels": {
+    "long_trend_v2": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 7,
+        "net": -2.1383953400621243,
+        "avg": -0.30548504858030345,
+        "wr": 0.0,
+        "hold": 0.0356614875
+      }
+    },
+    "thesis_should_close": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 2,
+        "net": -2.6870975013039358,
+        "avg": -1.3435487506519679,
+        "wr": 0.0,
+        "hold": 93.05488373652778
+      }
+    },
+    "tp": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 1,
+        "net": 3.0124451207561402,
+        "avg": 3.0124451207561402,
+        "wr": 1.0,
+        "hold": 3.992600910277778
+      }
+    },
+    "sl": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 7,
+        "net": -10.87713148769465,
+        "avg": -1.5538759268135214,
+        "wr": 0.0,
+        "hold": 61.50119282936508
+      }
+    }
+  },
+  "suppressed_exit_events": 0,
+  "suppressed_session_events": 0,
+  "shadow_channels": [
+    "long|long_trend_v2",
+    "mid|exit_policy",
+    "mid|midlong",
+    "mid|sl",
+    "mid|trend_broken",
+    "short|lifecycle_time_decay",
+    "short|max_hold_timeout",
+    "short|scalp_review_time_decay",
+    "short|sl",
+    "short|symbol_removed"
+  ]
+}

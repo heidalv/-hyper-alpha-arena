@@ -1,0 +1,31 @@
+{
+  "trial": {
+    "legs": 782,
+    "net_bp": -745.0699999999998,
+    "legs_per_hour": 65.22357593973412
+  },
+  "verdict": "ROLLBACK",
+  "why": "frequency_collapse 65.2/h < 0.8×223.0/h",
+  "judged_at": "2026-09-28T16:56:01.543438+00:00",
+  "hours": 11.989529686666668,
+  "baseline": {
+    "legs": 2676,
+    "net_bp": -1073.0486999999998,
+    "legs_per_hour": 223.0
+  },
+  "welch": {
+    "t": -0.8457815858343322,
+    "p": 0.3979764334871342,
+    "mean_trial": -0.9527749360613811,
+    "mean_base": -0.40098979820627806,
+    "n_trial": 782,
+    "n_base": 2676,
+    "delta": -0.5517851378551031
+  },
+  "freq_ok": false,
+  "sub": {
+    "trial": {},
+    "baseline": {}
+  },
+  "dry_run": false
+}

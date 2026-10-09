@@ -1,0 +1,43 @@
+{
+  "label": "2026-09-28 13:00 起（当前时代）",
+  "hours": 15.822,
+  "legs": 42,
+  "net_usd": -18.731,
+  "weighted_net_bp": -53.283,
+  "weighted_price_bp": -47.502,
+  "weighted_fee_bp": -3.584,
+  "price_pct": {
+    "p10": -59.85,
+    "p50": -44.38,
+    "p90": 0.0
+  },
+  "median_overshoot_bp": 4.38,
+  "bands": [
+    {
+      "band": "−40 ~ −50",
+      "legs": 23,
+      "usd": -9.073,
+      "median_net_bp": -49.47
+    },
+    {
+      "band": "−50 ~ −60",
+      "legs": 8,
+      "usd": -4.472,
+      "median_net_bp": -61.55
+    },
+    {
+      "band": "−60 ~ −80",
+      "legs": 1,
+      "usd": -1.101,
+      "median_net_bp": -75.08
+    },
+    {
+      "band": "−80 ~ −120",
+      "legs": 3,
+      "usd": -4.085,
+      "median_net_bp": -98.52
+    }
+  ],
+  "counterfactual_no_overshoot_usd": -15.322,
+  "counterfactual_maker_fee_usd": 1.26
+}

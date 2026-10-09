@@ -1,0 +1,120 @@
+{
+  "hours": 24.0,
+  "maker_fee_bp": -0.5,
+  "hold_s": 30.0,
+  "delta_bp_old": 0.05,
+  "fracs": [
+    1.0,
+    0.75,
+    0.5,
+    0.25,
+    0.1
+  ],
+  "per_symbol": {
+    "BTC": {
+      "symbol": "BTCUSDT",
+      "n": 28579,
+      "spread_bp_median": 0.0124,
+      "cross_old": 0.8689,
+      "cross_new": 0.0,
+      "px_old_above_ask_bp": 0.0376,
+      "px_new_above_ask_bp": -0.0062,
+      "old_delta_bp": {
+        "fill_rate_on_sell_hits": 0.836,
+        "all_sell_hits": {
+          "n": 23893,
+          "mean": -0.5876,
+          "median": -0.5438,
+          "p5": -4.3807,
+          "p95": 3.3664,
+          "win": 0.3335
+        },
+        "px_vs_ask_bp": 0.0376,
+        "px_vs_mid_bp": 0.0438
+      },
+      "new_frac": {
+        "fill_rate_on_sell_hits": 0.7085,
+        "all_sell_hits": {
+          "n": 20247,
+          "mean": -0.5886,
+          "median": -0.5,
+          "p5": -4.552,
+          "p95": 3.5231,
+          "win": 0.3433
+        },
+        "px_vs_ask_bp": -0.0062,
+        "px_vs_mid_bp": 0.0
+      }
+    },
+    "ETH": {
+      "symbol": "ETHUSDT",
+      "n": 29576,
+      "spread_bp_median": 0.0388,
+      "cross_old": 0.7324,
+      "cross_new": 0.0,
+      "px_old_above_ask_bp": 0.0112,
+      "px_new_above_ask_bp": -0.0194,
+      "old_delta_bp": {
+        "fill_rate_on_sell_hits": 0.682,
+        "all_sell_hits": {
+          "n": 20170,
+          "mean": -0.7424,
+          "median": -0.5694,
+          "p5": -7.0438,
+          "p95": 5.3895,
+          "win": 0.404
+        },
+        "px_vs_ask_bp": 0.0112,
+        "px_vs_mid_bp": 0.0306
+      },
+      "new_frac": {
+        "fill_rate_on_sell_hits": 0.6506,
+        "all_sell_hits": {
+          "n": 19242,
+          "mean": -0.9192,
+          "median": -0.6132,
+          "p5": -8.2224,
+          "p95": 5.7814,
+          "win": 0.4076
+        },
+        "px_vs_ask_bp": -0.0194,
+        "px_vs_mid_bp": 0.0
+      }
+    },
+    "SOL": {
+      "symbol": "SOLUSDT",
+      "n": 18969,
+      "spread_bp_median": 0.9201,
+      "cross_old": 0.0,
+      "cross_new": 0.0,
+      "px_old_above_ask_bp": -0.8701,
+      "px_new_above_ask_bp": -0.46,
+      "old_delta_bp": {
+        "fill_rate_on_sell_hits": 0.7742,
+        "all_sell_hits": {
+          "n": 14685,
+          "mean": -0.2555,
+          "median": -0.097,
+          "p5": -7.4858,
+          "p95": 7.3033,
+          "win": 0.4325
+        },
+        "px_vs_ask_bp": -0.8701,
+        "px_vs_mid_bp": -0.41
+      },
+      "new_frac": {
+        "fill_rate_on_sell_hits": 0.804,
+        "all_sell_hits": {
+          "n": 15252,
+          "mean": -0.7665,
+          "median": -0.5,
+          "p5": -8.7612,
+          "p95": 6.9045,
+          "win": 0.426
+        },
+        "px_vs_ask_bp": -0.46,
+        "px_vs_mid_bp": 0.0
+      }
+    }
+  }
+}

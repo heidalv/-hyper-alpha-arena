@@ -1,0 +1,65 @@
+{
+  "hours": 168.0,
+  "symbols": {
+    "NEAR": {
+      "p1_f30": 1.099,
+      "p4_f30": null,
+      "p5_f30": null,
+      "median_rel_spread_bp": 6.179,
+      "median_abs_15s_ret_bp": 2.007,
+      "ofi_ac1": 0.252,
+      "vr60": 1.114,
+      "assign": "全形态"
+    },
+    "SUI": {
+      "p1_f30": 1.143,
+      "p4_f30": null,
+      "p5_f30": 1.278,
+      "median_rel_spread_bp": 3.942,
+      "median_abs_15s_ret_bp": 0.988,
+      "ofi_ac1": 0.1744,
+      "vr60": 1.251,
+      "assign": "全形态，但反转族谨慎（BNB 教训：vr 高 ⇒ 回调是趋势腿）"
+    },
+    "ARB": {
+      "p1_f30": 0.821,
+      "p4_f30": null,
+      "p5_f30": 2.722,
+      "median_rel_spread_bp": 7.401,
+      "median_abs_15s_ret_bp": 0.704,
+      "ofi_ac1": 0.0211,
+      "vr60": 1.169,
+      "assign": "全形态"
+    },
+    "ADA": {
+      "p1_f30": 0.799,
+      "p4_f30": null,
+      "p5_f30": null,
+      "median_rel_spread_bp": 4.379,
+      "median_abs_15s_ret_bp": 1.953,
+      "ofi_ac1": 0.1176,
+      "vr60": 0.978,
+      "assign": "全形态"
+    },
+    "XRP": {
+      "p1_f30": 0.762,
+      "p4_f30": 1.314,
+      "p5_f30": 0.81,
+      "median_rel_spread_bp": 1.297,
+      "median_abs_15s_ret_bp": 0.349,
+      "ofi_ac1": 0.0427,
+      "vr60": 1.151,
+      "assign": "全形态"
+    },
+    "ENA": {
+      "p1_f30": 0.721,
+      "p4_f30": null,
+      "p5_f30": 3.013,
+      "median_rel_spread_bp": 5.669,
+      "median_abs_15s_ret_bp": 1.186,
+      "ofi_ac1": 0.1121,
+      "vr60": 1.309,
+      "assign": "全形态，但反转族谨慎（BNB 教训：vr 高 ⇒ 回调是趋势腿）"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+轮129: 落地"六分析师数值化信号层"（一等 alpha 信号），并接进活主脑上下文
+
+用户指令（原话）：五分析师（基本面/量价/舆情/资金流/宏观）+ K线分析师 → 牛熊研究员对抗辩论
+→ 风控官（有否决权）→ 交易员；分析师每日 thesis 数值化后直接作为一等 alpha 信号进混合打分，
+这才是"LLM 充分介入"的日频落地，不再是装饰。本轮先落地其中最缺的一环：分析师数值化信号
+（审计实测：该环节生产调用点 = 0，即"分析师判断从未变成过数值信号"）。
+
+新增 backend/services/analysts/（契约 + 六域 scorer + 落库/读取/契约验收/主脑精简块）：
+- 六域与数据源（列名均经实测核对，不猜）：
+  fundamental ← market.news_events(category=exchange/regulatory/listing/macro) + macro_series（弱，已列缺口）
+  technical   ← market.crypto_klines（1h/4h/1d：EMA 结构 + RSI14 + 24h 区间位置 + 距 EMA200）
+  sentiment   ← market.news_events（ai_summary + affected_symbols + 方向 × 强度）
+  flow        ← perp_funding + position_structure + liquidation_ticks + whale_activities（拥挤度/清算取反向）
+  macro       ← analytics.strategic_reports（1121 行，10:44 仍在写）+ macro_series(DFF)
+  kline_deep  ← analytics.kline_ai_analysis_logs（实测 0 行 ⇒ 如实报 missing，不返回中性 0 冒充）
+- 纪律：每域要么给数值信号、要么给显式 missing（带 reason + missing_sources）；每条带 evidence 可回溯。
+- 落库 alpha_analytics.analyst_signals（含 missing 行）⇒ "某域没产出"成为可查询事实。
+
+接线（只在库里躺着不算落地）：
+- context_pack 新增第 8 层 `analysts`（midlong_thesis 任务默认带），并加 prompt 预算裁剪；
+- main.py 注册周期任务 analyst_signals_daily（1800s，幂等全量重算）—— 日频落地的执行体；
+- env：ANALYST_SIGNALS_ENABLED（默认 true，false=整层停用即回滚）、ANALYST_SIGNAL_LOOKBACK_H（默认 24）。
+
+实测（本轮，scripts/_verify129_analysts.py）：14 条信号落库；交付域=technical/flow/sentiment/macro（+fundamental=weak）；
+未交付域=kline_deep（原因：KlineAnalyst 每 24h 烧 ~222 次 LLM 但产物未落库）；
+主脑上下文 layers 现含 analysts，prompt 内可见 BTC flow +0.102 / sentiment +0.118 / technical -0.395 / macro -0.075。
+
+测试：backend/tests/unit/test_analyst_signals_20260920.py（10 项，含"每域必须交付或显式缺"、
+"missing 必须有原因"、"analysts 层必须在主脑上下文与 prompt 里"、"kline_deep 不许假装有信号"）。
+防复发：analysts.contract_report() 逐域对照"承诺 vs 交付"，单测据此断言。
+
+回滚：ANALYST_SIGNALS_ENABLED=false（不写库、不改任何既有判定）；或 git revert 本提交。

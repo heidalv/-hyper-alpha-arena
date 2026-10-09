@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent Wall · 移动端关系设计（无画布）</title>
+<style>
+.:root{}
+:root{
+  --bg:10 14 23; --card:17 24 39; --card-2:22 30 46; --border:31 41 55;
+  --profit:0 220 130; --loss:239 68 68; --primary:59 130 246;
+  --muted:107 114 128; --text:249 250 251; --warning:245 158 11; --purple:139 92 246;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(1000px 560px at 50% -150px, rgb(var(--primary) / .10), transparent 62%), rgb(var(--bg));
+  color:rgb(var(--text));font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  display:flex;align-items:flex-start;justify-content:center;gap:26px;padding:22px;flex-wrap:wrap}
+
+/* ═══════════ 手机 ═══════════ */
+.dev{width:390px;height:844px;background:rgb(var(--bg));border-radius:26px;overflow:hidden;display:flex;flex-direction:column;
+  border:1px solid rgb(var(--border) / .9);box-shadow:0 30px 70px -28px rgb(0 0 0 / .95);position:relative;flex:0 0 auto}
+.dev.live{outline:2px solid rgb(var(--primary) / .55);outline-offset:3px}
+.sysbar{flex:0 0 auto;height:30px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgb(var(--text) / .82)}
+.netstrip{flex:0 0 auto;margin:0 12px 7px;min-height:28px;border-radius:9px;display:flex;align-items:center;gap:7px;padding:0 10px;
+  background:rgb(var(--card) / .75);border:1px solid rgb(var(--border) / .7);font-size:11px}
+.netstrip .src{color:rgb(var(--muted));font-family:var(--mono);font-size:10px}
+.netstrip .age{margin-left:auto;font-family:var(--mono)}
+.pill{padding:2px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border));color:rgb(var(--text) / .8);font-size:10.5px;font-weight:600;cursor:pointer}
+.pill.on{background:rgb(var(--warning) / .18);border-color:rgb(var(--warning) / .5);color:rgb(var(--warning))}
+.appbar{flex:0 0 auto;padding:0 14px 9px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.appbar .title{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.appbar .sub{font-size:11px;color:rgb(var(--muted));margin-top:1px}
+.screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:0 12px 14px;scrollbar-width:none;position:relative}
+.screen::-webkit-scrollbar{display:none}
+.screen > * + *{margin-top:11px}
+.tabbar{flex:0 0 auto;display:flex;background:rgb(13 18 30 / .96);border-top:1px solid rgb(var(--border) / .8);padding-bottom:7px}
+.tabbar button{flex:1;min-height:48px;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgb(var(--muted));font-family:var(--font);font-size:10px;font-weight:500;cursor:pointer}
+.tabbar button.on{color:rgb(var(--primary));font-weight:650}
+.gesture{flex:0 0 auto;height:20px;display:grid;place-items:center;background:rgb(13 18 30 / .96)}
+.gesture i{width:110px;height:4px;border-radius:99px;background:rgb(var(--text) / .30)}
+
+.card{background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);border-radius:12px;padding:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.row.tight{gap:6px}
+.stack{display:flex;flex-direction:column}
+.muted{color:rgb(var(--muted))} .dim{color:rgb(var(--text) / .66)}
+.profit{color:rgb(var(--profit))} .loss{color:rgb(var(--loss))} .warn{color:rgb(var(--warning))} .vio{color:rgb(var(--purple))}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.h3{font-size:15px;font-weight:650} .tiny{font-size:10.5px} .sm{font-size:12px}
+.lbl{font-size:11px;color:rgb(var(--muted))}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2.5px 7px;border-radius:5px;background:rgb(var(--muted) / .16);color:rgb(var(--muted));white-space:nowrap}
+.badge.p{background:rgb(var(--profit) / .15);color:rgb(var(--profit))}
+.badge.l{background:rgb(var(--loss) / .15);color:rgb(var(--loss))}
+.badge.w{background:rgb(var(--warning) / .16);color:rgb(var(--warning))}
+.badge.b{background:rgb(var(--primary) / .16);color:rgb(var(--primary))}
+.badge.v{background:rgb(var(--purple) / .18);color:rgb(var(--purple))}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.p{background:rgb(var(--profit));box-shadow:0 0 8px rgb(var(--profit) / .7)}
+.dot.l{background:rgb(var(--loss))} .dot.w{background:rgb(var(--warning))}
+.dot.m{background:rgb(var(--muted))} .dot.b{background:rgb(var(--primary))} .dot.v{background:rgb(var(--purple))}
+.bar{height:5px;border-radius:99px;background:rgb(var(--border) / .9);overflow:hidden;display:flex}
+.bar > i{display:block;height:100%}
+.bar > i.p{background:rgb(var(--profit))} .bar > i.w{background:rgb(var(--warning))} .bar > i.l{background:rgb(var(--loss))}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border) / .7);color:rgb(var(--text) / .8);white-space:nowrap;cursor:pointer}
+.chip.on{background:rgb(var(--primary) / .16);border-color:rgb(var(--primary) / .45);color:rgb(var(--primary))}
+.hr{height:1px;background:rgb(var(--border) / .8);margin:10px -12px}
+.banner{border-radius:11px;padding:10px 11px;display:flex;gap:9px;align-items:flex-start;border:1px solid rgb(var(--loss) / .38);background:linear-gradient(180deg,rgb(var(--loss) / .16),rgb(var(--loss) / .05))}
+.banner.ok{border-color:rgb(var(--profit) / .34);background:linear-gradient(180deg,rgb(var(--profit) / .14),rgb(var(--profit) / .04))}
+.banner.wr{border-color:rgb(var(--warning) / .38);background:linear-gradient(180deg,rgb(var(--warning) / .17),rgb(var(--warning) / .05))}
+.banner .ic{width:27px;height:27px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;background:rgb(var(--loss) / .22);color:rgb(var(--loss))}
+.banner.ok .ic{background:rgb(var(--profit) / .2);color:rgb(var(--profit))}
+.banner.wr .ic{background:rgb(var(--warning) / .22);color:rgb(var(--warning))}
+
+/* ── 分组摘要行（替代画布总览） ── */
+.gsum{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:10px;background:rgb(var(--card));border:1px solid rgb(var(--border) / .8);cursor:pointer}
+.gsum .gid{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:700;background:rgb(var(--primary) / .16);color:rgb(var(--primary));flex:0 0 auto}
+.gsum .gn{flex:1;min-width:0}
+.gsum .gn b{font-size:12.5px;font-weight:650}
+.gsum .gn .m{font-size:10px;color:rgb(var(--muted));margin-top:1px}
+.ministack{display:flex;gap:2px;flex:0 0 auto}
+.ministack i{width:5px;height:16px;border-radius:2px;display:block}
+.ministack i.ok{background:rgb(var(--profit))}
+.ministack i.stale{background:rgb(var(--warning))}
+.ministack i.dead{background:rgb(var(--loss))}
+.ministack i.never,.ministack i.disabled{background:rgb(var(--muted) / .55)}
+
+/* ── 关系条（mini map） ══════════════ */
+.relwrap{margin-top:9px;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;scrollbar-width:none}
+.relwrap::-webkit-scrollbar{display:none}
+.rel{display:flex;align-items:stretch;gap:0;min-width:min-content}
+.rel .box{flex:0 0 auto;width:104px;border-radius:9px;padding:7px 8px;background:rgb(var(--card-2) / .75);border:1px solid rgb(var(--border) / .8)}
+.rel .box.sel{width:118px;border-color:rgb(var(--primary) / .6);background:rgb(var(--primary) / .10);box-shadow:0 0 0 1px rgb(var(--primary) / .25)}
+.rel .box .n{font-size:11px;font-weight:650;display:flex;align-items:center;gap:5px;line-height:1.3}
+.rel .box .s{font-family:var(--mono);font-size:9px;color:rgb(var(--muted));margin-top:3px}
+.rel .box .st{font-size:9.5px;margin-top:3px;font-weight:600}
+.rel .box.ok{border-left:2px solid rgb(var(--profit))}
+.rel .box.stale{border-left:2px solid rgb(var(--warning))}
+.rel .box.dead{border-left:2px solid rgb(var(--loss))}
+.rel .box.disabled{border-left:2px solid rgb(var(--border));opacity:.6}
+/* 边走线：移动端不能画 SVG 曲线，改用「带流动点的连接柱」 */
+.rel .edge{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;min-height:60px}
+.rel .edge .track{position:relative;width:100%;height:2px;background:rgb(var(--border));border-radius:2px;overflow:hidden}
+.rel .edge .track i{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%;background:rgb(var(--primary));box-shadow:0 0 7px rgb(var(--primary) / .9);animation:flow 2.1s linear infinite}
+.rel .edge .track i.b{background:rgb(var(--primary))}
+.rel .edge .track i.c{background:rgb(var(--profit));box-shadow:0 0 7px rgb(var(--profit) / .9)}
+.rel .edge .track i.d{background:rgb(var(--warning));box-shadow:0 0 7px rgb(var(--warning) / .9)}
+@keyframes flow{0%{left:-8%}100%{left:100%}}
+.rel .edge.idle .track i{animation:none;opacity:0}
+.rel .edge .el{font-size:8.5px;color:rgb(var(--muted));text-align:center;line-height:1.25;max-width:46px}
+.rel .edge.broken .track{background:repeating-linear-gradient(90deg,rgb(var(--loss)) 0 4px,transparent 4px 8px);height:2px}
+.rel .edge.broken .track i{display:none}
+.rel .edge.ineff .track{background:repeating-linear-gradient(90deg,rgb(var(--warning) / .8) 0 3px,transparent 3px 7px)}
+.rel .edge.ineff .track i{display:none}
+.edgekey{display:flex;gap:12px;flex-wrap:wrap;font-size:9.5px;color:rgb(var(--muted));margin-top:7px}
+.edgekey span{display:flex;align-items:center;gap:5px}
+.edgekey i.t{width:22px;height:2px;border-radius:2px;background:rgb(var(--primary));display:inline-block;position:relative}
+.edgekey i.t::after{content:"";position:absolute;top:-2px;left:8px;width:6px;height:6px;border-radius:50%;background:rgb(var(--primary))}
+.edgekey i.br{width:22px;height:2px;background:repeating-linear-gradient(90deg,rgb(var(--loss)) 0 4px,transparent 4px 8px);display:inline-block}
+.edgekey i.in{width:22px;height:2px;background:repeating-linear-gradient(90deg,rgb(var(--warning) / .8) 0 3px,transparent 3px 7px);display:inline-block}
+
+/* ── 链路透镜（竖向路径 + 并行泳道） ── */
+.path{position:relative;padding-left:2px}
+.pstep{display:grid;grid-template-columns:20px 1fr;gap:9px;position:relative}
+.pstep:not(:last-child)::before{content:"";position:absolute;left:9px;top:26px;bottom:-6px;width:2px;background:rgb(var(--border));border-radius:2px}
+.pstep.hot:not(:last-child)::before{background:rgb(var(--primary) / .7)}
+.pstep .dotc{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgb(var(--card-2));border:2px solid rgb(var(--border));font-size:9px;font-weight:700;color:rgb(var(--muted));position:relative;z-index:2;margin-top:2px}
+.pstep.ok .dotc{border-color:rgb(var(--profit));color:rgb(var(--profit))}
+.pstep.stale .dotc{border-color:rgb(var(--warning));color:rgb(var(--warning))}
+.pstep.dead .dotc{border-color:rgb(var(--loss));color:rgb(var(--loss));background:rgb(var(--loss) / .15)}
+.pstep .pbody{padding-bottom:11px;min-width:0}
+.pstep .plabel{font-size:10.5px;color:rgb(var(--muted));margin-bottom:5px}
+.pstep .prow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pstep .prow::-webkit-scrollbar{display:none}
+.pnode{flex:0 0 auto;border-radius:8px;padding:6px 8px;background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);min-width:88px}
+.pnode .n{font-size:11px;font-weight:650;display:flex;align-items:center;gap:5px}
+.pnode .s{font-family:var(--mono);font-size:9px;color:rgb(var(--muted));margin-top:2px}
+.pnode.ok{border-left:2px solid rgb(var(--profit))}
+.pnode.stale{border-left:2px solid rgb(var(--warning))}
+.pnode.dead{border-left:2px solid rgb(var(--loss));background:rgb(var(--loss) / .10)}
+.pnode.disabled{border-left:2px solid rgb(var(--border));opacity:.55}
+.flowline{height:2px;border-radius:2px;background:rgb(var(--border));margin:0 0 8px 28px;position:relative;overflow:hidden}
+.flowline i{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%;background:rgb(var(--primary));animation:flow 2.4s linear infinite}
+
+/* ── 流式日志 ── */
+.stream{background:rgb(12 17 27);border:1px solid rgb(var(--border) / .85);border-radius:11px;overflow:hidden}
+.stream .shead{display:flex;align-items:center;gap:7px;padding:8px 10px;background:rgb(var(--card-2) / .7);border-bottom:1px solid rgb(var(--border) / .7)}
+.stream .sbody{height:236px;overflow-y:auto;padding:4px 0;scrollbar-width:none}
+.stream .sbody::-webkit-scrollbar{display:none}
+.ln{display:grid;grid-template-columns:42px 1fr;gap:7px;padding:5px 10px;font-size:11px;line-height:1.5;border-left:2px solid transparent}
+.ln .t{font-family:var(--mono);font-size:9.5px;color:rgb(var(--muted));padding-top:2px}
+.ln .x{color:rgb(var(--text) / .9);word-break:break-word}
+.ln .x .src{color:rgb(var(--primary));font-weight:600}
+.ln.k-crit{border-left-color:rgb(var(--loss));background:rgb(var(--loss) / .07)}
+.ln.k-warn{border-left-color:rgb(var(--warning));background:rgb(var(--warning) / .06)}
+.ln.k-ok{border-left-color:rgb(var(--profit) / .6)}
+.ln.k-new{animation:flash 1s ease-out}
+@keyframes flash{from{background:rgb(var(--primary) / .24)}to{background:transparent}}
+.sfoot{display:flex;align-items:center;gap:7px;padding:6px 10px;border-top:1px solid rgb(var(--border) / .7);background:rgb(var(--card-2) / .5);font-size:9.5px;color:rgb(var(--muted))}
+.sfoot .rt{margin-left:auto;font-family:var(--mono)}
+
+.btn{min-height:38px;border-radius:8px;border:1px solid rgb(var(--border));background:transparent;color:rgb(var(--text));font-family:var(--font);font-size:12.5px;font-weight:650;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.btn.primary{background:rgb(var(--primary));border-color:rgb(var(--primary));color:#fff}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── 侧栏说明 ── */
+.side{width:360px;flex:0 1 auto;padding-top:4px}
+.side h1{font-size:19px;margin:0 0 8px;letter-spacing:-.3px}
+.side p{margin:0 0 14px;color:rgb(var(--muted));font-size:12.5px}
+.side h2{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:rgb(var(--muted));margin:18px 0 8px;font-weight:650}
+.side ul{margin:0;padding-left:17px;color:rgb(var(--muted));font-size:12px;line-height:1.8}
+.side li b{color:rgb(var(--text) / .85)}
+.side code{font-family:var(--mono);background:rgb(var(--card));padding:1px 5px;border-radius:4px;color:rgb(var(--text) / .8);font-size:11px}
+@media (max-width:900px){ .side{width:390px} }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ 屏 1：分组总览（替代画布总览） ══════════════════ -->
+<div class="dev">
+  <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px">AGENT WALL</span></div>
+  <div class="netstrip"><span class="dot p"></span><span>state 轮询</span><span class="src">agent-wall/state</span><span class="age profit">2.8s</span></div>
+  <div class="appbar">
+    <div><div class="title">分析墙 · 总览</div><div class="sub">38 节点 · 96 条边 · 不分画布</div></div>
+    <span class="badge l">1 断链</span>
+  </div>
+  <div class="screen">
+    <div class="card" style="padding:11px">
+      <div class="row"><span class="h3">链路健康</span><span class="badge w">2 处需看</span></div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <div style="flex:1"><div class="lbl">ok</div><div class="mono h3 profit">31</div></div>
+        <div style="flex:1"><div class="lbl">stale</div><div class="mono h3 warn">2</div></div>
+        <div style="flex:1"><div class="lbl">dead</div><div class="mono h3 loss">1</div></div>
+        <div style="flex:1"><div class="lbl">停用</div><div class="mono h3 muted">7</div></div>
+      </div>
+      <div class="bar" style="margin-top:9px"><i class="p" style="width:76%"></i><i class="w" style="width:5%"></i><i class="l" style="width:2.5%"></i></div>
+    </div>
+
+    <div class="banner wr">
+      <div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+      <div><div class="sm" style="font-weight:650">按组看：G2 有 1 条断链，G1 有 1 个 stale</div>
+        <div class="tiny dim" style="margin-top:2px">点任意一组 → 看组内节点；点节点 → 看它的上下游关系</div></div>
+    </div>
+
+    <div class="gsum"><span class="gid">G0</span>
+      <span class="gn"><b>数据与因子源</b><div class="m">4 节点 · 全部 ok · 3s 前</div></span>
+      <span class="ministack"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></span></div>
+
+    <div class="gsum" style="border-color:rgb(var(--warning) / .4)"><span class="gid">G1</span>
+      <span class="gn"><b>决策与论题</b><div class="m">9 节点 · 8 ok · <span class="warn">1 stale</span> · 12s 前</div></span>
+      <span class="ministack"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="stale"></i></span></div>
+
+    <div class="gsum" style="border-color:rgb(var(--loss) / .4)"><span class="gid">G2</span>
+      <span class="gn"><b>观察型 Agent</b><div class="m">6 节点 · 4 ok · <span class="loss">1 dead</span> · 建议未生效</div></span>
+      <span class="ministack"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="dead"></i><i class="disabled"></i></span></div>
+
+    <div class="gsum"><span class="gid">G4</span>
+      <span class="gn"><b>执行</b><div class="m">8 节点 · 6 ok · 2 已停用 · 12s 前</div></span>
+      <span class="ministack"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="disabled"></i><i class="disabled"></i></span></div>
+
+    <div class="gsum"><span class="gid">G5</span>
+      <span class="gn"><b>因子演化</b><div class="m">8 节点 · 全部 ok · 5m 前</div></span>
+      <span class="ministack"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></span></div>
+
+    <div class="card">
+      <div class="row"><span class="h3">为什么要这么分</span><span class="badge b">设计依据</span></div>
+      <div class="tiny dim" style="margin-top:7px;line-height:1.7">
+        画布的价值是「一眼看全局 + 看清连接」。手机上 38 节点 96 边必然重叠成毛线；
+        所以把这两个价值<b>拆开分别满足</b>：全局用分组摘要条（密度可控），
+        连接用「以某节点为焦点的关系条」（一次只画 3–5 个邻居，永远清晰）。
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <button class="on"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+  </div>
+  <div class="gesture"><i></i></div>
+</div>
+
+<!-- ══════════════════ 屏 2：节点焦点 · 关系条（核心） ══════════════════ -->
+<div class="dev">
+  <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px">AGENT WALL · 关系</span></div>
+  <div class="netstrip"><span class="dot p"></span><span>单节点 tail 在流</span><span class="src">node=midlong_exec</span><span class="age profit">0.4s</span></div>
+  <div class="appbar">
+    <div><div class="title">中线执行</div><div class="sub mono">midlong_exec · G4 · ok · 12s 前</div></div>
+    <span class="badge w">1 条未生效</span>
+  </div>
+  <div class="screen">
+
+    <div class="card">
+      <div class="row"><span class="h3">上游 → 本节点 → 下游</span><span class="tiny muted">← 横向滑动 →</span></div>
+      <div class="relwrap">
+        <div class="rel">
+          <div class="box ok"><div class="n"><span class="dot p"></span>论题库</div><div class="s">thesis_store</div><div class="st profit">ok</div></div>
+          <div class="edge"><div class="el">开仓权威</div><div class="track"><i class="c"></i></div></div>
+          <div class="box sel"><div class="n"><span class="dot b"></span>中线执行</div><div class="s">midlong_exec</div><div class="st profit">12s 前 · ok</div></div>
+          <div class="edge"><div class="el">持仓管理</div><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>持仓管理</div><div class="s">mid_position_mgr</div><div class="st profit">ok</div></div>
+          <div class="edge"><div class="el">退出触发</div><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>中线出场</div><div class="s">mid_exit</div><div class="st profit">ok</div></div>
+        </div>
+      </div>
+      <div class="edgekey">
+        <span><i class="t"></i>数据在流</span>
+        <span><i class="br"></i>断链</span>
+        <span><i class="in"></i>未生效（observe 短路）</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h3">全部上游（3）</span><span class="tiny muted">谁在喂它</span></div>
+      <div class="relwrap" style="margin-top:7px">
+        <div class="rel">
+          <div class="box ok"><div class="n"><span class="dot p"></span>论题库</div><div class="s">开仓权威</div></div>
+          <div class="edge"><div class="track"><i class="c"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>中线主脑</div><div class="s">开仓决策</div></div>
+          <div class="edge"><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>风控官</div><div class="s">放行/否决</div></div>
+          <div class="edge"><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>仓位计算</div><div class="s">position_sizing</div></div>
+          <div class="edge"><div class="track"><i class="b"></i></div></div>
+          <div class="box sel"><div class="n"><span class="dot b"></span>中线执行</div><div class="s">本节点</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h3">全部下游（4）</span><span class="tiny muted">它喂给谁</span></div>
+      <div class="relwrap" style="margin-top:7px">
+        <div class="rel">
+          <div class="box sel"><div class="n"><span class="dot b"></span>中线执行</div><div class="s">本节点</div></div>
+          <div class="edge"><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>持仓管理</div><div class="s">ok</div></div>
+          <div class="edge"><div class="track"><i class="b"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>决策审计</div><div class="s">audit 落盘</div></div>
+          <div class="edge ineff"><div class="el">未生效</div><div class="track"><i></i></div></div>
+          <div class="box stale"><div class="n"><span class="dot w"></span>因子路线</div><div class="s">AB 已停用</div></div>
+          <div class="edge"><div class="track"><i class="c"></i></div></div>
+          <div class="box ok"><div class="n"><span class="dot p"></span>中线出场</div><div class="s">mid_exit</div></div>
+        </div>
+      </div>
+      <div class="tiny muted" style="margin-top:7px">虚线 = 链路存在但被开关/observe 短路。<b>不是断链，也不是正常</b>——第三种状态必须单独表达。</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h3">本节点实时输出</span><span class="badge p">在流</span></div>
+      <div class="stream" style="margin-top:8px">
+        <div class="sbody" style="height:150px">
+          <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">中线执行｜</span>实盘 BTC opened 0.0098</span></div>
+          <div class="ln"><span class="t">09:41:07</span><span class="x"><span class="src">中线执行｜</span>模拟 BTC opened 0.0049</span></div>
+          <div class="ln"><span class="t">09:41:06</span><span class="x"><span class="src">中线执行｜</span>BTC 阶段=size 名义=998 杠杆=3</span></div>
+          <div class="ln k-warn"><span class="t">09:40:58</span><span class="x"><span class="src">审计｜</span>ETH skip 点差过宽</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <button class="btn">只看异常邻居</button>
+      <button class="btn primary">跑一次 dry-run</button>
+    </div>
+  </div>
+  <div class="tabbar">
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+  </div>
+  <div class="gesture"><i></i></div>
+</div>
+
+<!-- ══════════════════ 屏 3：链路透镜（纵向路径 + 并行泳道） ══════════════════ -->
+<div class="dev">
+  <div class="sysbar"><span>09:41</span><span class="mono" style="font-size:10px">AGENT WALL · 链路</span></div>
+  <div class="netstrip"><span class="dot p"></span><span>整链 tail 在流</span><span class="src">tail · 7 节点</span><span class="age profit">0.4s</span></div>
+  <div class="appbar">
+    <div><div class="title">链路透镜</div><div class="sub">从中线入口走到下单</div></div>
+    <span class="badge b">一条链</span>
+  </div>
+  <div class="screen">
+    <div class="chips">
+      <span class="chip on">中线开仓链</span><span class="chip">长线开仓链</span><span class="chip">高频报价链</span><span class="chip">因子演化链</span>
+    </div>
+
+    <div class="card" style="padding:11px 11px 3px">
+      <div class="path">
+        <div class="pstep ok">
+          <div class="dotc">1</div>
+          <div class="pbody"><div class="plabel">候选池</div>
+            <div class="prow">
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>AI 选币</div><div class="s">2m 前 · ok</div></div>
+            </div></div>
+        </div>
+        <div class="flowline"><i></i></div>
+
+        <div class="pstep ok">
+          <div class="dotc">2</div>
+          <div class="pbody"><div class="plabel">主脑产出论题（两侧共用）</div>
+            <div class="prow">
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>中线主脑</div><div class="s">12s · ok</div></div>
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>证据装配</div><div class="s">12s · ok</div></div>
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>六分析师</div><div class="s">12s · ok</div></div>
+            </div></div>
+        </div>
+        <div class="flowline"><i></i></div>
+
+        <div class="pstep ok">
+          <div class="dotc">3</div>
+          <div class="pbody"><div class="plabel">裁决（并行三路，任一路可否决）</div>
+            <div class="prow">
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>牛熊辩论</div><div class="s">裁决偏多</div></div>
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>风控官</div><div class="s">放行 · 有否决权</div></div>
+              <div class="pnode stale"><div class="n"><span class="dot w"></span>K线深度分析师</div><div class="s">6m · stale</div></div>
+            </div></div>
+        </div>
+        <div class="flowline"><i></i></div>
+
+        <div class="pstep ok">
+          <div class="dotc">4</div>
+          <div class="pbody"><div class="plabel">仓位计算</div>
+            <div class="prow">
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>仓位计算</div><div class="s">名义 $998 · 3x</div></div>
+            </div></div>
+        </div>
+        <div class="flowline"><i></i></div>
+
+        <div class="pstep hot">
+          <div class="dotc">5</div>
+          <div class="pbody"><div class="plabel">下单 — 两个环境在此分叉</div>
+            <div class="prow">
+              <div class="pnode ok" style="border-left-color:rgb(var(--purple))"><div class="n"><span class="dot v"></span>模拟落点</div><div class="s">虚拟成交 0.0049</div></div>
+              <div class="pnode ok" style="border-left-color:rgb(var(--loss))"><div class="n"><span class="dot l"></span>实盘落点</div><div class="s">成交 0.0098 · 滑点 0.2bp</div></div>
+            </div></div>
+        </div>
+        <div class="flowline"><i></i></div>
+
+        <div class="pstep ok">
+          <div class="dotc">6</div>
+          <div class="pbody"><div class="plabel">持仓管理 → 出场</div>
+            <div class="prow">
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>持仓管理</div><div class="s">12s · ok</div></div>
+              <div class="pnode ok"><div class="n"><span class="dot p"></span>中线出场</div><div class="s">12s · ok</div></div>
+            </div></div>
+        </div>
+        <div class="flowline" style="background:repeating-linear-gradient(90deg,rgb(var(--warning) / .8) 0 3px,transparent 3px 7px)"></div>
+
+        <div class="pstep stale">
+          <div class="dotc">7</div>
+          <div class="pbody"><div class="plabel">回灌（未生效）</div>
+            <div class="prow">
+              <div class="pnode disabled"><div class="n"><span class="dot m"></span>实验卡推进</div><div class="s">observe 短路 · 建议不生效</div></div>
+              <div class="pnode dead"><div class="n"><span class="dot l"></span>timing</div><div class="s">dead · 已停用</div></div>
+            </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h3">整链的运行情况</span><span class="badge p">6/7 步健康</span></div>
+      <div class="stack" style="margin-top:8px;gap:5px">
+        <div class="row sm"><span class="dim">上一次完整走通</span><span class="mono profit">12s 前</span></div>
+        <div class="row sm"><span class="dim">本链今日执行</span><span class="mono">开仓 14 · 被否决 6</span></div>
+        <div class="row sm"><span class="dim">最慢一步</span><span class="mono warn">辩论 1.8s <span class="tiny muted">（预算 3s）</span></span></div>
+        <div class="row sm"><span class="dim">断点</span><span class="badge w">第 7 步未生效</span></div>
+      </div>
+    </div>
+
+    <div class="stream">
+      <div class="shead"><span class="dot p"></span><span class="sm" style="font-weight:650">整链事件流</span><span class="tiny muted" style="margin-left:auto">0.4s</span></div>
+      <div class="sbody" style="height:120px">
+        <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">⑤下单｜</span>实盘 BTC opened</span></div>
+        <div class="ln"><span class="t">09:41:06</span><span class="x"><span class="src">④仓位｜</span>名义 $998</span></div>
+        <div class="ln k-ok"><span class="t">09:41:06</span><span class="x"><span class="src">③风控官｜</span>放行</span></div>
+        <div class="ln"><span class="t">09:41:05</span><span class="x"><span class="src">③辩论｜</span>裁决=偏多</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+    <button><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+  </div>
+  <div class="gesture"><i></i></div>
+</div>
+
+<!-- ══════════════════ 侧栏 ══════════════════ -->
+<aside class="side">
+  <h1>Agent Wall 移动端关系设计</h1>
+  <p>不用画布，但保留画布的三样东西：<b>全局分布</b>、<b>连接关系</b>、<b>当前运行情况</b>。</p>
+
+  <h2>核心思路：把「墙」换一个轴</h2>
+  <ul>
+    <li>画布是<b>二维全局</b>视图；手机换成<b>一维焦点</b>视图。</li>
+    <li><b>全局</b> → 分组摘要条：一组一行，右侧 mini 状态栈，密度天然可控。</li>
+    <li><b>连接</b> → 关系条：一次只画焦点节点的 3–5 个邻居，永远不重叠。</li>
+    <li><b>运行情况</b> → 关系条上的<b>流动点</b>表示边在传数据，虚线表示断链/未生效。</li>
+  </ul>
+
+  <h2>为什么关系条能替代画布</h2>
+  <ul>
+    <li>节点卡的<b>边框色 + 左侧竖条</b>＝画布上的节点状态灯。</li>
+    <li>节点卡下方的 <code>ok / 12s 前</code> ＝画布上的状态标注。</li>
+    <li>连接柱上的流动点 ＝ 画布上的动画边（数据在传）。</li>
+    <li>虚线连接柱 ＝ 画布上的红色/灰色边（断链 / 未生效）。</li>
+    <li>连接柱中央的标签 ＝ 画布上的边标签（"开仓权威"）。</li>
+  </ul>
+  <p style="margin-top:10px">换句话说：<b>画布上的每个视觉元素都有一一对应</b>，只是从"同时看到全部"改成"聚焦时看到相关的那几个"。</p>
+
+  <h2>三种视图的分工</h2>
+  <ul>
+    <li><b>屏 1 分组总览</b>：回答"哪里出问题了"。点进去 = 缩小范围。</li>
+    <li><b>屏 2 节点关系</b>：回答"这个节点和谁连着、哪条线不通"。是排查的主力页。</li>
+    <li><b>屏 3 链路透镜</b>：回答"业务上这条链走到哪一步了"。<b>这是画布做不到的</b>——画布只画拓扑，不画业务顺序。</li>
+  </ul>
+
+  <h2>交互细节</h2>
+  <ul>
+    <li>关系条横向滑动（<code>overflow-x</code>），纵向不劫持页面滚动。</li>
+    <li>相邻节点可点，等于「沿着边走一步」，比画布的缩放平移更适合拇指。</li>
+    <li>边标签在最窄处也保留：宁可换行，不省略（因为边标签就是业务语义）。</li>
+    <li>三种边状态：<b>实线流动</b>＝在传；<b>红虚线</b>＝断链；<b>黄虚线</b>＝未生效。<b>停用节点</b>半透明，不算故障。</li>
+  </ul>
+
+  <h2>数据映射（真实字段）</h2>
+  <ul>
+    <li>分组摘要：<code>/api/agent-wall/state</code> → <code>groups[]</code> 的 total/ok/stale/dead/never/disabled</li>
+    <li>节点四态：<code>nodes[].status</code>（ok/stale/dead/never/disabled）+ <code>status_detail.reason</code></li>
+    <li>边健康：<code>edges[].health.state</code>（ok/stale/broken/ineffective）+ <code>reason</code></li>
+    <li>边标签：<code>edges[].label</code>；边类型：<code>edges[].kind</code>（data/trigger/decision/audit/ledger/advice/config）</li>
+    <li>实时内容：<code>/api/agent-wall/tail?nodes=a,b</code>（≤12 节点，服务端游标增量）</li>
+  </ul>
+  <p style="margin-top:10px;font-size:11.5px">注：<code>edges[]</code> 已过滤悬空边（宁可少画也不画假边），所以关系条上的邻居一定真实存在。</p>
+</aside>
+
+</body>
+</html>

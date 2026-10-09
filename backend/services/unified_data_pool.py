@@ -2998,8 +2998,12 @@ class DataHub:
                         "volume_24h": float(ticker.get("volume_24h", 0) or 0),
                         "open_interest": float(ticker.get("open_interest", 0) or 0),
                         # [P2-修复] ticker 源（market_data / hyperliquid_market_data）返回
-                        # 的字段名是 percentage24h（小数百分比），此前读 price_change_24h_pct
-                        # 恒 0，导致 24h 涨跌幅不可信。兼容两种命名。
+                        # 的字段名是 percentage24h，此前读 price_change_24h_pct 恒 0，
+                        # 导致 24h 涨跌幅不可信。兼容两种命名。
+                        # [2026-09-24 口径更正] percentage24h 是**百分比**口径，不是小数：
+                        # hyperliquid REST 为 change/prev*100，CCXT 为 ticker['percentage']。
+                        # 旧注释「小数百分比」是错的，曾使位置闸按 |v|≤1 放大 100 倍
+                        # （把 −0.757% 读成 −75.7%，详见 midlong_location_gate._chg24_abs_max）。
                         "price_change_24h_pct": float(
                             ticker.get("price_change_24h_pct")
                             or ticker.get("percentage24h")

@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 
 from backend.database.connection import SessionLocal, get_db
 from backend.database.models import FullAutoSession, Account
+# [2026-09-19] 正文截断口径集中到 backend/utils/text_clip.py（旧为硬编码 [:120]，
+# 实测 mid 83%/long 68% 的条目顶在 120 字符，而主脑 reasoning_content 中位 2.8~3.8 千字）。
+from backend.utils.text_clip import clip as _clip_text
 from backend.services.full_auto_trading_service import full_auto_service
 
 logger = logging.getLogger(__name__)
@@ -140,6 +143,48 @@ def resume_full_auto(session_id: str, db: Session = Depends(get_db)):
     return full_auto_service.resume_session(db, session_id)
 
 
+@router.post("/stop-all")
+def stop_all_full_auto(also_disable_accounts: bool = True, db: Session = Depends(get_db)):
+    """**一键停止全部自动交易**（[2026-10-03 用户需求]「要一个统一管理的位置，分散不可见无法真正控制账户」）。
+
+    把**所有** running / defensive / paused 会话逐一停掉（走 `stop_session`：暂停并清理该会话
+    派生的策略）；`also_disable_accounts=true`（默认）时再把**所有账户**的
+    `auto_trading_enabled` 置 false ⇒ 一次动作即可"真正停手"，不必记清哪个页面管哪个开关。
+    返回 `stopped_sessions / failed / accounts_disabled`，逐项失败不阻断其余。
+    """
+    from backend.database.models import FullAutoSession, Account
+
+    sessions = db.query(FullAutoSession).filter(
+        FullAutoSession.status.in_(["running", "defensive", "paused"])
+    ).all()
+    stopped, failed = [], []
+    for s in sessions:
+        try:
+            full_auto_service.stop_session(db, s.session_id)
+            stopped.append(s.session_id)
+        except Exception as e:
+            failed.append({"session_id": s.session_id, "error": str(e)[:120]})
+
+    accounts_disabled = []
+    if also_disable_accounts:
+        for a in db.query(Account).filter(Account.auto_trading_enabled == "true").all():
+            try:
+                a.auto_trading_enabled = "false"
+                accounts_disabled.append(int(a.id))
+            except Exception as e:
+                failed.append({"account_id": int(a.id), "error": str(e)[:120]})
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            failed.append({"account_id": -1, "error": f"commit: {str(e)[:100]}"})
+
+    logger.warning("[FullAuto] 一键停止: 停会话 %d 个、关闭自动交易账户 %s",
+                   len(stopped), accounts_disabled)
+    return {"success": True, "stopped_sessions": stopped, "failed": failed,
+            "accounts_disabled": accounts_disabled}
+
+
 class AddSymbolsRequest(BaseModel):
     symbols: List[str]
     tier: Optional[str] = None  # short|mid|long；固定币写入目标周期
@@ -171,6 +216,17 @@ def remove_symbols(session_id: str, request: RemoveSymbolsRequest, db: Session =
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "移除失败"))
     return result
+
+
+def _bust_session_list_cache() -> None:
+    """会话列表有 10 秒缓存。不清掉的话，刚保存的中线固定币 / AI 开关 / 槽位
+    会被旧缓存盖回去，页面上看起来像「刷新归零」或「开了又自己关掉」。"""
+    try:
+        from backend.utils.ttl_cache import ttl_invalidate
+        ttl_invalidate("fullauto_sessions")
+        ttl_invalidate("fullauto_tier_status")
+    except Exception:
+        pass
 
 
 class FixedSymbolsByTierRequest(BaseModel):
@@ -238,6 +294,7 @@ def put_fixed_symbols_by_tier(
     except Exception:
         db.rollback()
     full_auto_service._invalidate_session_status_cache(session_id)
+    _bust_session_list_cache()
     return result
 
 
@@ -274,6 +331,7 @@ def _set_auto_coin_mid(session_id: str, enabled: bool, http_request: Request, db
     if session_id in full_auto_service._running_sessions:
         full_auto_service._running_sessions[session_id]["auto_coin_mid_enabled"] = bool(enabled)
     full_auto_service._invalidate_session_status_cache(session_id)
+    _bust_session_list_cache()
     logger.info(
         "[FullAuto] auto_coin_mid_enabled=%s session=%s",
         enabled, session_id,
@@ -435,6 +493,7 @@ def update_config(session_id: str, request: UpdateConfigRequest, http_request: R
             logger.warning(f"[FullAuto] 槽位变更后补仓触发失败 {session_id}: {e}")
 
     full_auto_service._invalidate_session_status_cache(session_id)
+    _bust_session_list_cache()
     logger.info(f"[FullAuto] 会话 {session_id} 配置更新: {updated}")
     return {
         "success": True,
@@ -1185,7 +1244,7 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
             "confidence": round(float(s.confidence or 0), 0) if s.confidence else 0,
             "block_reason": str(verdict.get("reason", ""))[:80],
             "source": str(s.source_lane or ""),
-            "reasoning": (s.ai_reasoning or "")[:120],
+            "reasoning": _clip_text(s.ai_reasoning or ""),
             "direction": s.direction or "",
             "tier_tag": _bucket,
             "lane_note": (
@@ -1272,7 +1331,7 @@ def _tier_activity_impl(session_id: str, limit: int, db: Session) -> dict:
             _dir = str(_payload.get("direction") or ev[7] or "").lower()
             _accepted = ev[8]
             _rec_open = ev[9]
-            _summary = str(ev[10] or "")[:120]
+            _summary = _clip_text(str(ev[10] or ""))
             # 动作与文案映射（新主脑事件无 summary，用状态组合出可读文案）
             if _ev_type == "open_blocked":
                 _action = "拦截"

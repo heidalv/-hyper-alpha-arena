@@ -17,6 +17,8 @@ import logging
 
 from backend.database.connection import SessionLocal, AnalyticsSessionLocal
 from backend.database.models import AIDecisionLog, Account, SystemConfig
+# [2026-09-19] 决策理由截断口径集中到 backend/utils/text_clip.py（旧为硬编码 [:200]）
+from backend.utils.text_clip import clip as _clip_text
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +241,7 @@ async def get_recent_decisions(
                     "operation": d.operation,
                     "prev_portion": float(d.prev_portion) if d.prev_portion else 0,
                     "target_portion": float(d.target_portion) if d.target_portion else 0,
-                    "reasoning": (d.reason[:200] + "...") if d.reason and len(d.reason) > 200 else d.reason,
+                    "reasoning": _clip_text(d.reason),
                     "executed": d.executed == "true",
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                 }

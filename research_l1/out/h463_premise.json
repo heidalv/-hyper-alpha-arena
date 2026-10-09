@@ -1,0 +1,34 @@
+{
+  "legs_24h": 3268,
+  "by_tag": {
+    "(空)": {
+      "n": 3268,
+      "holds": 0,
+      "ge40": 0,
+      "paths": {
+        "(空)": 2870,
+        "jump_exit_taker": 103,
+        "timeout_hard_taker": 113,
+        "take_profit_taker": 15,
+        "reversal_decay_taker": 15,
+        "stop_loss_taker": 41,
+        "orphan_taker(orphan_flatten)": 1,
+        "trail_lock_taker": 10,
+        "ofi_flatten_taker": 100
+      }
+    }
+  },
+  "paths": {
+    "(空)": 2870,
+    "jump_exit_taker": 103,
+    "timeout_hard_taker": 113,
+    "take_profit_taker": 15,
+    "reversal_decay_taker": 15,
+    "stop_loss_taker": 41,
+    "orphan_taker(orphan_flatten)": 1,
+    "trail_lock_taker": 10,
+    "ofi_flatten_taker": 100
+  },
+  "hold_n": 0,
+  "hold_ge40": 0
+}

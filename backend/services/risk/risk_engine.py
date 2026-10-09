@@ -103,7 +103,8 @@ class RiskEngine:
         self.counters: Dict[str, int] = {"allowed": 0, "blocked": 0, "errors": 0, "ticks": 0}
         self.last_block: Optional[Dict[str, Any]] = None
         self.last_tick: Dict[str, Any] = {}
-        self._peaks: Dict[int, float] = {}   # account_id → 本进程观察到的权益峰值（回撤分级用）
+        self._peaks: Dict[int, float] = {}
+        self._peak_at: Dict[int, float] = {}   # [2026-10-03] account_id -> 峰值观测时刻（重置基线判定）   # account_id → 本进程观察到的权益峰值（回撤分级用）
 
     @property
     def enabled(self) -> bool:
@@ -251,7 +252,19 @@ class RiskEngine:
         return out
 
     def _tick_drawdown(self, store) -> Dict[str, Any]:
-        """用 paper_balances 权益 vs 本进程/会话峰值做组合回撤分级。"""
+        """用 paper_balances 权益 vs 本进程/会话峰值做组合回撤分级。
+
+        [2026-10-03 修复 · 用户口径「重置后就不该被当成崩盘」]
+        实测故障：进程内峰值缓存 `_peaks` **在账户重置/改金额时不清零** —— 监控曾在权益 ≈5000 时
+        记下峰值，用户把金额改成 500（或做完整重置）后，下一次 tick 算出「组合回撤 90.0% ≥ 30%」，
+        把 TradingState 置为 **REDUCING 24 小时**（`history: note="drawdown:组合回撤 90.0% ≥ 30%"`，
+        source=drawdown），于是**所有新开仓在 RiskEngine v3 被拦**（实测 ETH long 被
+        `trading_state_reducing` 拒绝，连中线修好的门禁也过不了闸）。
+        用户主动改金额/重置属于**资金变动**，不是交易亏损 ⇒ 不能计入回撤。
+        修法：读 `paper_balances.last_reset_at`，若该账户在"本进程观察到峰值之后"发生过重置，
+        则该账户的峰值基线**立即重置为当前权益**（本次及后续 tick 都不再把它当回撤）。
+        回滚：`RISK_DD_IGNORE_RESET=false`。
+        """
         from backend.database.connection import SessionLocal
         from backend.core.tenant import set_system_identity
         from sqlalchemy import text
@@ -263,12 +276,21 @@ class RiskEngine:
             worst_scale = 1.0
             worst_dd = None
             for aid in accounts:
-                row = db.execute(text("SELECT total_equity FROM paper_balances WHERE account_id = :a"), {"a": aid}).fetchone()
+                row = db.execute(
+                    text("SELECT total_equity, last_reset_at FROM paper_balances WHERE account_id = :a"),
+                    {"a": aid},
+                ).fetchone()
                 if not row or row[0] is None:
                     continue
                 equity = float(row[0])
-                peak = self._session_peak(db, aid) or self._observe_peak(aid, equity)
-                peak = max(peak, self._observe_peak(aid, equity))
+                # [2026-10-03] 重置/改金额之后，旧峰值不再作为回撤基线
+                if _env_true("RISK_DD_IGNORE_RESET", True) and self._reset_since_peak(aid, row[1] if len(row) > 1 else None):
+                    self.reset_peak(aid)
+                    results.setdefault(f"{aid}:baseline_reset", True)
+                    peak = equity
+                else:
+                    peak = self._session_peak(db, aid) or self._observe_peak(aid, equity)
+                    peak = max(peak, self._observe_peak(aid, equity))
                 dd = drawdown_tier(equity, peak)
                 results[str(aid)] = {"equity": round(equity, 2), "peak": round(peak, 2), **dd.to_dict()}
                 if dd.scale < worst_scale:
@@ -332,11 +354,39 @@ class RiskEngine:
             if equity > p:
                 p = equity
                 self._peaks[int(account_id)] = p
+                # [2026-10-03] 记录峰值观测时刻，供"重置后基线重置"判定使用
+                self._peak_at[int(account_id)] = time.time()
             return p
+
+    def _reset_since_peak(self, account_id: int, last_reset_at: Any) -> bool:
+        """账户是否在"本进程观察到峰值之后"发生过重置/改金额。
+
+        [2026-10-03] 用户主动的资金变动不应被当成回撤（详见 `_tick_drawdown` docstring）。
+        判定：`paper_balances.last_reset_at` 晚于该账户的峰值观测时刻；无峰值时刻时，
+        只要有重置水位就按"重置后新基线"处理（保守偏向不误触发 REDUCING）。
+        """
+        if last_reset_at is None:
+            return False
+        try:
+            # 本文件风格：按需局部导入（模块顶层没有 datetime，只有 time）
+            from datetime import datetime as _dt, timezone as _tz
+
+            ts = last_reset_at
+            if isinstance(ts, str):
+                ts = _dt.fromisoformat(ts.replace("Z", "+00:00"))
+            if getattr(ts, "tzinfo", None) is None:
+                ts = ts.replace(tzinfo=_tz.utc)
+            reset_ts = ts.timestamp()
+        except Exception:
+            return False
+        with self._lock:
+            peak_ts = self._peak_at.get(int(account_id))
+        return peak_ts is None or reset_ts >= float(peak_ts)
 
     def reset_peak(self, account_id: int) -> None:
         with self._lock:
             self._peaks.pop(int(account_id), None)
+            self._peak_at.pop(int(account_id), None)
 
     # ───────────────────────────── status ─────────────────────────────
     def status(self, db=None, account_id: Optional[int] = None) -> Dict[str, Any]:
@@ -431,3 +481,4 @@ def pre_trade(db, req: PreTradeRequest) -> RiskVerdict:
 def run_tick_job() -> Dict[str, Any]:
     """调度器入口（v3_jobs_ext 注册，60s）。"""
     return get_risk_engine_v3().tick()
+

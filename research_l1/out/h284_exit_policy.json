@@ -1,0 +1,60 @@
+[
+  {
+    "name": "P0 固定6/5 超时90s",
+    "n": 718,
+    "gross_mean_bp": 0.153,
+    "net_mean_bp": -1.039,
+    "mae_mean_bp": -3.119,
+    "exit_types": {
+      "timeout": 504,
+      "sl": 170,
+      "tp": 44
+    },
+    "side": {
+      "long": {
+        "n": 362,
+        "gross": 0.125,
+        "net": -1.002
+      },
+      "short": {
+        "n": 356,
+        "gross": 0.182,
+        "net": -1.077
+      }
+    },
+    "blocked": {
+      "long": 0,
+      "short": 0
+    },
+    "gate_blocked": 0
+  },
+  {
+    "name": "P3 反转衰减 TP12 超时120s",
+    "n": 718,
+    "gross_mean_bp": 0.132,
+    "net_mean_bp": -0.007,
+    "mae_mean_bp": -1.34,
+    "exit_types": {
+      "timeout": 112,
+      "decay": 581,
+      "tp": 25
+    },
+    "side": {
+      "long": {
+        "n": 362,
+        "gross": -0.064,
+        "net": -0.175
+      },
+      "short": {
+        "n": 356,
+        "gross": 0.332,
+        "net": 0.163
+      }
+    },
+    "blocked": {
+      "long": 0,
+      "short": 0
+    },
+    "gate_blocked": 0
+  }
+]

@@ -280,7 +280,17 @@ VOL_TOO_HIGH = 0.08                 # ATR% > 8% → 极端行情，降级开仓
 VOL_HIGH_SIZE_FACTOR = 0.5          # 高波动时仓位缩至 50%
 
 # 方向集中度 — 动态评估，不设死上限
-MAX_SAME_DIRECTION_POSITIONS_SAFETY_NET = 10
+# [P6 bug 修复⑥ 2026-09-28] 极端安全网改为可配（原硬编码 10）：旧 $60 名义时代标定的
+# 计数护栏在新一次定价（单笔风险预算 0.6%/1.0%）下等于把系统冻死在 8.5% 保证金占用
+# （生产实证：41 次定价 0 成交，全是"同方向已有10个持仓≥安全网10"）。
+# 对齐设计 §13.2（日内 6 + 趋势 6 = 12）取 1.33× 缓冲 = 16；集中度惩罚
+# （DIRECTION_CONCENTRATION_START 起 +5%/仓 置信度）继续是真正的调节器。
+# 回滚：MIDLONG_MAX_SAME_DIRECTION_SAFETY_NET=10。
+try:
+    MAX_SAME_DIRECTION_POSITIONS_SAFETY_NET = max(
+        1, int(os.getenv("MIDLONG_MAX_SAME_DIRECTION_SAFETY_NET", "10") or 10))
+except (TypeError, ValueError):
+    MAX_SAME_DIRECTION_POSITIONS_SAFETY_NET = 10
 DIRECTION_CONCENTRATION_PENALTY_PER_POS = 0.05
 DIRECTION_CONCENTRATION_START = 2
 
@@ -290,6 +300,46 @@ PYRAMID_MIN_PROFIT_PCT = 0.015                  # 浮盈 >= 1.5% 才可加仓 �
 PYRAMID_COOLDOWN_MINUTES = 60                   # 两次加仓间隔 >= 1 小时 — 被 TIER_PYRAMID_PARAMS 覆盖
 PYRAMID_SIZE_RATIOS = [0.50, 0.25]              # 第 1 次加仓 50%、第 2 次 25% — 被 TIER_PYRAMID_PARAMS 覆盖
 PYRAMID_MIN_CONFIDENCE = 0.35                   # 加仓需要至少 35% 置信度
+
+
+def _pyramid_leg_reset_verdict(existing_position: dict, add_count: int,
+                               force: bool = False) -> Tuple[int, str]:
+    """「加仓次数」的**趋势段口径**（默认关；[2026-10-02] 用户投诉"从没出现过加仓"的修复件）。
+
+    背景（实测，可复核）：
+      `paper_positions.add_count` 是**仓位终身累计**、任何情况下都不重置 —— BTC #4712 在 09-20
+      用满 3 次后，即使浮盈 +43%、4h/1d 同向，也被 `evaluate_pyramid` 的
+      「已加仓3次，达tier上限3」永久拦下（近 7 天日志该拒因 **190 次**，是"从不加仓"的头号堵点；
+      同期 ADX 拒因仅 69 次，而 ADX≥25 实测 30 天占比 **43.6%** ⇒ ADX 门槛不是不可达，无需动）。
+
+    本函数：开关 `MIDLONG_PYRAMID_LEG_RESET=true` 时，若距上次加仓已超过
+    `MIDLONG_PYRAMID_LEG_RESET_HOURS`（默认 24h），视为进入**新的趋势段**，计数清零
+    （于是最多还能再加 max_adds 次，浮盈门槛也从第一档重新起算）。
+    `force=True` 只用于**影子观测**（开关关着时也算一遍，打印"若开启会怎样"），不改变行为。
+
+    回滚：`MIDLONG_PYRAMID_LEG_RESET=false`（**默认**，与修复前逐位一致）。
+    """
+    if add_count <= 0:
+        return add_count, ""
+    _on = force or str(os.getenv("MIDLONG_PYRAMID_LEG_RESET", "false")).strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+    if not _on:
+        return add_count, ""
+    last = str(existing_position.get("last_add_at") or "").strip()
+    if not last:
+        return add_count, ""
+    try:
+        ts = datetime.fromisoformat(last.replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        hours = (datetime.now(timezone.utc) - ts).total_seconds() / 3600.0
+        window = float(os.getenv("MIDLONG_PYRAMID_LEG_RESET_HOURS", "24") or 24)
+    except (ValueError, TypeError):
+        return add_count, ""
+    if hours >= window:
+        return 0, (f"趋势段重置: add_count {add_count}→0（距上次加仓 {hours:.1f}h ≥ {window:.0f}h）")
+    return add_count, ""
 
 
 def trend_pyramid_gate(
@@ -2035,6 +2085,10 @@ class PositionMemoryManager:
         from backend.database.models import PaperBalance
 
         add_count = existing_position.get("add_count", 0) or 0
+        # [2026-10-02] 可选：按趋势段重置终身计数（默认关；见 _pyramid_leg_reset_verdict）
+        add_count, _leg_note = _pyramid_leg_reset_verdict(existing_position, add_count)
+        if _leg_note:
+            logger.info("[PosMgr][PyramidLeg] %s %s %s", symbol, side, _leg_note)
         margin = float(existing_position.get("margin", 0))
         upnl = float(existing_position.get("unrealized_pnl", 0))
         pnl_pct = upnl / margin if margin > 0 else 0
@@ -2061,6 +2115,21 @@ class PositionMemoryManager:
         sl_lock_ratio = tier_cfg.get("sl_lock_ratio", 0.50)
 
         if add_count >= max_adds:
+            # [2026-10-02 影子观测] 开关关着时也算一遍：若按趋势段重置，这次会不会放行？
+            # 只打日志、不改变返回值（决策靠数据，不靠拍脑袋）。
+            try:
+                if str(os.getenv("MIDLONG_PYRAMID_LEG_RESET", "false")).strip().lower() not in (
+                    "1", "true", "yes", "on",
+                ):
+                    _prop, _pnote = _pyramid_leg_reset_verdict(existing_position, add_count, force=True)
+                    if _pnote:
+                        logger.info(
+                            "[PyramidShadow] %s %s tier=%s 本次被『终身上限』拦下，但若开 "
+                            "MIDLONG_PYRAMID_LEG_RESET=true 则可加仓（%s）",
+                            symbol, side, tier, _pnote,
+                        )
+            except Exception as _shadow_err:
+                logger.debug("[PyramidShadow] 计算跳过: %s", _shadow_err)
             return self._skip_plan(symbol, side,
                 f"已加仓{add_count}次，达tier={tier}上限{max_adds}")
 

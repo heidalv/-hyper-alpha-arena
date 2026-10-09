@@ -8,6 +8,15 @@ from unittest.mock import MagicMock
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _pin_legacy_dedupe(monkeypatch):
+    """[R4 2026-09-28] 本文件第 2 个用例锁定的是"已有 postmortem ⇒ 不 bump"的
+    **按 thesis** 语义 = `MLTO_OWM_PER_TRADE_DEDUPE=false` 的回滚档。
+    逐笔去重的正/反契约见 `test_owm_per_trade_dedupe_20260928.py`。
+    """
+    monkeypatch.setenv("MLTO_OWM_PER_TRADE_DEDUPE", "false")
+
+
 def test_normalize_owm_tier():
     from backend.services.mlto.learning_bridge import _normalize_owm_tier
 

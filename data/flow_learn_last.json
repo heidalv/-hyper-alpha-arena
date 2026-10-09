@@ -1,0 +1,74 @@
+{
+  "ts": 1791564105.8985665,
+  "hours": 24,
+  "n_roundtrips": 17,
+  "win_rate": 0.294,
+  "avg_net_bp": -938.71,
+  "cohorts": [
+    {
+      "name": "全部",
+      "n": 17,
+      "win_rate": 0.294,
+      "avg_net_bp": -938.71,
+      "avg_entry_bp": -0.63,
+      "avg_exit_bp": 18.04,
+      "avg_hold_sec": 40990.4
+    },
+    {
+      "name": "主动流往返",
+      "n": 7,
+      "win_rate": 0.286,
+      "avg_net_bp": -2143.19,
+      "avg_entry_bp": 1.48,
+      "avg_exit_bp": 24.44,
+      "avg_hold_sec": 60537.2
+    },
+    {
+      "name": "孤儿吃单强平",
+      "n": 4,
+      "win_rate": 0.25,
+      "avg_net_bp": -439.55,
+      "avg_entry_bp": -2.06,
+      "avg_exit_bp": -9.96,
+      "avg_hold_sec": 35454.9
+    },
+    {
+      "name": "其余",
+      "n": 7,
+      "win_rate": 0.286,
+      "avg_net_bp": -91.02,
+      "avg_entry_bp": -0.89,
+      "avg_exit_bp": 23.0,
+      "avg_hold_sec": 25646.9
+    },
+    {
+      "name": "主动流且持仓不超过90秒",
+      "n": 0
+    },
+    {
+      "name": "主动流且没有吃单腿",
+      "n": 0
+    },
+    {
+      "name": "主动流且两边都吃单",
+      "n": 6,
+      "win_rate": 0.167,
+      "avg_net_bp": -2515.15,
+      "avg_entry_bp": 2.54,
+      "avg_exit_bp": 27.46,
+      "avg_hold_sec": 63575.5
+    },
+    {
+      "name": "持仓超过300秒后吃单离场",
+      "n": 6,
+      "win_rate": 0.333,
+      "avg_net_bp": -402.94,
+      "avg_entry_bp": -4.28,
+      "avg_exit_bp": 13.67,
+      "avg_hold_sec": 32968.5
+    }
+  ],
+  "positive_slices": [],
+  "worst_slices": [],
+  "rule": "正收益只出现在挂单进、挂单出的少数往返里，样本还少，不能当成已经学会。持仓超过 300 秒后再吃单离场是亏损的主要来源，这种离场继续禁止。新样本继续写入 flow_learn_samples.jsonl，凑够 30 趟挂单往返再决定能不能放宽进场。"
+}

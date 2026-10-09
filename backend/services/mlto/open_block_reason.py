@@ -58,3 +58,57 @@ def take_open_block() -> Optional[Dict[str, Any]]:
 
 def clear_open_block() -> None:
     _BLOCK.set(None)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# [2026-09-18 解冻·选项E] 按 (symbol, tier) 留存的"最近一次否决原因"
+#
+# 为什么需要第二个通道：ContextVar 版是**取走即清空**（take_）语义，而
+# `midlong_helpers.record_exec_false_audit()`（在 try_execute_independent_agent_open 内部、
+# 即 brain 调用的那个函数里）已经把它 take 走了 ⇒ 上层 brain 在 `execute_midlong_open()`
+# 返回后 peek 只会得到 None。于是 `open_execute_false` 事件（近 48h 321 条）**完全没有原因**，
+# 其中 160 条是 mid 做多 ⇒ "多头为什么被否"在台账里查不到。
+#
+# 本通道**不改变** take 语义（既有消费者一字未动），只是额外记一份按 (symbol,tier) 归位的副本，
+# 供上层在返回后读取。写入方覆盖旧值、读取方自行清理，故不会跨决策串味。
+# 只影响审计文本，**不参与任何交易判定**。
+# ══════════════════════════════════════════════════════════════════════════
+_LAST: Dict[tuple, Dict[str, Any]] = {}
+_LAST_MAX = 512  # 防御性上限（symbol×tier 组合远小于此）
+
+
+def remember_open_block(symbol: str, tier: str, code: str, *,
+                        detail: str = "", layer: str = "") -> None:
+    """按 (symbol, tier) 记下最近一次否决原因（覆盖旧值）。"""
+    try:
+        key = (str(symbol or "").strip().upper(), str(tier or "").strip().lower())
+        if len(_LAST) >= _LAST_MAX and key not in _LAST:
+            _LAST.clear()  # 极端情况下清空，绝不无界增长
+        _LAST[key] = {
+            "code": str(code or "").strip()[:80],
+            "detail": str(detail or "")[:200],
+            "layer": str(layer or "").strip()[:40],
+        }
+    except Exception as exc:  # pragma: no cover
+        logger.debug("[OpenBlock] remember 失败: %s", exc)
+
+
+def last_open_block(symbol: str, tier: str) -> Optional[Dict[str, Any]]:
+    """读取 (symbol, tier) 的最近一次否决原因（只读，不清理）。"""
+    try:
+        key = (str(symbol or "").strip().upper(), str(tier or "").strip().lower())
+        return _LAST.get(key)
+    except Exception:  # pragma: no cover
+        return None
+
+
+def clear_last_open_block(symbol: str = "", tier: str = "") -> None:
+    """清理：给定 symbol+tier 清一条；都不给则全清。"""
+    try:
+        if symbol or tier:
+            _LAST.pop((str(symbol or "").strip().upper(),
+                       str(tier or "").strip().lower()), None)
+        else:
+            _LAST.clear()
+    except Exception:  # pragma: no cover
+        pass

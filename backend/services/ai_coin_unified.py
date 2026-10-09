@@ -73,6 +73,11 @@ _HARD_DENY_SYMBOLS = frozenset({
 })
 
 
+def is_hard_deny_symbol(symbol: str) -> bool:
+    """[2026-09-17] 供看板扫描/展示层复用：股票/ETF/传统资产永续一律不入 AI 选币。"""
+    return str(symbol or "").strip().upper() in _HARD_DENY_SYMBOLS
+
+
 def _ai_quality_thresholds() -> Dict[str, float]:
     """流动性 / 新鲜度门槛（可用环境变量覆盖）。"""
     try:
@@ -150,10 +155,14 @@ def _kline_ages_sec(symbols: List[str]) -> Dict[str, float]:
     return ages
 
 
-def filter_tradeable_ai_symbols(symbols: List[str]) -> List[str]:
+def filter_tradeable_ai_symbols(
+    symbols: List[str], *, require_fresh: bool = True
+) -> List[str]:
     """AI 选币可读/可写过滤：股票 ETF / 目录 / 流动性 / 新鲜度。
 
     目录或行情快照拉取失败时 fail-open（只应用硬拒绝表），避免 DC 抖动清空选币。
+    [2026-09-18] require_fresh=False 供扫描/宇宙层使用：跳过 1m K线新鲜度否决——
+    数据过期该靠采集恢复，不该靠「不推荐」封死（否则淘汰→停采→过期→进不来 自锁）。
     """
     raw = [str(s).strip().upper() for s in (symbols or []) if s]
     if not raw:
@@ -199,6 +208,17 @@ def filter_tradeable_ai_symbols(symbols: List[str]) -> List[str]:
     liq = _liquidity_snapshot()
     ages = _kline_ages_sec(in_catalog) if in_catalog else {}
 
+    # [2026-09-18] 交易所对齐：实际交易所在 get_active_exchange()（当前=binance）。
+    # 原「必须上 Hyperliquid」是 HY 时代的残留，会错杀币安可正常交易的币；
+    # 混合宇宙 rank 对本所币也失真（实测 TIA 在币安主流币却被判 rank>120 误杀）。
+    # 新口径：在活跃所上架的币，流动性只按成交量（vol）判；venue/rank 门槛仅
+    # 用于「快照未能确认在活跃所」的币。AI_COIN_REQUIRE_HYPERLIQUID=0 可整体关闭。
+    try:
+        from backend.services.exchange_config import get_active_exchange as _gae
+        active_ex = (_gae() or "binance").strip().lower()
+    except Exception:
+        active_ex = "binance"
+
     out: List[str] = []
     dropped_q: List[str] = []
     for s in in_catalog:
@@ -208,16 +228,19 @@ def filter_tradeable_ai_symbols(symbols: List[str]) -> List[str]:
             vol = float(snap.get("volume_24h") or 0.0)
             rank = int(snap.get("rank") or 10**9)
             exs = set(snap.get("exchanges") or [])
+            on_active = active_ex in exs
             if vol < float(th["min_vol"]):
                 reasons.append(f"vol<{th['min_vol']:.0f}")
-            if rank > int(th["max_rank"]):
-                reasons.append(f"rank>{int(th['max_rank'])}")
-            if th["require_hl"] >= 1.0 and "hyperliquid" not in exs:
-                reasons.append("no_hyperliquid")
+            if not on_active:
+                if th["require_hl"] >= 1.0:
+                    reasons.append(f"no_{active_ex}")
+                if rank > int(th["max_rank"]):
+                    reasons.append(f"rank>{int(th['max_rank'])}")
         # 无行情快照时不做流动性否决（fail-open）
-        age = ages.get(s) if ages else None
-        if age is not None and age > float(th["max_age_sec"]):
-            reasons.append(f"kline_age>{th['max_age_sec']:.0f}s")
+        if require_fresh:
+            age = ages.get(s) if ages else None
+            if age is not None and age > float(th["max_age_sec"]):
+                reasons.append(f"kline_age>{th['max_age_sec']:.0f}s")
         if reasons:
             dropped_q.append(f"{s}({','.join(reasons)})")
             continue
@@ -235,9 +258,13 @@ def set_tier_symbols(
     reason: str = "",
     extra: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """写某一档的当前选中币（选择器/中线重采样完成后调用）。"""
+    """写某一档的当前选中币（选择器/中线重采样完成后调用）。
+
+    [2026-09-17] 新增 tier='long'：AI 长线候选 sticky（与 mid 同构，
+    供手动采纳与采集宇宙消费）。
+    """
     tier = (tier or "").strip().lower()
-    if tier not in ("short", "mid"):
+    if tier not in ("short", "mid", "long"):
         return
     # [2026-09-07] 写入前过滤不可交易垃圾（TSLA/BZ 等），避免污染下游 universe
     cleaned = filter_tradeable_ai_symbols([str(s).upper() for s in symbols if s])
@@ -264,7 +291,7 @@ def set_tier_symbols(
 def get_tier_state(session_id: str, tier: str) -> Dict[str, Any]:
     tier = (tier or "").strip().lower()
     state = _read_state(session_id)
-    return state.get(tier) or {} if tier in ("short", "mid") else {}
+    return state.get(tier) or {} if tier in ("short", "mid", "long") else {}
 
 
 def _migrate_legacy(session_id: str, db=None) -> Dict[str, Any]:
@@ -346,14 +373,14 @@ def get_ai_coin_symbols(
 ) -> List[str]:
     """AI 选币统一读取入口（全部循环只认这里）。
 
-    tier='short' → 短线 AI 选币；tier='mid' → 中线 AI 候选；
-    tier=None → 两档合并去重。
+    tier='short' → 短线 AI 选币；tier='mid' → 中线 AI 候选；tier='long' → 长线 AI 候选；
+    tier=None → 三档合并去重。
     """
     _migrate_legacy(session_id, db=db)
     state = _read_state(session_id)
     out: List[str] = []
     seen = set()
-    for _t in ("short", "mid") if tier is None else ((tier or "").lower(),):
+    for _t in ("short", "mid", "long") if tier is None else ((tier or "").lower(),):
         for s in (state.get(_t) or {}).get("symbols") or []:
             u = str(s).strip().upper()
             if u and u not in seen:

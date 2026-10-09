@@ -687,4 +687,30 @@ class AsterdexAdapter(CcxtBaseAdapter):
         config = self._get_config()
         ttl = config.cache_ttls.campaigns_seconds if config else 1800
         cache.set(cache_key, campaigns, ttl)
+
+    async def fetch_open_orders(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """[h665] 实盘做市执行桥用:当前在交易所的挂单列表(无 symbol=全部)。"""
+        await self._ensure_loop()
+        if self._exchange is None:
+            return []
+        try:
+            sym = self._swap_symbol(symbol) if symbol else None
+            return list(await self._exchange.fetch_open_orders(sym) or [])
+        except Exception as e:
+            logger.warning("[Asterdex] fetch_open_orders failed: %s", e)
+            return []
+
+    async def fetch_my_trades(self, symbol: str,
+                              since_ms: Optional[int] = None) -> List[Dict[str, Any]]:
+        """[h665] 实盘做市执行桥用:成交回报(userTrades)。"""
+        await self._ensure_loop()
+        if self._exchange is None:
+            return []
+        try:
+            sym = self._swap_symbol(symbol)
+            return list(await self._exchange.fetch_my_trades(
+                sym, since=since_ms, limit=200) or [])
+        except Exception as e:
+            logger.warning("[Asterdex] fetch_my_trades failed: %s", e)
+            return []
         return campaigns

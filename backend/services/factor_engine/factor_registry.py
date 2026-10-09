@@ -94,7 +94,11 @@ class FactorRegistry:
         if metadata.dependencies:
             self._dependency_graph[factor_id] = set(metadata.dependencies)
         
-        logger.info(
+        # [2026-09-19 降噪] 原为 logger.info —— 实测该行占 `logs/brain_subprocess.log` **74.5%**
+        # （720,124 行）：每个主脑子进程启动都把全部因子重打一遍（累计 12,886 次 spawn）。
+        # 降为 DEBUG：信息不丢（需要时把日志级别调到 DEBUG 即可看到），但不再刷屏。
+        # 依据：子代理清点报告「第一噪音源 = factor_registry.py:97」。
+        logger.debug(
             f"Registered factor: {factor_id} "
             f"({metadata.category}/{metadata.subcategory})"
         )

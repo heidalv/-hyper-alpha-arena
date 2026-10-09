@@ -260,6 +260,13 @@ Write-Host "`n========== final status ==========" -ForegroundColor Cyan
 if ($useStandaloneDc) {
     if (Test-DataCenterHealthy) {
         Write-Host "  [OK  ] data-center -> http://127.0.0.1:$DataCenterHealthPort/health" -ForegroundColor Green
+
+    # [2026-10-04 workflow-4] staleness-aware probe: process/port can look healthy while data stopped.
+    $dcProbe = Join-Path $PSScriptRoot 'verify-data-center.ps1'
+    if (Test-Path $dcProbe) {
+        $dcJson = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $dcProbe -Json | Select-Object -Last 1
+        if ("$dcJson") { Write-Host "  [dc-probe] $dcJson" -ForegroundColor DarkGray }
+    }
     } else {
         Write-Host "  [WAIT] data-center -> check $DataCenterLog" -ForegroundColor Yellow
     }

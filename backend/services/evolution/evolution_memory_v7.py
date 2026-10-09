@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import os
 import sqlite3
@@ -22,6 +23,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _DB_PATH = Path(os.getenv("V7_MEMORY_DB_PATH", str(_BACKEND_DIR / "data" / "factor_evolution_memory_v7.db")))
@@ -350,6 +353,30 @@ def record_report(period: str, report: Dict[str, Any]) -> int:
             conn.close()
 
 
+_CODEGEN_SATURATED_WARNED: set = set()
+_CODEGEN_SATURATED_GUARD = threading.Lock()
+
+
+def _warn_codegen_window_saturated(period: str, cycle: str, total_matching: int) -> None:
+    """[F362] 候选被 `LIMIT 200` 截断时告警一次（同一 period/cycle 只报一次）。
+
+    不改变任何召回行为，只把"还有 N 条永远读不到"这件事**变可见**——
+    否则池子持续增长、检索覆盖率持续下降，而外部完全看不出来。
+    """
+    key = (str(period), str(cycle))
+    with _CODEGEN_SATURATED_GUARD:
+        if key in _CODEGEN_SATURATED_WARNED:
+            return
+        _CODEGEN_SATURATED_WARNED.add(key)
+    unreachable = max(0, int(total_matching) - 200)
+    logger.warning(
+        "[V7Memory] Codegen 候选窗口被 LIMIT 200 截断：period=%s cycle=%s 匹配 %d 条，"
+        "其中 **%d 条结构上不可达**（无论质量多高都进不了 prompt）。"
+        "置 V7_CODEGEN_FULL_POOL=1 可取消该窗口（全量参与打分）。",
+        period, cycle, total_matching, unreachable,
+    )
+
+
 def latest_trajectory_directive(period: str) -> Optional[Dict[str, Any]]:
     """[2026-09-07] 取最近一次挖掘轨迹的定向变异指令（供下轮挖掘实际改行为）。
 
@@ -385,22 +412,60 @@ def build_codegen_context(period: str, limit: int = 8) -> str:
             + 0.5 * quality
             + 0.2 * ln(1+use_count)
             - small recency decay.
+
+    [F362 2026-09-18 可达性] 原实现先 `ORDER BY id DESC LIMIT 200` **再**按上式打分，
+    等于在这套明示的排序之外**偷偷叠加了一层未记录的"最新 200 条"过滤**。
+    实测（`scripts/probe_v7_codegen_reachability.py`，2026-09-18）：
+    active 810 条里 **528 条（65.2%）** 结构上永远进不了 Codegen prompt
+    （`4h/L`、`1d/L` 两个窗口都恰好被 200 撑满），其中 `success_recipe` 129、
+    `gate_lesson` 92、`trajectory` 60、`decay_case` 6（其余 241 条是高度重复的
+    `pipeline_issue`，价值较低）。这就是「学习只写不读」在**挖掘侧**的残留。
+
+    处置（**不改变今日行为**）：
+      - `V7_CODEGEN_FULL_POOL=1` ⇒ 取消 id 窗口，**全量 active 参与打分**（与交易侧读回路
+        `learning_readback` 同口径），语义更符合 docstring 声明的排序；
+      - 默认关 ⇒ 逐字节保持旧行为；
+      - 无论开关如何，**窗口饱和时告警一次**（禁止静默退化）：告诉运维"还有 N 条读不到"。
     """
     init_db()
     query = f"{_period_to_cycle(period)} {period} 因子挖掘 晋升 拒绝 衰退 换手 ICIR"
     qvec = _vector(query)
+    _full = str(os.getenv("V7_CODEGEN_FULL_POOL", "0")).strip().lower() in (
+        "1", "true", "yes", "on")
+    _cycle = _period_to_cycle(period)
     with _LOCK:
         conn = _conn()
         try:
-            rows = conn.execute(
-                """SELECT id, kind, cycle, period, title, summary, quality,
-                          use_count, created_at
-                   FROM v7_lessons
-                   WHERE status='active'
-                     AND (period=? OR cycle=? OR cycle='X')
-                   ORDER BY id DESC LIMIT 200""",
-                (period, _period_to_cycle(period)),
-            ).fetchall()
+            if _full:
+                rows = conn.execute(
+                    """SELECT id, kind, cycle, period, title, summary, quality,
+                              use_count, created_at
+                       FROM v7_lessons
+                       WHERE status='active'
+                         AND (period=? OR cycle=? OR cycle='X')
+                       ORDER BY id DESC""",
+                    (period, _cycle),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """SELECT id, kind, cycle, period, title, summary, quality,
+                              use_count, created_at
+                       FROM v7_lessons
+                       WHERE status='active'
+                         AND (period=? OR cycle=? OR cycle='X')
+                       ORDER BY id DESC LIMIT 200""",
+                    (period, _cycle),
+                ).fetchall()
+                if len(rows) >= 200:
+                    try:
+                        total = conn.execute(
+                            """SELECT COUNT(*) FROM v7_lessons
+                               WHERE status='active'
+                                 AND (period=? OR cycle=? OR cycle='X')""",
+                            (period, _cycle)).fetchone()[0]
+                    except Exception:
+                        total = len(rows)
+                    _warn_codegen_window_saturated(period, _cycle, total)
         finally:
             conn.close()
 

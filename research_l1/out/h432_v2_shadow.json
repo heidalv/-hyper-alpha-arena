@@ -1,0 +1,1458 @@
+{
+  "generated_at": "2026-09-27T18:39:05.804979+00:00",
+  "hours": 12.0,
+  "symbols": [
+    "BNB",
+    "ETH",
+    "BTC",
+    "DOGE",
+    "SUI",
+    "NEAR",
+    "ARB",
+    "ADA",
+    "XRP",
+    "ENA"
+  ],
+  "arms": {
+    "A_现状": {
+      "totals": {
+        "fills": 14823.0,
+        "notional": 1614330.8487243985,
+        "net_usd": -439.62794299999996,
+        "spread_usd": -10.722780999999987,
+        "fee_usd": -177.17401800000005,
+        "price_usd": -251.731144,
+        "flattens": 2516.0,
+        "net_bp": -2.723,
+        "spread_bp": -0.066,
+        "fee_bp": -1.098,
+        "price_bp": -1.559
+      },
+      "per_symbol": {
+        "BNB": {
+          "symbol": "BNB",
+          "snapshots": 2191,
+          "fills": 1746,
+          "notional": 196370.38,
+          "spread_usd": -0.2538,
+          "price_usd": -19.6573,
+          "fee_usd": -28.1337,
+          "net_usd": -48.0448,
+          "spread_bp": -0.013,
+          "price_bp": -1.001,
+          "net_bp": -2.447,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 271,
+              "net_bp": -1.3972,
+              "t": -8.085
+            },
+            {
+              "fold": 1,
+              "n": 294,
+              "net_bp": -1.3012,
+              "t": -8.285
+            },
+            {
+              "fold": 2,
+              "n": 280,
+              "net_bp": -1.4221,
+              "t": -8.374
+            },
+            {
+              "fold": 3,
+              "n": 320,
+              "net_bp": -1.5194,
+              "t": -8.892
+            },
+            {
+              "fold": 4,
+              "n": 324,
+              "net_bp": -1.5573,
+              "t": -8.748
+            },
+            {
+              "fold": 5,
+              "n": 257,
+              "net_bp": -1.587,
+              "t": -8.767
+            }
+          ],
+          "skipped": {
+            "no_queue": 220,
+            "leg_blocked": 58
+          },
+          "flattens": 385,
+          "flatten_usd": -44.967,
+          "flatten_price_bp": -2.1056,
+          "flatten_notional": 70334.13,
+          "flatten_share": 0.2205,
+          "max_one_side_usd": 400.14,
+          "avg_hold_snapshots": 4.56,
+          "window_days": 0.495,
+          "covered_days": 0.495,
+          "vol_baseline_bp": 1.6046,
+          "quote_modes": {
+            "spread": 2190
+          },
+          "quoted_decisions": 2190,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.139
+        },
+        "ETH": {
+          "symbol": "ETH",
+          "snapshots": 2193,
+          "fills": 2816,
+          "notional": 340536.37,
+          "spread_usd": 0.2557,
+          "price_usd": -24.7696,
+          "fee_usd": -21.1258,
+          "net_usd": -45.6397,
+          "spread_bp": 0.008,
+          "price_bp": -0.727,
+          "net_bp": -1.34,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 491,
+              "net_bp": -0.602,
+              "t": -6.782
+            },
+            {
+              "fold": 1,
+              "n": 478,
+              "net_bp": -0.6471,
+              "t": -8.246
+            },
+            {
+              "fold": 2,
+              "n": 454,
+              "net_bp": -0.5145,
+              "t": -7.708
+            },
+            {
+              "fold": 3,
+              "n": 423,
+              "net_bp": -1.0456,
+              "t": -8.376
+            },
+            {
+              "fold": 4,
+              "n": 495,
+              "net_bp": -0.7196,
+              "t": -7.47
+            },
+            {
+              "fold": 5,
+              "n": 475,
+              "net_bp": -0.7278,
+              "t": -8.354
+            }
+          ],
+          "skipped": {
+            "no_queue": 110,
+            "leg_blocked": 41
+          },
+          "flattens": 201,
+          "flatten_usd": -31.8672,
+          "flatten_price_bp": -2.009,
+          "flatten_notional": 52814.5,
+          "flatten_share": 0.0714,
+          "max_one_side_usd": 400.08,
+          "avg_hold_snapshots": 3.3,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 1.6747,
+          "quote_modes": {
+            "spread": 2192
+          },
+          "quoted_decisions": 2192,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.013
+        },
+        "BTC": {
+          "symbol": "BTC",
+          "snapshots": 2193,
+          "fills": 2964,
+          "notional": 362646.7,
+          "spread_usd": 0.1079,
+          "price_usd": -22.7565,
+          "fee_usd": -24.2244,
+          "net_usd": -46.8729,
+          "spread_bp": 0.003,
+          "price_bp": -0.628,
+          "net_bp": -1.293,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 486,
+              "net_bp": -0.6265,
+              "t": -8.583
+            },
+            {
+              "fold": 1,
+              "n": 498,
+              "net_bp": -0.5728,
+              "t": -7.912
+            },
+            {
+              "fold": 2,
+              "n": 488,
+              "net_bp": -0.5551,
+              "t": -7.76
+            },
+            {
+              "fold": 3,
+              "n": 468,
+              "net_bp": -0.9417,
+              "t": -8.793
+            },
+            {
+              "fold": 4,
+              "n": 517,
+              "net_bp": -0.7093,
+              "t": -7.369
+            },
+            {
+              "fold": 5,
+              "n": 507,
+              "net_bp": -0.5439,
+              "t": -7.55
+            }
+          ],
+          "skipped": {
+            "leg_blocked": 29
+          },
+          "flattens": 214,
+          "flatten_usd": -34.9989,
+          "flatten_price_bp": -1.7709,
+          "flatten_notional": 60560.92,
+          "flatten_share": 0.0722,
+          "max_one_side_usd": 400.09,
+          "avg_hold_snapshots": 3.54,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 1.4037,
+          "quote_modes": {
+            "spread": 2192
+          },
+          "quoted_decisions": 2192,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.005
+        },
+        "DOGE": {
+          "symbol": "DOGE",
+          "snapshots": 2191,
+          "fills": 2031,
+          "notional": 213697.67,
+          "spread_usd": -0.0565,
+          "price_usd": -38.2127,
+          "fee_usd": -29.0575,
+          "net_usd": -67.3267,
+          "spread_bp": -0.003,
+          "price_bp": -1.788,
+          "net_bp": -3.151,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 353,
+              "net_bp": -1.5846,
+              "t": -6.92
+            },
+            {
+              "fold": 1,
+              "n": 329,
+              "net_bp": -1.8525,
+              "t": -7.848
+            },
+            {
+              "fold": 2,
+              "n": 285,
+              "net_bp": -1.5334,
+              "t": -6.73
+            },
+            {
+              "fold": 3,
+              "n": 340,
+              "net_bp": -2.098,
+              "t": -6.132
+            },
+            {
+              "fold": 4,
+              "n": 404,
+              "net_bp": -2.068,
+              "t": -6.948
+            },
+            {
+              "fold": 5,
+              "n": 320,
+              "net_bp": -1.6072,
+              "t": -6.66
+            }
+          ],
+          "skipped": {
+            "no_queue": 421,
+            "leg_blocked": 270
+          },
+          "flattens": 386,
+          "flatten_usd": -60.2658,
+          "flatten_price_bp": -3.6602,
+          "flatten_notional": 72643.8,
+          "flatten_share": 0.1901,
+          "max_one_side_usd": 400.06,
+          "avg_hold_snapshots": 4.26,
+          "window_days": 0.495,
+          "covered_days": 0.495,
+          "vol_baseline_bp": 3.6452,
+          "quote_modes": {
+            "spread": 2190
+          },
+          "quoted_decisions": 2190,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.289
+        },
+        "SUI": {
+          "symbol": "SUI",
+          "snapshots": 2191,
+          "fills": 997,
+          "notional": 87644.48,
+          "spread_usd": -3.5511,
+          "price_usd": -34.6081,
+          "fee_usd": -15.9526,
+          "net_usd": -54.1118,
+          "spread_bp": -0.405,
+          "price_bp": -3.949,
+          "net_bp": -6.174,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 255,
+              "net_bp": -2.9979,
+              "t": -3.564
+            },
+            {
+              "fold": 1,
+              "n": 176,
+              "net_bp": -4.8351,
+              "t": -5.991
+            },
+            {
+              "fold": 2,
+              "n": 122,
+              "net_bp": -3.1978,
+              "t": -3.917
+            },
+            {
+              "fold": 3,
+              "n": 151,
+              "net_bp": -5.3262,
+              "t": -4.951
+            },
+            {
+              "fold": 4,
+              "n": 175,
+              "net_bp": -4.1255,
+              "t": -4.944
+            },
+            {
+              "fold": 5,
+              "n": 118,
+              "net_bp": -3.3755,
+              "t": -3.387
+            }
+          ],
+          "skipped": {
+            "no_queue": 667,
+            "leg_blocked": 450
+          },
+          "flattens": 310,
+          "flatten_usd": -56.2016,
+          "flatten_price_bp": -7.9388,
+          "flatten_notional": 39881.47,
+          "flatten_share": 0.3109,
+          "max_one_side_usd": 399.59,
+          "avg_hold_snapshots": 4.38,
+          "window_days": 0.495,
+          "covered_days": 0.495,
+          "vol_baseline_bp": 8.1469,
+          "quote_modes": {
+            "spread": 2190
+          },
+          "quoted_decisions": 2190,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.94
+        },
+        "NEAR": {
+          "symbol": "NEAR",
+          "snapshots": 2193,
+          "fills": 1103,
+          "notional": 77078.4,
+          "spread_usd": -3.4768,
+          "price_usd": -34.8203,
+          "fee_usd": -13.6485,
+          "net_usd": -51.9456,
+          "spread_bp": -0.451,
+          "price_bp": -4.518,
+          "net_bp": -6.739,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 276,
+              "net_bp": -3.9362,
+              "t": -5.007
+            },
+            {
+              "fold": 1,
+              "n": 167,
+              "net_bp": -3.287,
+              "t": -2.343
+            },
+            {
+              "fold": 2,
+              "n": 131,
+              "net_bp": -4.1487,
+              "t": -4.817
+            },
+            {
+              "fold": 3,
+              "n": 145,
+              "net_bp": -4.1024,
+              "t": -4.616
+            },
+            {
+              "fold": 4,
+              "n": 219,
+              "net_bp": -4.6155,
+              "t": -5.743
+            },
+            {
+              "fold": 5,
+              "n": 165,
+              "net_bp": -5.3679,
+              "t": -5.291
+            }
+          ],
+          "skipped": {
+            "no_queue": 608,
+            "leg_blocked": 446
+          },
+          "flattens": 328,
+          "flatten_usd": -53.132,
+          "flatten_price_bp": -8.8545,
+          "flatten_notional": 34121.29,
+          "flatten_share": 0.2974,
+          "max_one_side_usd": 400.38,
+          "avg_hold_snapshots": 4.88,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 8.7991,
+          "quote_modes": {
+            "spread": 2192
+          },
+          "quoted_decisions": 2192,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.224
+        },
+        "ARB": {
+          "symbol": "ARB",
+          "snapshots": 2194,
+          "fills": 260,
+          "notional": 25112.01,
+          "spread_usd": -1.4824,
+          "price_usd": -12.1033,
+          "fee_usd": -4.6743,
+          "net_usd": -18.26,
+          "spread_bp": -0.59,
+          "price_bp": -4.82,
+          "net_bp": -7.271,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 35,
+              "net_bp": -6.1686,
+              "t": -1.923
+            },
+            {
+              "fold": 2,
+              "n": 29,
+              "net_bp": -3.2169,
+              "t": -1.735
+            },
+            {
+              "fold": 3,
+              "n": 44,
+              "net_bp": -3.4236,
+              "t": -1.906
+            },
+            {
+              "fold": 4,
+              "n": 60,
+              "net_bp": -5.4889,
+              "t": -4.105
+            },
+            {
+              "fold": 5,
+              "n": 75,
+              "net_bp": -5.6978,
+              "t": -4.048
+            }
+          ],
+          "skipped": {
+            "no_queue": 526,
+            "leg_blocked": 321
+          },
+          "flattens": 90,
+          "flatten_usd": -20.2279,
+          "flatten_price_bp": -10.0714,
+          "flatten_notional": 11685.77,
+          "flatten_share": 0.3462,
+          "max_one_side_usd": 390.58,
+          "avg_hold_snapshots": 3.18,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 6.6417,
+          "quote_modes": {
+            "spread": 2193
+          },
+          "quoted_decisions": 2193,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.923
+        },
+        "ADA": {
+          "symbol": "ADA",
+          "snapshots": 2192,
+          "fills": 264,
+          "notional": 23628.61,
+          "spread_usd": -1.5107,
+          "price_usd": -9.0257,
+          "fee_usd": -4.6309,
+          "net_usd": -15.1672,
+          "spread_bp": -0.639,
+          "price_bp": -3.82,
+          "net_bp": -6.419,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 54,
+              "net_bp": -3.4547,
+              "t": -3.31
+            },
+            {
+              "fold": 1,
+              "n": 33,
+              "net_bp": -4.2131,
+              "t": -2.78
+            },
+            {
+              "fold": 2,
+              "n": 25,
+              "net_bp": -3.5234,
+              "t": -2.18
+            },
+            {
+              "fold": 3,
+              "n": 53,
+              "net_bp": -5.4233,
+              "t": -3.143
+            },
+            {
+              "fold": 4,
+              "n": 66,
+              "net_bp": -4.2374,
+              "t": -3.471
+            },
+            {
+              "fold": 5,
+              "n": 33,
+              "net_bp": -1.9535,
+              "t": -1.827
+            }
+          ],
+          "skipped": {
+            "no_queue": 293,
+            "leg_blocked": 246
+          },
+          "flattens": 96,
+          "flatten_usd": -17.3195,
+          "flatten_price_bp": -7.9753,
+          "flatten_notional": 11577.24,
+          "flatten_share": 0.3636,
+          "max_one_side_usd": 400.02,
+          "avg_hold_snapshots": 3.45,
+          "window_days": 0.495,
+          "covered_days": 0.495,
+          "vol_baseline_bp": 4.6477,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.569
+        },
+        "XRP": {
+          "symbol": "XRP",
+          "snapshots": 2191,
+          "fills": 2162,
+          "notional": 259071.2,
+          "spread_usd": 0.7202,
+          "price_usd": -40.8533,
+          "fee_usd": -30.2511,
+          "net_usd": -70.3841,
+          "spread_bp": 0.028,
+          "price_bp": -1.577,
+          "net_bp": -2.717,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 347,
+              "net_bp": -1.7542,
+              "t": -7.896
+            },
+            {
+              "fold": 1,
+              "n": 357,
+              "net_bp": -1.195,
+              "t": -7.321
+            },
+            {
+              "fold": 2,
+              "n": 348,
+              "net_bp": -1.3917,
+              "t": -7.986
+            },
+            {
+              "fold": 3,
+              "n": 364,
+              "net_bp": -1.7012,
+              "t": -6.838
+            },
+            {
+              "fold": 4,
+              "n": 398,
+              "net_bp": -1.6396,
+              "t": -7.015
+            },
+            {
+              "fold": 5,
+              "n": 348,
+              "net_bp": -1.3004,
+              "t": -6.967
+            }
+          ],
+          "skipped": {
+            "no_queue": 338,
+            "leg_blocked": 200
+          },
+          "flattens": 334,
+          "flatten_usd": -58.227,
+          "flatten_price_bp": -3.1995,
+          "flatten_notional": 75627.63,
+          "flatten_share": 0.1545,
+          "max_one_side_usd": 400.37,
+          "avg_hold_snapshots": 4.05,
+          "window_days": 0.495,
+          "covered_days": 0.495,
+          "vol_baseline_bp": 3.1344,
+          "quote_modes": {
+            "spread": 2190
+          },
+          "quoted_decisions": 2190,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.222
+        },
+        "ENA": {
+          "symbol": "ENA",
+          "snapshots": 2192,
+          "fills": 480,
+          "notional": 28545.03,
+          "spread_usd": -1.4753,
+          "price_usd": -14.9244,
+          "fee_usd": -5.4753,
+          "net_usd": -21.8749,
+          "spread_bp": -0.517,
+          "price_bp": -5.228,
+          "net_bp": -7.663,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 85,
+              "net_bp": -3.2128,
+              "t": -3.01
+            },
+            {
+              "fold": 1,
+              "n": 81,
+              "net_bp": -3.6144,
+              "t": -2.497
+            },
+            {
+              "fold": 2,
+              "n": 58,
+              "net_bp": -5.4212,
+              "t": -3.462
+            },
+            {
+              "fold": 3,
+              "n": 89,
+              "net_bp": -9.6815,
+              "t": -5.306
+            },
+            {
+              "fold": 4,
+              "n": 81,
+              "net_bp": -7.5077,
+              "t": -4.382
+            },
+            {
+              "fold": 5,
+              "n": 86,
+              "net_bp": -7.3406,
+              "t": -4.535
+            }
+          ],
+          "skipped": {
+            "no_queue": 869,
+            "leg_blocked": 491
+          },
+          "flattens": 172,
+          "flatten_usd": -22.9602,
+          "flatten_price_bp": -10.3003,
+          "flatten_notional": 13688.19,
+          "flatten_share": 0.3583,
+          "max_one_side_usd": 300.06,
+          "avg_hold_snapshots": 3.57,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 8.2044,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.174
+        }
+      }
+    },
+    "B_v2": {
+      "totals": {
+        "fills": 14791.0,
+        "notional": 1609536.7986978036,
+        "net_usd": -434.44223700000003,
+        "spread_usd": -6.302706999999995,
+        "fee_usd": -176.49743900000004,
+        "price_usd": -251.64209100000002,
+        "flattens": 2512.0,
+        "net_bp": -2.699,
+        "spread_bp": -0.039,
+        "fee_bp": -1.097,
+        "price_bp": -1.563
+      },
+      "per_symbol": {
+        "BNB": {
+          "symbol": "BNB",
+          "snapshots": 2192,
+          "fills": 1737,
+          "notional": 195173.93,
+          "spread_usd": -0.026,
+          "price_usd": -19.7134,
+          "fee_usd": -27.8425,
+          "net_usd": -47.5819,
+          "spread_bp": -0.001,
+          "price_bp": -1.01,
+          "net_bp": -2.438,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 271,
+              "net_bp": -1.3921,
+              "t": -8.047
+            },
+            {
+              "fold": 1,
+              "n": 294,
+              "net_bp": -1.3086,
+              "t": -8.268
+            },
+            {
+              "fold": 2,
+              "n": 279,
+              "net_bp": -1.4115,
+              "t": -8.269
+            },
+            {
+              "fold": 3,
+              "n": 315,
+              "net_bp": -1.5474,
+              "t": -8.727
+            },
+            {
+              "fold": 4,
+              "n": 323,
+              "net_bp": -1.5091,
+              "t": -8.477
+            },
+            {
+              "fold": 5,
+              "n": 255,
+              "net_bp": -1.5763,
+              "t": -8.677
+            }
+          ],
+          "skipped": {
+            "no_queue": 219,
+            "leg_blocked": 58
+          },
+          "flattens": 383,
+          "flatten_usd": -44.6767,
+          "flatten_price_bp": -2.1295,
+          "flatten_notional": 69606.3,
+          "flatten_share": 0.2205,
+          "max_one_side_usd": 400.14,
+          "avg_hold_snapshots": 4.51,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 1.6045,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.155
+        },
+        "ETH": {
+          "symbol": "ETH",
+          "snapshots": 2194,
+          "fills": 2813,
+          "notional": 339692.6,
+          "spread_usd": 0.3311,
+          "price_usd": -24.8686,
+          "fee_usd": -21.2057,
+          "net_usd": -45.7432,
+          "spread_bp": 0.01,
+          "price_bp": -0.732,
+          "net_bp": -1.347,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 490,
+              "net_bp": -0.603,
+              "t": -6.791
+            },
+            {
+              "fold": 1,
+              "n": 478,
+              "net_bp": -0.6464,
+              "t": -8.235
+            },
+            {
+              "fold": 2,
+              "n": 455,
+              "net_bp": -0.5133,
+              "t": -7.706
+            },
+            {
+              "fold": 3,
+              "n": 422,
+              "net_bp": -1.0419,
+              "t": -8.319
+            },
+            {
+              "fold": 4,
+              "n": 494,
+              "net_bp": -0.7345,
+              "t": -7.439
+            },
+            {
+              "fold": 5,
+              "n": 474,
+              "net_bp": -0.7431,
+              "t": -8.418
+            }
+          ],
+          "skipped": {
+            "no_queue": 108,
+            "leg_blocked": 41
+          },
+          "flattens": 202,
+          "flatten_usd": -32.1151,
+          "flatten_price_bp": -2.0331,
+          "flatten_notional": 53014.27,
+          "flatten_share": 0.0718,
+          "max_one_side_usd": 400.08,
+          "avg_hold_snapshots": 3.26,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 1.6756,
+          "quote_modes": {
+            "spread": 2193
+          },
+          "quoted_decisions": 2193,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.015
+        },
+        "BTC": {
+          "symbol": "BTC",
+          "snapshots": 2194,
+          "fills": 2961,
+          "notional": 361946.67,
+          "spread_usd": 0.1288,
+          "price_usd": -22.7907,
+          "fee_usd": -24.1044,
+          "net_usd": -46.7662,
+          "spread_bp": 0.004,
+          "price_bp": -0.63,
+          "net_bp": -1.292,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 486,
+              "net_bp": -0.6261,
+              "t": -8.578
+            },
+            {
+              "fold": 1,
+              "n": 498,
+              "net_bp": -0.5725,
+              "t": -7.909
+            },
+            {
+              "fold": 2,
+              "n": 490,
+              "net_bp": -0.5527,
+              "t": -7.757
+            },
+            {
+              "fold": 3,
+              "n": 463,
+              "net_bp": -0.9554,
+              "t": -8.812
+            },
+            {
+              "fold": 4,
+              "n": 519,
+              "net_bp": -0.7174,
+              "t": -7.43
+            },
+            {
+              "fold": 5,
+              "n": 505,
+              "net_bp": -0.5375,
+              "t": -7.504
+            }
+          ],
+          "skipped": {
+            "leg_blocked": 30
+          },
+          "flattens": 214,
+          "flatten_usd": -34.8826,
+          "flatten_price_bp": -1.7804,
+          "flatten_notional": 60260.92,
+          "flatten_share": 0.0723,
+          "max_one_side_usd": 400.09,
+          "avg_hold_snapshots": 3.54,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 1.4029,
+          "quote_modes": {
+            "spread": 2193
+          },
+          "quoted_decisions": 2193,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.005
+        },
+        "DOGE": {
+          "symbol": "DOGE",
+          "snapshots": 2192,
+          "fills": 2027,
+          "notional": 212909.95,
+          "spread_usd": 0.7937,
+          "price_usd": -38.1966,
+          "fee_usd": -28.8575,
+          "net_usd": -66.2604,
+          "spread_bp": 0.037,
+          "price_bp": -1.794,
+          "net_bp": -3.112,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 352,
+              "net_bp": -1.5562,
+              "t": -6.74
+            },
+            {
+              "fold": 1,
+              "n": 329,
+              "net_bp": -1.844,
+              "t": -7.797
+            },
+            {
+              "fold": 2,
+              "n": 286,
+              "net_bp": -1.5176,
+              "t": -6.667
+            },
+            {
+              "fold": 3,
+              "n": 340,
+              "net_bp": -1.9867,
+              "t": -5.753
+            },
+            {
+              "fold": 4,
+              "n": 400,
+              "net_bp": -1.9684,
+              "t": -6.529
+            },
+            {
+              "fold": 5,
+              "n": 320,
+              "net_bp": -1.5831,
+              "t": -6.538
+            }
+          ],
+          "skipped": {
+            "no_queue": 419,
+            "leg_blocked": 272
+          },
+          "flattens": 384,
+          "flatten_usd": -60.0239,
+          "flatten_price_bp": -3.6833,
+          "flatten_notional": 72143.86,
+          "flatten_share": 0.1894,
+          "max_one_side_usd": 400.06,
+          "avg_hold_snapshots": 4.23,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 3.6443,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.329
+        },
+        "SUI": {
+          "symbol": "SUI",
+          "snapshots": 2192,
+          "fills": 997,
+          "notional": 87644.17,
+          "spread_usd": -2.7415,
+          "price_usd": -34.6081,
+          "fee_usd": -15.9439,
+          "net_usd": -53.2936,
+          "spread_bp": -0.313,
+          "price_bp": -3.949,
+          "net_bp": -6.081,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 255,
+              "net_bp": -2.7719,
+              "t": -3.274
+            },
+            {
+              "fold": 1,
+              "n": 176,
+              "net_bp": -4.7377,
+              "t": -5.858
+            },
+            {
+              "fold": 2,
+              "n": 123,
+              "net_bp": -3.066,
+              "t": -3.743
+            },
+            {
+              "fold": 3,
+              "n": 150,
+              "net_bp": -5.3256,
+              "t": -4.918
+            },
+            {
+              "fold": 4,
+              "n": 176,
+              "net_bp": -4.0439,
+              "t": -4.853
+            },
+            {
+              "fold": 5,
+              "n": 117,
+              "net_bp": -3.3681,
+              "t": -3.345
+            }
+          ],
+          "skipped": {
+            "no_queue": 667,
+            "leg_blocked": 450
+          },
+          "flattens": 309,
+          "flatten_usd": -56.1664,
+          "flatten_price_bp": -7.9378,
+          "flatten_notional": 39859.83,
+          "flatten_share": 0.3099,
+          "max_one_side_usd": 399.59,
+          "avg_hold_snapshots": 4.36,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 8.1444,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.021
+        },
+        "NEAR": {
+          "symbol": "NEAR",
+          "snapshots": 2194,
+          "fills": 1101,
+          "notional": 76907.08,
+          "spread_usd": -2.5592,
+          "price_usd": -35.0183,
+          "fee_usd": -13.5782,
+          "net_usd": -51.1558,
+          "spread_bp": -0.333,
+          "price_bp": -4.553,
+          "net_bp": -6.652,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 276,
+              "net_bp": -3.7397,
+              "t": -4.705
+            },
+            {
+              "fold": 1,
+              "n": 163,
+              "net_bp": -3.315,
+              "t": -2.314
+            },
+            {
+              "fold": 2,
+              "n": 132,
+              "net_bp": -4.1429,
+              "t": -4.834
+            },
+            {
+              "fold": 3,
+              "n": 145,
+              "net_bp": -3.9532,
+              "t": -4.401
+            },
+            {
+              "fold": 4,
+              "n": 220,
+              "net_bp": -4.4507,
+              "t": -5.517
+            },
+            {
+              "fold": 5,
+              "n": 165,
+              "net_bp": -5.6812,
+              "t": -5.197
+            }
+          ],
+          "skipped": {
+            "no_queue": 608,
+            "leg_blocked": 447
+          },
+          "flattens": 327,
+          "flatten_usd": -53.2196,
+          "flatten_price_bp": -8.9559,
+          "flatten_notional": 33945.55,
+          "flatten_share": 0.297,
+          "max_one_side_usd": 400.38,
+          "avg_hold_snapshots": 4.87,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 8.7991,
+          "quote_modes": {
+            "spread": 2193
+          },
+          "quoted_decisions": 2193,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.311
+        },
+        "ARB": {
+          "symbol": "ARB",
+          "snapshots": 2195,
+          "fills": 259,
+          "notional": 24912.22,
+          "spread_usd": -1.0986,
+          "price_usd": -11.8701,
+          "fee_usd": -4.6448,
+          "net_usd": -17.6136,
+          "spread_bp": -0.441,
+          "price_bp": -4.765,
+          "net_bp": -7.07,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 34,
+              "net_bp": -5.9774,
+              "t": -1.792
+            },
+            {
+              "fold": 2,
+              "n": 29,
+              "net_bp": -3.2122,
+              "t": -1.732
+            },
+            {
+              "fold": 3,
+              "n": 44,
+              "net_bp": -3.5366,
+              "t": -1.915
+            },
+            {
+              "fold": 4,
+              "n": 60,
+              "net_bp": -5.4332,
+              "t": -4.032
+            },
+            {
+              "fold": 5,
+              "n": 75,
+              "net_bp": -5.5292,
+              "t": -3.893
+            }
+          ],
+          "skipped": {
+            "no_queue": 525,
+            "leg_blocked": 323
+          },
+          "flattens": 91,
+          "flatten_usd": -19.9162,
+          "flatten_price_bp": -9.9346,
+          "flatten_notional": 11611.91,
+          "flatten_share": 0.3514,
+          "max_one_side_usd": 390.58,
+          "avg_hold_snapshots": 3.23,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 6.6424,
+          "quote_modes": {
+            "spread": 2194
+          },
+          "quoted_decisions": 2194,
+          "frozen_share": 0.0,
+          "avg_base_bp": 2.145
+        },
+        "ADA": {
+          "symbol": "ADA",
+          "snapshots": 2193,
+          "fills": 262,
+          "notional": 23263.32,
+          "spread_usd": -1.1987,
+          "price_usd": -8.9447,
+          "fee_usd": -4.5578,
+          "net_usd": -14.7011,
+          "spread_bp": -0.515,
+          "price_bp": -3.845,
+          "net_bp": -6.319,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 54,
+              "net_bp": -3.4002,
+              "t": -3.242
+            },
+            {
+              "fold": 1,
+              "n": 33,
+              "net_bp": -4.1967,
+              "t": -2.766
+            },
+            {
+              "fold": 2,
+              "n": 25,
+              "net_bp": -3.5234,
+              "t": -2.18
+            },
+            {
+              "fold": 3,
+              "n": 52,
+              "net_bp": -5.3911,
+              "t": -2.921
+            },
+            {
+              "fold": 4,
+              "n": 65,
+              "net_bp": -4.1592,
+              "t": -3.329
+            },
+            {
+              "fold": 5,
+              "n": 33,
+              "net_bp": -1.848,
+              "t": -1.71
+            }
+          ],
+          "skipped": {
+            "no_queue": 292,
+            "leg_blocked": 247
+          },
+          "flattens": 96,
+          "flatten_usd": -17.1095,
+          "flatten_price_bp": -8.0321,
+          "flatten_notional": 11394.51,
+          "flatten_share": 0.3664,
+          "max_one_side_usd": 400.02,
+          "avg_hold_snapshots": 3.45,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 4.6455,
+          "quote_modes": {
+            "spread": 2192
+          },
+          "quoted_decisions": 2192,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.733
+        },
+        "XRP": {
+          "symbol": "XRP",
+          "snapshots": 2192,
+          "fills": 2156,
+          "notional": 258595.45,
+          "spread_usd": 1.3288,
+          "price_usd": -40.6916,
+          "fee_usd": -30.298,
+          "net_usd": -69.6608,
+          "spread_bp": 0.051,
+          "price_bp": -1.574,
+          "net_bp": -2.694,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 346,
+              "net_bp": -1.7481,
+              "t": -7.824
+            },
+            {
+              "fold": 1,
+              "n": 357,
+              "net_bp": -1.1883,
+              "t": -7.265
+            },
+            {
+              "fold": 2,
+              "n": 350,
+              "net_bp": -1.3753,
+              "t": -7.914
+            },
+            {
+              "fold": 3,
+              "n": 359,
+              "net_bp": -1.6251,
+              "t": -6.417
+            },
+            {
+              "fold": 4,
+              "n": 395,
+              "net_bp": -1.6077,
+              "t": -6.69
+            },
+            {
+              "fold": 5,
+              "n": 349,
+              "net_bp": -1.316,
+              "t": -6.993
+            }
+          ],
+          "skipped": {
+            "no_queue": 338,
+            "leg_blocked": 204
+          },
+          "flattens": 335,
+          "flatten_usd": -58.1669,
+          "flatten_price_bp": -3.18,
+          "flatten_notional": 75744.97,
+          "flatten_share": 0.1554,
+          "max_one_side_usd": 400.37,
+          "avg_hold_snapshots": 4.03,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 3.1322,
+          "quote_modes": {
+            "spread": 2191
+          },
+          "quoted_decisions": 2191,
+          "frozen_share": 0.0,
+          "avg_base_bp": 0.246
+        },
+        "ENA": {
+          "symbol": "ENA",
+          "snapshots": 2193,
+          "fills": 478,
+          "notional": 28491.41,
+          "spread_usd": -1.2611,
+          "price_usd": -14.9401,
+          "fee_usd": -5.4646,
+          "net_usd": -21.6657,
+          "spread_bp": -0.443,
+          "price_bp": -5.244,
+          "net_bp": -7.604,
+          "folds": [
+            {
+              "fold": 0,
+              "n": 85,
+              "net_bp": -3.1919,
+              "t": -2.983
+            },
+            {
+              "fold": 1,
+              "n": 79,
+              "net_bp": -3.6003,
+              "t": -2.419
+            },
+            {
+              "fold": 2,
+              "n": 58,
+              "net_bp": -5.3665,
+              "t": -3.404
+            },
+            {
+              "fold": 3,
+              "n": 90,
+              "net_bp": -9.6375,
+              "t": -5.279
+            },
+            {
+              "fold": 4,
+              "n": 80,
+              "net_bp": -7.1577,
+              "t": -4.133
+            },
+            {
+              "fold": 5,
+              "n": 86,
+              "net_bp": -7.1883,
+              "t": -4.402
+            }
+          ],
+          "skipped": {
+            "no_queue": 869,
+            "leg_blocked": 492
+          },
+          "flattens": 171,
+          "flatten_usd": -22.9573,
+          "flatten_price_bp": -10.332,
+          "flatten_notional": 13661.39,
+          "flatten_share": 0.3577,
+          "max_one_side_usd": 300.06,
+          "avg_hold_snapshots": 3.55,
+          "window_days": 0.496,
+          "covered_days": 0.496,
+          "vol_baseline_bp": 8.2044,
+          "quote_modes": {
+            "spread": 2192
+          },
+          "quoted_decisions": 2192,
+          "frozen_share": 0.0,
+          "avg_base_bp": 1.264
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+﻿清库单 price_bp 直方图（止损线 -40 / 止盈线 +12）
+   bucket   0  [None..None bp]    19 笔
+   bucket   1  [-60..-55 bp]     3 笔
+   bucket   2  [-55..-50 bp]     7 笔
+   bucket   3  [-50..-45 bp]     5 笔
+   bucket   4  [-45..-40 bp]     7 笔
+   bucket   5  [-40..-35 bp]    10 笔
+   bucket   6  [-35..-30 bp]    16 笔
+   bucket   7  [-30..-25 bp]    14 笔
+   bucket   8  [-25..-20 bp]    18 笔
+   bucket   9  [-20..-15 bp]    23 笔
+   bucket  10  [-15..-10 bp]    32 笔
+   bucket  11  [-10..-5 bp]    45 笔
+   bucket  12  [-5..0 bp]    47 笔
+   bucket  13  [0..5 bp]    65 笔
+   bucket  14  [5..10 bp]    46 笔
+   bucket  15  [10..15 bp]    43 笔
+   bucket  16  [15..20 bp]    16 笔
+   bucket  17  [20..25 bp]    38 笔
+
+   price_bp <= -40（止损线）           41 笔   净 $   -80.3
+   -40 < price_bp <= -15          81 笔   净 $   -34.4
+   -15 < price_bp < 0            124 笔   净 $   -21.4
+   price_bp = 0（无价格盈亏）             6 笔   净 $    -0.2
+   price_bp >= +12（止盈线）           78 笔   净 $    26.5
+
+每笔清库的平均 notional 与 position_id 覆盖率
+   n=454  均名义=$152.57  distinct position_id=49  null=0

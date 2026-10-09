@@ -32,18 +32,46 @@ class ShadowDecisionService:
     def live_allowed(self) -> bool:
         """是否允许接管实盘：需显式关闭 shadow_only + Governor 批准（本阶段恒返回按 flag 计算，不执行下单）。"""
         if not flags.get_flag("RL_DECISION_ENABLED"):
+            self._last_block_reason = "RL_DECISION_ENABLED=false（RL 决策总开关关闭）"
             return False
         if flags.get_flag("RL_SHADOW_ONLY"):
+            # [2026-10-04] 逐道门都留原因，否则面板只能显示一个恒 False 的布尔值
+            self._last_block_reason = "shadow_only=true（需 RL_SHADOW_ONLY=false 才进入放行校验）"
             return False
         return self._governor_ok()
 
     def _governor_ok(self) -> bool:
-        """预留：向 RuntimeGovernor 查询实盘接管审批状态。"""
-        try:
-            from backend.services.runtime_governor import runtime_governor  # noqa: F401
-            # 实盘接管审批点：当前保守返回 False，须人工在 Governor 明确放行后再放开。
+        """实盘接管的**人工放行开关** + paper 达标校验。
+
+        [2026-10-04 用户指令「补齐」· 面板⑨"RL 仅影子（shadow_only，未上实盘）"]
+        原实现是 `return False` **硬编码**：注释写着"须人工在 Governor 明确放行后再放开"，
+        但**没有任何放行入口** ⇒ 这道门永远是关的，"补齐"无从谈起。
+        现改为真实门控（两道都满足才放行）：
+          1. `RL_GOVERNOR_APPROVED=true` —— 人工放行（默认 false，与旧行为等价）；
+          2. paper 样本达标：`RL_MIN_LIVE_SAMPLES`（默认 200）条**真实**回放样本
+             （`source='live'`），不足则仍然拒绝并给出明确原因。
+        即：默认行为不变（仍不放行），但把"永远不可能"变成"条件满足即可放行"。
+        """
+        import os as _os
+
+        if str(_os.getenv("RL_GOVERNOR_APPROVED", "false")).strip().lower() not in (
+            "1", "true", "yes", "on",
+        ):
+            self._last_block_reason = "governor_not_approved（RL_GOVERNOR_APPROVED=false）"
             return False
-        except Exception:
+        try:
+            need = int(_os.getenv("RL_MIN_LIVE_SAMPLES", "200") or 200)
+            from .replay_buffer import replay_buffer
+
+            stats = replay_buffer.stats() or {}
+            live = int((stats.get("by_source") or {}).get("live", 0) or 0)
+            if live < need:
+                self._last_block_reason = f"paper_samples_insufficient（live={live} < {need}）"
+                return False
+            self._last_block_reason = ""
+            return True
+        except Exception as exc:  # 校验失败一律不放行（保守）
+            self._last_block_reason = f"sample_check_failed（{type(exc).__name__}）"
             return False
 
     def decide(
@@ -109,10 +137,13 @@ class ShadowDecisionService:
             return None
 
     def status(self) -> Dict[str, Any]:
+        ok = self.live_allowed()
         return {
             "enabled": self.enabled(),
             "shadow_only": flags.get_flag("RL_SHADOW_ONLY"),
-            "live_allowed": self.live_allowed(),
+            "live_allowed": ok,
+            # [2026-10-04] 把"为什么不能接管"讲清楚（此前只有一个恒 False 的布尔值）
+            "live_block_reason": getattr(self, "_last_block_reason", "") or ("" if ok else "unknown"),
             "policy": policy.stats(),
             "actions": ACTION_NAMES,
         }

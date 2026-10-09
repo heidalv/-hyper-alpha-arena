@@ -249,6 +249,10 @@ def run_evolution_round(lane_id: str = "mm_asterdex", *, window_days: float = 14
     if not lane:
         return {"ok": False, "reason": f"车道不存在: {lane_id}"}
     meta = dict(lane.get("meta") or {})
+    _stored = dict(meta.get("params") or {})
+    if float(_stored.get("active_flow_mode") or 0.0) > 0:
+        return {"ok": True, "action": "frozen_mm_grid",
+                "reason": "主动流已启用，做市报价宽度网格不再搜索"}
     symbols = list(meta.get("symbols") or ["BTC"])
     venue = str(meta.get("venue") or "asterdex")
     cur_params = dict(meta.get("params") or {})
@@ -569,6 +573,126 @@ def evolution_task(lane_id: str = "mm_asterdex") -> Dict[str, Any]:
         return {"ok": True, "rollback": rb, "evolve": None}
     rnd = run_evolution_round(lane_id)
     return {"ok": True, "rollback": rb, "evolve": rnd}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# [2026-10-09 进化重挂] ping-pong 参数进化：桶级状态门的**阈值反事实走查**。
+#
+# 为什么只进化「桶门阈值」而不是所有 PP 旋钮：thin_frac / rest_sec /
+# exit_ticks 的反事实无法从往返账还原（账里没有"如果薄量比例不同会不会
+# 成交"）；而桶门是**可反事实的** —— 每个 PP 往返都记了入场语境
+# （价差档 × 前档量档），候选阈值可以直接在历史往返上重放：
+# 「如果当时门开着（min_n=X），哪些来回不会发生」。诚实、可审计。
+# 其余旋钮走 self_tuner 白名单提案 → 部署 → 记分板裁决 → 回滚 的既有链路。
+# ══════════════════════════════════════════════════════════════════════
+PP_JOURNAL_PATH = "data/pp_evolution_journal.jsonl"
+PP_MIN_N_GRID = (10.0, 20.0, 40.0, 100.0)
+PP_MIN_KEEP_N = 20.0          # 反事实后至少保留的样本
+PP_MIN_KEEP_RATIO = 0.5       # 至少保留在位样本的一半
+PP_MIN_IMPROVE_BP = 0.01
+
+
+def _load_pp_roundtrips() -> List[Dict[str, Any]]:
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[3] / "data" / "flow_roundtrip_log.jsonl"
+    rows: List[Dict[str, Any]] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if str(r.get("strategy") or "") == "PP" and r.get("y_bp") is not None:
+                rows.append(r)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[pp-evo] 往返账读取失败: %s", e)
+    return rows
+
+
+def _pp_bucket_of(row: Dict[str, Any]) -> tuple:
+    from backend.services.market_maker.pp_situation import bucket_key
+    sym = str(row.get("symbol") or "?").upper()
+    side = str(row.get("entry_side") or "")
+    if side not in ("buy", "sell"):
+        side = "buy"
+    key = bucket_key(float(row.get("entry_spread_bp") or 0.0),
+                     float(row.get("entry_front_usd") or 0.0))
+    return (sym, side, key)
+
+
+def _pp_gate_stats(rows: Sequence[Dict[str, Any]], min_n: float) -> Dict[str, Any]:
+    """把候选阈值反事实施加到历史往返上，返回保留子集的统计。"""
+    from backend.services.market_maker.pp_situation import bucket_negative
+    buckets: Dict[tuple, List[float]] = {}
+    for r in rows:
+        buckets.setdefault(_pp_bucket_of(r), []).append(float(r["y_bp"]))
+    kept = [float(r["y_bp"]) for r in rows
+            if not bucket_negative(
+                {"n": len(buckets[_pp_bucket_of(r)]),
+                 "win_rate": (sum(1 for v in buckets[_pp_bucket_of(r)] if v > 0)
+                              / max(1, len(buckets[_pp_bucket_of(r)]))),
+                 "avg_win_bp": (sum(v for v in buckets[_pp_bucket_of(r)] if v > 0)
+                                / max(1, sum(1 for v in buckets[_pp_bucket_of(r)] if v > 0))),
+                 "avg_loss_bp": (sum(v for v in buckets[_pp_bucket_of(r)] if v < 0)
+                                 / max(1, sum(1 for v in buckets[_pp_bucket_of(r)] if v < 0)))},
+                min_n=min_n)]
+    if not kept:
+        return {"n": 0, "win_rate": 0.0, "avg_win_bp": 0.0,
+                "avg_loss_bp": 0.0, "avg_bp": 0.0}
+    wins = [v for v in kept if v > 0]
+    losses = [v for v in kept if v < 0]
+    return {
+        "n": len(kept),
+        "win_rate": len(wins) / len(kept),
+        "avg_win_bp": sum(wins) / len(wins) if wins else 0.0,
+        "avg_loss_bp": sum(losses) / len(losses) if losses else 0.0,
+        "avg_bp": sum(kept) / len(kept),
+    }
+
+
+def pp_evolution_round(*, apply: bool = False) -> Dict[str, Any]:
+    """PP 桶门阈值走查（默认仅提案；apply=True 且 MM_AUTO_EVOLVE=1 才落库）。"""
+    from pathlib import Path
+    from backend.services.market_maker.flow_rules import load_learn_params, save_learn_params
+    root = Path(__file__).resolve().parents[3]
+    rows = _load_pp_roundtrips()
+    if len(rows) < PP_MIN_KEEP_N:
+        return {"ok": True, "action": "none",
+                "reason": f"PP 往返 {len(rows)} < {PP_MIN_KEEP_N}，样本不足"}
+    incumbent = float(load_learn_params(root).get("pp_bucket_min_n") or 20.0)
+    inc_stats = _pp_gate_stats(rows, incumbent)
+    cands = []
+    for v in PP_MIN_N_GRID:
+        if abs(v - incumbent) < 1e-9:
+            continue
+        st = _pp_gate_stats(rows, v)
+        keep_ok = st["n"] >= max(PP_MIN_KEEP_N, inc_stats["n"] * PP_MIN_KEEP_RATIO)
+        cands.append({"min_n": v, "stats": st, "keep_ok": bool(keep_ok)})
+    eligible = [c for c in cands if c["keep_ok"]
+                and c["stats"]["avg_bp"] >= inc_stats["avg_bp"] + PP_MIN_IMPROVE_BP
+                and c["stats"]["avg_bp"] > 0]
+    best = None
+    if eligible:
+        best = max(eligible, key=lambda c: c["stats"]["avg_bp"])
+    decision = "deploy" if best is not None else "keep"
+    if best is not None and apply and evolve_enabled():
+        p = load_learn_params(root)
+        p["pp_bucket_min_n"] = float(best["min_n"])
+        save_learn_params(root, p)
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "incumbent_min_n": incumbent, "incumbent": inc_stats,
+        "best": ({"min_n": best["min_n"], "stats": best["stats"]} if best else None),
+        "candidates": cands, "decision": decision,
+        "applied": bool(best is not None and apply and evolve_enabled()),
+        "mode": "auto" if evolve_enabled() else "proposal",
+    }
+    try:
+        with open(PP_JOURNAL_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[pp-evo] 日志写入失败: %s", e)
+    return {"ok": True, **entry}
 
 
 def register_evolution_task(lane_id: str = "mm_asterdex", interval_seconds: int = 86400) -> bool:

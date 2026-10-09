@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-09-27T23:45:01.418027+00:00",
+  "h411_verdict": "ROLLBACK",
+  "chain": [
+    {
+      "key": "h392",
+      "title": "T1 止损宽限归零（30→0）",
+      "verdict": null,
+      "started_at": "2026-09-27T17:35:06.054507+00:00",
+      "judge_at": "2026-09-28T05:35:06.054507+00:00"
+    },
+    {
+      "key": "h429",
+      "title": "T5 急动冷却激活（sudden_move_cooldown_sec 0→90）",
+      "verdict": null,
+      "started_at": "2026-09-27T17:35:51.376373+00:00",
+      "judge_at": "2026-09-28T05:35:51.376373+00:00"
+    },
+    {
+      "key": "h425",
+      "title": "T2 跳变速退激活（jump_exit_bp 0→12）",
+      "verdict": null,
+      "started_at": "2026-09-27T17:35:52.255538+00:00",
+      "judge_at": "2026-09-28T05:35:52.255538+00:00"
+    },
+    {
+      "key": "h426",
+      "title": "T3 波动条件止损（stop_loss_vol_min 0→1.0）",
+      "verdict": null,
+      "started_at": "2026-09-27T17:35:52.924815+00:00",
+      "judge_at": "2026-09-28T05:35:52.924815+00:00"
+    },
+    {
+      "key": "h427",
+      "title": "T4 薄盘加速出库（max_one_side_seconds 90→45）",
+      "verdict": null,
+      "started_at": "2026-09-27T17:35:53.631054+00:00",
+      "judge_at": "2026-09-28T05:35:53.631054+00:00"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "consec_fail": 0,
+  "switches": [
+    "2026-09-29T09:31:15.700680+00:00"
+  ],
+  "last_check_ts": "2026-10-09T16:51:02.690444+00:00",
+  "last_ok": true,
+  "last_detail": "fapi.asterdex.com ✓；fstream.asterdex.com ✓"
+}

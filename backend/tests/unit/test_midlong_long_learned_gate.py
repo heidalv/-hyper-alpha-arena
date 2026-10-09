@@ -39,7 +39,9 @@ MOD = "backend.services.full_auto.midlong_circuit_gate"
 
 def _fresh(monkeypatch, long_mode="learned"):
     monkeypatch.setenv("MIDLONG_CIRCUIT_ENABLED", "true")
-    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "false")
+    # [2026-09-27] 总开关 true（撤销「不做空」封锁后的部署口径）；本文件只测多头分支，
+    # 但显式钉住避免继承 .env 生产值造成漂移。
+    monkeypatch.setenv("MIDLONG_OPEN_SHORT_ENABLED", "true")
     monkeypatch.setenv("MIDLONG_SHORT_MODE", "regime_gated")
     monkeypatch.setenv("MIDLONG_DOWN_SHORT_MODE", "flat")
     monkeypatch.setenv("MIDLONG_CHOP_MODE", "long_only")
@@ -47,6 +49,9 @@ def _fresh(monkeypatch, long_mode="learned"):
     # [M4 2026-09-14] 本文件契约测试锁的是 learned 门本身（hold 语义）；
     # paper 探针（缩仓放行）是独立政策，见 test_m4_gate_paper_probe_20260914.py。
     monkeypatch.setenv("MIDLONG_LEARNED_PAPER_PROBE", "false")
+    # [2026-09-29 全面执行] 本文件契约锁的是 learned 门本身；新入场边际闸（edge_gate）
+    # 会先于 learned 分支在真实行情下拦截 → 显式关闭隔离（同 test_midlong_circuit_gate）。
+    monkeypatch.setenv("MIDLONG_EDGE_GATE_ENABLED", "false")
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MIN_UP_PCT", raising=False)
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MAX_UP_PCT", raising=False)
     monkeypatch.delenv("MIDLONG_LONG_CHG24_MIN_CHOP_PCT", raising=False)

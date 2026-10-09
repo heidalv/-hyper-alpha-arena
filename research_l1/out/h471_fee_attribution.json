@@ -1,0 +1,46 @@
+[
+  {
+    "path": "(入场腿)",
+    "legs": 21,
+    "net_bp_per_leg": 2.099,
+    "fee_bp_per_leg": 0.0,
+    "spread_bp_per_leg": 0.456,
+    "price_bp_per_leg": 1.642,
+    "notional_usd": 2457.3,
+    "net_usd": -0.413,
+    "fee_usd": 0.0
+  },
+  {
+    "path": "ofi_flatten_maker",
+    "legs": 1,
+    "net_bp_per_leg": -6.485,
+    "fee_bp_per_leg": 0.0,
+    "spread_bp_per_leg": 0.013,
+    "price_bp_per_leg": -6.498,
+    "notional_usd": 272.9,
+    "net_usd": -0.177,
+    "fee_usd": 0.0
+  },
+  {
+    "path": "stop_loss_taker",
+    "legs": 1,
+    "net_bp_per_leg": -51.862,
+    "fee_bp_per_leg": -4.0,
+    "spread_bp_per_leg": -1.064,
+    "price_bp_per_leg": -46.799,
+    "notional_usd": 11.3,
+    "net_usd": -0.059,
+    "fee_usd": -0.005
+  },
+  {
+    "path": "timeout_hard_taker",
+    "legs": 4,
+    "net_bp_per_leg": 14.097,
+    "fee_bp_per_leg": -4.0,
+    "spread_bp_per_leg": -1.527,
+    "price_bp_per_leg": 19.624,
+    "notional_usd": 256.6,
+    "net_usd": 0.546,
+    "fee_usd": -0.103
+  }
+]

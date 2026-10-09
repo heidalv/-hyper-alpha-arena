@@ -1,0 +1,52 @@
+{
+  "window": "deploy_t - 12h .. deploy_t",
+  "total": {
+    "legs": 582,
+    "net_bp": -100.91409999999986,
+    "price_bp": -121.20649999999998,
+    "fee_bp": 0,
+    "spread_bp": 20.292399999999994,
+    "notional": 141132.65881595603,
+    "net_bp_per_leg": -0.1733919243986252,
+    "legs_per_hour": 48.5
+  },
+  "per_symbol": [
+    {
+      "symbol": "BNB",
+      "legs": 177,
+      "net_bp": -123.32959999999993,
+      "price_bp": -142.23319999999998,
+      "fee_bp": -0.0,
+      "spread_bp": 18.90359999999999,
+      "notional": 27660.396387098903,
+      "flatten_legs": 0
+    },
+    {
+      "symbol": "BTC",
+      "legs": 159,
+      "net_bp": -36.755199999999974,
+      "price_bp": -36.93900000000001,
+      "fee_bp": -0.0,
+      "spread_bp": 0.1838000000000002,
+      "notional": 44282.991246962294,
+      "flatten_legs": 0
+    },
+    {
+      "symbol": "ETH",
+      "legs": 246,
+      "net_bp": 59.17070000000004,
+      "price_bp": 57.96570000000001,
+      "fee_bp": -0.0,
+      "spread_bp": 1.2050000000000036,
+      "notional": 69189.27118189484,
+      "flatten_legs": 0
+    }
+  ],
+  "by_exit_path": [
+    {
+      "exit": "",
+      "legs": 582,
+      "avg_net_bp": -0.17339192439862586
+    }
+  ]
+}

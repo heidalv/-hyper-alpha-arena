@@ -69,10 +69,24 @@ function Test-BackendHealth {
     }
 }
 
+function Get-BackendPortPid {
+    # [2026-10-09 崩溃循环排查] 探针失败时同时记录"端口是否仍被监听+占有者 PID"：
+    #   · port_pid>0 ⇒ 后端活着但探针超时（慢，不是死）——不该拉起；
+    #   · port_pid=0 ⇒ 后端真死了（被外部终止）——启动器此时才有意义。
+    try {
+        $c = Get-NetTCPConnection -LocalPort $HealthPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($c) { return [int]$c.OwningProcess }
+    } catch { }
+    return 0
+}
+
 function Start-Backend {
-    Write-WdLog "backend down -> starting via start-backend-noreload.cmd"
-    $startCmd = Join-Path $RepoRoot 'scripts\start-backend-noreload.cmd'
-    Start-Process -FilePath 'cmd.exe' -ArgumentList "/c `"$startCmd`"" -WindowStyle Hidden
+    # [h768 2026-10-03] 不再经 cmd.exe（cmd 一定分配控制台 ⇒ 每次重启弹黑框，
+    # 而 -WindowStyle Hidden 对控制台程序不生效）。改走 start-backend-hidden.vbs:
+    # WScript.Shell.Run(..., 0) 的 SW_HIDE 对控制台程序有效（run-quiet.vbs 同原理）。
+    Write-WdLog "backend down -> starting via start-backend-hidden.vbs (windowless)"
+    $vbs = Join-Path $RepoRoot 'scripts\start-backend-hidden.vbs'
+    Start-Process -FilePath 'wscript.exe' -ArgumentList '//B', '//Nologo', $vbs -WindowStyle Hidden
 }
 
 Write-WdLog "backend watchdog started (port=$HealthPort interval=${IntervalSec}s threshold=${FailThreshold}s)"
@@ -81,6 +95,8 @@ $lastRestart = 0
 
 while ($true) {
     $ok = Test-BackendHealth
+    $portPid = 0
+    if (-not $ok) { $portPid = Get-BackendPortPid }
     if ($ok) {
         if ($failCount -ge $FailThreshold) {
             Write-WdLog "backend recovered"
@@ -88,7 +104,7 @@ while ($true) {
         $failCount = 0
     } else {
         $failCount++
-        Write-WdLog "probe fail ($failCount/$FailThreshold)"
+        Write-WdLog "probe fail ($failCount/$FailThreshold) port_pid=$portPid"
         if ($failCount -ge $FailThreshold) {
             $now = [datetime]::Now
             if (($now - [datetime]::FromFileTime($lastRestart)).TotalSeconds -ge $GraceAfterRestartSec) {

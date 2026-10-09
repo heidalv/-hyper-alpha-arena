@@ -1,0 +1,1176 @@
+{
+  "generated_at": "2026-09-20T03:37:03.091414+00:00",
+  "databases": {
+    "alpha_market": {
+      "tables": {
+        "market_orderbook_snapshots": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "integer"
+            },
+            {
+              "name": "exchange",
+              "type": "character varying"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "timestamp",
+              "type": "bigint"
+            },
+            {
+              "name": "best_bid",
+              "type": "numeric"
+            },
+            {
+              "name": "best_ask",
+              "type": "numeric"
+            },
+            {
+              "name": "spread",
+              "type": "numeric"
+            },
+            {
+              "name": "bid_depth_5",
+              "type": "numeric"
+            },
+            {
+              "name": "ask_depth_5",
+              "type": "numeric"
+            },
+            {
+              "name": "bid_depth_10",
+              "type": "numeric"
+            },
+            {
+              "name": "ask_depth_10",
+              "type": "numeric"
+            },
+            {
+              "name": "bid_orders_count",
+              "type": "integer"
+            },
+            {
+              "name": "ask_orders_count",
+              "type": "integer"
+            },
+            {
+              "name": "raw_levels",
+              "type": "text"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows_estimate": 2555727,
+          "rows_exact": 2566273,
+          "time_column": "timestamp",
+          "symbol_column": "symbol",
+          "by_symbol": [
+            {
+              "symbol": "ETH",
+              "rows": 241677,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "SOL",
+              "rows": 241655,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "BNB",
+              "rows": 241468,
+              "min_ts": "1786164240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "BTC",
+              "rows": 240630,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "UNI",
+              "rows": 240216,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "XRP",
+              "rows": 239821,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "DOGE",
+              "rows": 225164,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "LINK",
+              "rows": 181841,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "ADA",
+              "rows": 174251,
+              "min_ts": "1787283240000",
+              "max_ts": "1789869240000"
+            },
+            {
+              "symbol": "AVAX",
+              "rows": 173016,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "VIRTUAL",
+              "rows": 70572,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "XPL",
+              "rows": 68702,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "ASTER",
+              "rows": 68633,
+              "min_ts": "1787283240000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "WIF",
+              "rows": 38487,
+              "min_ts": "1789544205000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "SYN",
+              "rows": 38180,
+              "min_ts": "1789544190000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "ZEC",
+              "rows": 10942,
+              "min_ts": "1787419500000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "AAVE",
+              "rows": 10487,
+              "min_ts": "1786164240000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "APT",
+              "rows": 8987,
+              "min_ts": "1787472480000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "TAO",
+              "rows": 7719,
+              "min_ts": "1787419500000",
+              "max_ts": "1789614360000"
+            },
+            {
+              "symbol": "XMR",
+              "rows": 6776,
+              "min_ts": "1787416020000",
+              "max_ts": "1789686300000"
+            },
+            {
+              "symbol": "CRCL",
+              "rows": 3892,
+              "min_ts": "1789544205000",
+              "max_ts": "1789581420000"
+            },
+            {
+              "symbol": "PLAY",
+              "rows": 3892,
+              "min_ts": "1789544205000",
+              "max_ts": "1789581420000"
+            },
+            {
+              "symbol": "DOT",
+              "rows": 3321,
+              "min_ts": "1787283240000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "ONDO",
+              "rows": 2325,
+              "min_ts": "1787442360000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "SUI",
+              "rows": 2181,
+              "min_ts": "1788152760000",
+              "max_ts": "1789870500000"
+            },
+            {
+              "symbol": "TIA",
+              "rows": 1649,
+              "min_ts": "1787929860000",
+              "max_ts": "1789785120000"
+            },
+            {
+              "symbol": "ATOM",
+              "rows": 1464,
+              "min_ts": "1788163560000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "LTC",
+              "rows": 1421,
+              "min_ts": "1787283240000",
+              "max_ts": "1788115500000"
+            },
+            {
+              "symbol": "HYPE",
+              "rows": 1418,
+              "min_ts": "1787427540000",
+              "max_ts": "1788982380000"
+            },
+            {
+              "symbol": "IP",
+              "rows": 1295,
+              "min_ts": "1787976360000",
+              "max_ts": "1788439980000"
+            },
+            {
+              "symbol": "ARB",
+              "rows": 1043,
+              "min_ts": "1787429340000",
+              "max_ts": "1788939000000"
+            },
+            {
+              "symbol": "AR",
+              "rows": 1009,
+              "min_ts": "1788112500000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "USELESS",
+              "rows": 960,
+              "min_ts": "1789672980000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "ENA",
+              "rows": 909,
+              "min_ts": "1787413440000",
+              "max_ts": "1789873680000"
+            },
+            {
+              "symbol": "WLFI",
+              "rows": 873,
+              "min_ts": "1789658280000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "NEAR",
+              "rows": 836,
+              "min_ts": "1788118800000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "INJ",
+              "rows": 834,
+              "min_ts": "1788173460000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "MELANIA",
+              "rows": 802,
+              "min_ts": "1787417460000",
+              "max_ts": "1787478660000"
+            },
+            {
+              "symbol": "POL",
+              "rows": 662,
+              "min_ts": "1787426580000",
+              "max_ts": "1789822260000"
+            },
+            {
+              "symbol": "FIL",
+              "rows": 597,
+              "min_ts": "1788287760000",
+              "max_ts": "1789653420000"
+            }
+          ],
+          "sample_gap_error": "错误:  操作符不存在: bigint > timestamp with time zone\nLINE 5: ...  from market_orderbook_snapshots where timestamp > now() - ...\n                                                             ^\nHINT:  没有匹配指定名称和参数类型的操作符. 您也许需要增加明确的类型转换.\n",
+          "sample_row": {
+            "id": "5760326",
+            "exchange": "binance",
+            "symbol": "DOGE",
+            "timestamp": "1789875450000",
+            "best_bid": "0.085520",
+            "best_ask": "0.085530",
+            "spread": "0.000010",
+            "bid_depth_5": "1231562.00000000",
+            "ask_depth_5": "2168464.00000000",
+            "bid_depth_10": "4859505.00000000",
+            "ask_depth_10": "4570963.00000000",
+            "bid_orders_count": "20",
+            "ask_orders_count": "20",
+            "raw_levels": "None",
+            "created_at": "2026-09-20 11:37:41.614167"
+          }
+        },
+        "asterdex_book_ticker": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "bigint"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "event_ts_ms",
+              "type": "bigint"
+            },
+            {
+              "name": "trade_ts_ms",
+              "type": "bigint"
+            },
+            {
+              "name": "recv_ts_ns",
+              "type": "bigint"
+            },
+            {
+              "name": "update_id",
+              "type": "bigint"
+            },
+            {
+              "name": "bid_px",
+              "type": "numeric"
+            },
+            {
+              "name": "bid_qty",
+              "type": "numeric"
+            },
+            {
+              "name": "ask_px",
+              "type": "numeric"
+            },
+            {
+              "name": "ask_qty",
+              "type": "numeric"
+            },
+            {
+              "name": "ingest_ts",
+              "type": "timestamp with time zone"
+            }
+          ],
+          "rows_estimate": 98955112,
+          "rows_exact": 102562972,
+          "time_column": null,
+          "symbol_column": "symbol",
+          "sample_row": {
+            "id": "102570577",
+            "symbol": "AVAXUSDT",
+            "event_ts_ms": "1789875452068",
+            "trade_ts_ms": "1789875452050",
+            "recv_ts_ns": "1789875452325130400",
+            "update_id": "553684245066",
+            "bid_px": "9.539000000000",
+            "bid_qty": "162.000000000000",
+            "ask_px": "9.541000000000",
+            "ask_qty": "9.000000000000",
+            "ingest_ts": "2026-09-20 11:37:32.331064+08:00"
+          }
+        },
+        "asterdex_depth_snapshots": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "bigint"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "event_ts_ms",
+              "type": "bigint"
+            },
+            {
+              "name": "recv_ts_ns",
+              "type": "bigint"
+            },
+            {
+              "name": "update_id",
+              "type": "bigint"
+            },
+            {
+              "name": "levels",
+              "type": "smallint"
+            },
+            {
+              "name": "bids",
+              "type": "jsonb"
+            },
+            {
+              "name": "asks",
+              "type": "jsonb"
+            },
+            {
+              "name": "ingest_ts",
+              "type": "timestamp with time zone"
+            }
+          ],
+          "rows_estimate": 24982512,
+          "rows_exact": 26570368,
+          "time_column": null,
+          "symbol_column": "symbol"
+        },
+        "asterdex_trades": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "bigint"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "event_ts_ms",
+              "type": "bigint"
+            },
+            {
+              "name": "trade_ts_ms",
+              "type": "bigint"
+            },
+            {
+              "name": "recv_ts_ns",
+              "type": "bigint"
+            },
+            {
+              "name": "agg_trade_id",
+              "type": "bigint"
+            },
+            {
+              "name": "price",
+              "type": "numeric"
+            },
+            {
+              "name": "qty",
+              "type": "numeric"
+            },
+            {
+              "name": "is_buyer_maker",
+              "type": "boolean"
+            },
+            {
+              "name": "ingest_ts",
+              "type": "timestamp with time zone"
+            }
+          ],
+          "rows_estimate": 1839395,
+          "rows_exact": 1913819,
+          "time_column": null,
+          "symbol_column": "symbol",
+          "sample_row": {
+            "id": "1913819",
+            "symbol": "ETHUSDT",
+            "event_ts_ms": "1789875436342",
+            "trade_ts_ms": "1789875436150",
+            "recv_ts_ns": "1789875438429634800",
+            "agg_trade_id": "47791958",
+            "price": "2581.900000000000",
+            "qty": "0.026000000000",
+            "is_buyer_maker": "True",
+            "ingest_ts": "2026-09-20 11:37:19.761860+08:00"
+          }
+        },
+        "market_trades_aggregated": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "integer"
+            },
+            {
+              "name": "exchange",
+              "type": "character varying"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "timestamp",
+              "type": "bigint"
+            },
+            {
+              "name": "taker_buy_volume",
+              "type": "numeric"
+            },
+            {
+              "name": "taker_sell_volume",
+              "type": "numeric"
+            },
+            {
+              "name": "taker_buy_count",
+              "type": "integer"
+            },
+            {
+              "name": "taker_sell_count",
+              "type": "integer"
+            },
+            {
+              "name": "taker_buy_notional",
+              "type": "numeric"
+            },
+            {
+              "name": "taker_sell_notional",
+              "type": "numeric"
+            },
+            {
+              "name": "vwap",
+              "type": "numeric"
+            },
+            {
+              "name": "high_price",
+              "type": "numeric"
+            },
+            {
+              "name": "low_price",
+              "type": "numeric"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "name": "bid_depth_top5",
+              "type": "numeric"
+            },
+            {
+              "name": "ask_depth_top5",
+              "type": "numeric"
+            },
+            {
+              "name": "largest_trade_usd",
+              "type": "numeric"
+            },
+            {
+              "name": "largest_trade_side",
+              "type": "character varying"
+            }
+          ],
+          "rows_estimate": 1696869,
+          "rows_exact": 1702712,
+          "time_column": "timestamp",
+          "symbol_column": "symbol",
+          "by_symbol": [
+            {
+              "symbol": "SOL",
+              "rows": 172499,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "ETH",
+              "rows": 172179,
+              "min_ts": "1787283270000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "BTC",
+              "rows": 171097,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "BNB",
+              "rows": 170942,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "XRP",
+              "rows": 170380,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "DOGE",
+              "rows": 155443,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "UNI",
+              "rows": 138502,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "LINK",
+              "rows": 85773,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "ADA",
+              "rows": 79603,
+              "min_ts": "1787283255000",
+              "max_ts": "1789869240000"
+            },
+            {
+              "symbol": "AVAX",
+              "rows": 77123,
+              "min_ts": "1787283255000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "ASTER",
+              "rows": 72098,
+              "min_ts": "1787283300000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "XPL",
+              "rows": 53296,
+              "min_ts": "1787283300000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "VIRTUAL",
+              "rows": 51668,
+              "min_ts": "1787283300000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "SYN",
+              "rows": 31355,
+              "min_ts": "1789544025000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "WIF",
+              "rows": 22022,
+              "min_ts": "1789544040000",
+              "max_ts": "1789875405000"
+            },
+            {
+              "symbol": "ZEC",
+              "rows": 11749,
+              "min_ts": "1787419500000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "AAVE",
+              "rows": 10212,
+              "min_ts": "1787414880000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "TAO",
+              "rows": 8664,
+              "min_ts": "1787419500000",
+              "max_ts": "1789614345000"
+            },
+            {
+              "symbol": "APT",
+              "rows": 8585,
+              "min_ts": "1787472480000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "XMR",
+              "rows": 6710,
+              "min_ts": "1787416020000",
+              "max_ts": "1789686300000"
+            },
+            {
+              "symbol": "PLAY",
+              "rows": 3288,
+              "min_ts": "1789544040000",
+              "max_ts": "1789581345000"
+            },
+            {
+              "symbol": "CRCL",
+              "rows": 3118,
+              "min_ts": "1789544040000",
+              "max_ts": "1789581390000"
+            },
+            {
+              "symbol": "DOT",
+              "rows": 3099,
+              "min_ts": "1787283300000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "ONDO",
+              "rows": 2211,
+              "min_ts": "1787442360000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "SUI",
+              "rows": 2130,
+              "min_ts": "1788152760000",
+              "max_ts": "1789870500000"
+            },
+            {
+              "symbol": "HYPE",
+              "rows": 1422,
+              "min_ts": "1787427540000",
+              "max_ts": "1788982380000"
+            },
+            {
+              "symbol": "LTC",
+              "rows": 1383,
+              "min_ts": "1787283300000",
+              "max_ts": "1788115500000"
+            },
+            {
+              "symbol": "TIA",
+              "rows": 1366,
+              "min_ts": "1787929860000",
+              "max_ts": "1789785120000"
+            },
+            {
+              "symbol": "ATOM",
+              "rows": 1284,
+              "min_ts": "1788163560000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "ARB",
+              "rows": 1035,
+              "min_ts": "1787429340000",
+              "max_ts": "1788939000000"
+            },
+            {
+              "symbol": "USELESS",
+              "rows": 957,
+              "min_ts": "1789672980000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "AR",
+              "rows": 941,
+              "min_ts": "1788112500000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "ENA",
+              "rows": 906,
+              "min_ts": "1787413440000",
+              "max_ts": "1789873680000"
+            },
+            {
+              "symbol": "NEAR",
+              "rows": 827,
+              "min_ts": "1788118800000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "MELANIA",
+              "rows": 801,
+              "min_ts": "1787417460000",
+              "max_ts": "1787478660000"
+            },
+            {
+              "symbol": "INJ",
+              "rows": 775,
+              "min_ts": "1788173460000",
+              "max_ts": "1789872120000"
+            },
+            {
+              "symbol": "WLFI",
+              "rows": 766,
+              "min_ts": "1789658280000",
+              "max_ts": "1789875060000"
+            },
+            {
+              "symbol": "POL",
+              "rows": 616,
+              "min_ts": "1787426580000",
+              "max_ts": "1789822260000"
+            },
+            {
+              "symbol": "FIL",
+              "rows": 554,
+              "min_ts": "1788287760000",
+              "max_ts": "1789653420000"
+            },
+            {
+              "symbol": "ICP",
+              "rows": 515,
+              "min_ts": "1789708980000",
+              "max_ts": "1789875060000"
+            }
+          ],
+          "sample_gap_error": "错误:  操作符不存在: bigint > timestamp with time zone\nLINE 5: ...    from market_trades_aggregated where timestamp > now() - ...\n                                                             ^\nHINT:  没有匹配指定名称和参数类型的操作符. 您也许需要增加明确的类型转换.\n"
+        },
+        "crypto_klines": {
+          "exists": true,
+          "columns": [
+            {
+              "name": "id",
+              "type": "integer"
+            },
+            {
+              "name": "exchange",
+              "type": "character varying"
+            },
+            {
+              "name": "symbol",
+              "type": "character varying"
+            },
+            {
+              "name": "market",
+              "type": "character varying"
+            },
+            {
+              "name": "period",
+              "type": "character varying"
+            },
+            {
+              "name": "timestamp",
+              "type": "integer"
+            },
+            {
+              "name": "datetime_str",
+              "type": "character varying"
+            },
+            {
+              "name": "environment",
+              "type": "character varying"
+            },
+            {
+              "name": "open_price",
+              "type": "numeric"
+            },
+            {
+              "name": "high_price",
+              "type": "numeric"
+            },
+            {
+              "name": "low_price",
+              "type": "numeric"
+            },
+            {
+              "name": "close_price",
+              "type": "numeric"
+            },
+            {
+              "name": "volume",
+              "type": "numeric"
+            },
+            {
+              "name": "amount",
+              "type": "numeric"
+            },
+            {
+              "name": "change",
+              "type": "numeric"
+            },
+            {
+              "name": "percent",
+              "type": "numeric"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows_estimate": 59062328,
+          "rows_exact": 59219444,
+          "time_column": "timestamp",
+          "symbol_column": "symbol",
+          "by_symbol": [
+            {
+              "symbol": "XRP",
+              "rows": 499752,
+              "min_ts": "1525046400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "AVAX",
+              "rows": 482963,
+              "min_ts": "1600646400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "DOGE",
+              "rows": 478421,
+              "min_ts": "1561939200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "UNI",
+              "rows": 474192,
+              "min_ts": "1600041600",
+              "max_ts": "1789875360"
+            },
+            {
+              "symbol": "ADA",
+              "rows": 470736,
+              "min_ts": "1523836800",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ASTER",
+              "rows": 446110,
+              "min_ts": "1756684800",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "LTC",
+              "rows": 445895,
+              "min_ts": "1512950400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "XPL",
+              "rows": 441080,
+              "min_ts": "1754006400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "BNB",
+              "rows": 434718,
+              "min_ts": "1509926400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "SUI",
+              "rows": 432705,
+              "min_ts": "1682208000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "VIRTUAL",
+              "rows": 426133,
+              "min_ts": "1730419200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "SOL",
+              "rows": 421597,
+              "min_ts": "1597017600",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "HYPE",
+              "rows": 417596,
+              "min_ts": "1731456000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "LINK",
+              "rows": 416305,
+              "min_ts": "1547424000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "TAO",
+              "rows": 414509,
+              "min_ts": "1704067200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ARB",
+              "rows": 411237,
+              "min_ts": "1677024000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "BTC",
+              "rows": 405812,
+              "min_ts": "1502928000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "DOT",
+              "rows": 401411,
+              "min_ts": "1597622400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ETH",
+              "rows": 399847,
+              "min_ts": "1502928000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "LIT",
+              "rows": 376265,
+              "min_ts": "1612137600",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "AAVE",
+              "rows": 374968,
+              "min_ts": "1602460800",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "APT",
+              "rows": 374318,
+              "min_ts": "1664582400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ENA",
+              "rows": 355089,
+              "min_ts": "1710720000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ATOM",
+              "rows": 351715,
+              "min_ts": "1556496000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "TIA",
+              "rows": 351219,
+              "min_ts": "1695168000",
+              "max_ts": "1789875300"
+            },
+            {
+              "symbol": "ZEC",
+              "rows": 343817,
+              "min_ts": "1552867200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "ONDO",
+              "rows": 329958,
+              "min_ts": "1704067200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "WIF",
+              "rows": 325409,
+              "min_ts": "1702944000",
+              "max_ts": "1789875360"
+            },
+            {
+              "symbol": "POL",
+              "rows": 317356,
+              "min_ts": "1725148800",
+              "max_ts": "1789875300"
+            },
+            {
+              "symbol": "FIL",
+              "rows": 315715,
+              "min_ts": "1602460800",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "OP",
+              "rows": 308367,
+              "min_ts": "1653523200",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "INJ",
+              "rows": 300603,
+              "min_ts": "1603065600",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "XMR",
+              "rows": 296561,
+              "min_ts": "1552262400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "WLFI",
+              "rows": 285849,
+              "min_ts": "1754006400",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "PAXG",
+              "rows": 275130,
+              "min_ts": "1598227200",
+              "max_ts": "1789869600"
+            },
+            {
+              "symbol": "MU",
+              "rows": 274947,
+              "min_ts": "1767225600",
+              "max_ts": "1789849500"
+            },
+            {
+              "symbol": "BCH",
+              "rows": 274627,
+              "min_ts": "1574640000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "NEAR",
+              "rows": 270884,
+              "min_ts": "1602460800",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "PUMP",
+              "rows": 270414,
+              "min_ts": "1749600000",
+              "max_ts": "1789875420"
+            },
+            {
+              "symbol": "SEI",
+              "rows": 269048,
+              "min_ts": "1691625600",
+              "max_ts": "1789875420"
+            }
+          ],
+          "sample_gap_error": "错误:  操作符不存在: integer > timestamp with time zone\nLINE 5: ...               from crypto_klines where timestamp > now() - ...\n                                                             ^\nHINT:  没有匹配指定名称和参数类型的操作符. 您也许需要增加明确的类型转换.\n"
+        }
+      }
+    },
+    "alpha_analytics": {
+      "tables": {
+        "market_orderbook_snapshots": {
+          "exists": false
+        },
+        "asterdex_book_ticker": {
+          "exists": false
+        },
+        "asterdex_depth_snapshots": {
+          "exists": false
+        },
+        "asterdex_trades": {
+          "exists": false
+        },
+        "market_trades_aggregated": {
+          "exists": false
+        },
+        "crypto_klines": {
+          "exists": false
+        }
+      }
+    }
+  }
+}

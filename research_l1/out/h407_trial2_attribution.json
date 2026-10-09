@@ -1,0 +1,159 @@
+{
+  "window_start": "2026-09-27 13:00:00+08",
+  "generated_at": "2026-09-27T10:49:18.320379+00:00",
+  "by_symbol": {
+    "ADA": [
+      {
+        "ep": "maker",
+        "n": 15,
+        "net_bp": 26.8,
+        "mean_bp": 1.786
+      },
+      {
+        "ep": "stop_loss_taker",
+        "n": 2,
+        "net_bp": -104.1,
+        "mean_bp": -52.071
+      }
+    ],
+    "ARB": [
+      {
+        "ep": "take_profit_taker",
+        "n": 2,
+        "net_bp": 123.1,
+        "mean_bp": 61.568
+      },
+      {
+        "ep": "maker",
+        "n": 4,
+        "net_bp": 10.1,
+        "mean_bp": 2.517
+      },
+      {
+        "ep": "stop_loss_taker",
+        "n": 1,
+        "net_bp": -62.6,
+        "mean_bp": -62.631
+      }
+    ],
+    "BNB": [
+      {
+        "ep": "maker",
+        "n": 117,
+        "net_bp": -77.0,
+        "mean_bp": -0.658
+      }
+    ],
+    "BTC": [
+      {
+        "ep": "maker",
+        "n": 357,
+        "net_bp": -16.7,
+        "mean_bp": -0.047
+      }
+    ],
+    "DOGE": [
+      {
+        "ep": "take_profit_taker",
+        "n": 2,
+        "net_bp": 43.1,
+        "mean_bp": 21.537
+      },
+      {
+        "ep": "maker",
+        "n": 81,
+        "net_bp": -56.8,
+        "mean_bp": -0.702
+      }
+    ],
+    "ENA": [
+      {
+        "ep": "take_profit_taker",
+        "n": 3,
+        "net_bp": 203.3,
+        "mean_bp": 67.769
+      },
+      {
+        "ep": "maker",
+        "n": 26,
+        "net_bp": 193.4,
+        "mean_bp": 7.437
+      },
+      {
+        "ep": "stop_loss_taker",
+        "n": 1,
+        "net_bp": -51.7,
+        "mean_bp": -51.682
+      }
+    ],
+    "ETH": [
+      {
+        "ep": "maker",
+        "n": 272,
+        "net_bp": -75.6,
+        "mean_bp": -0.278
+      }
+    ],
+    "NEAR": [
+      {
+        "ep": "maker",
+        "n": 88,
+        "net_bp": 1002.4,
+        "mean_bp": 11.391
+      },
+      {
+        "ep": "take_profit_taker",
+        "n": 1,
+        "net_bp": 38.1,
+        "mean_bp": 38.088
+      },
+      {
+        "ep": "reversal_decay_taker",
+        "n": 1,
+        "net_bp": -23.0,
+        "mean_bp": -22.955
+      },
+      {
+        "ep": "stop_loss_taker",
+        "n": 7,
+        "net_bp": -417.7,
+        "mean_bp": -59.672
+      }
+    ],
+    "SUI": [
+      {
+        "ep": "maker",
+        "n": 83,
+        "net_bp": 493.5,
+        "mean_bp": 5.946
+      },
+      {
+        "ep": "take_profit_taker",
+        "n": 1,
+        "net_bp": 59.7,
+        "mean_bp": 59.653
+      },
+      {
+        "ep": "stop_loss_taker",
+        "n": 6,
+        "net_bp": -456.2,
+        "mean_bp": -76.029
+      }
+    ],
+    "XRP": [
+      {
+        "ep": "maker",
+        "n": 174,
+        "net_bp": 205.1,
+        "mean_bp": 1.179
+      },
+      {
+        "ep": "reversal_decay_taker",
+        "n": 1,
+        "net_bp": -9.2,
+        "mean_bp": -9.219
+      }
+    ]
+  },
+  "total_net_bp": 1048.0
+}

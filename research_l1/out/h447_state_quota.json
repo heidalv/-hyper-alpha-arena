@@ -1,0 +1,115 @@
+{
+  "hours": 168.0,
+  "live_legs": 78.0,
+  "cost_bp": 2.3,
+  "grid": [
+    {
+      "theta": 0.0,
+      "pass_rate": 0.807,
+      "legs_h": 363.3,
+      "edge_bp": 0.412,
+      "t": 3.87,
+      "net_bp": -1.888,
+      "total_per_h": -685.8
+    },
+    {
+      "theta": 0.1,
+      "pass_rate": 0.1891,
+      "legs_h": 85.1,
+      "edge_bp": 2.062,
+      "t": 13.71,
+      "net_bp": -0.238,
+      "total_per_h": -20.3
+    },
+    {
+      "theta": 0.15,
+      "pass_rate": 0.187,
+      "legs_h": 84.2,
+      "edge_bp": 2.102,
+      "t": 13.92,
+      "net_bp": -0.198,
+      "total_per_h": -16.64
+    },
+    {
+      "theta": 0.2,
+      "pass_rate": 0.185,
+      "legs_h": 83.3,
+      "edge_bp": 2.169,
+      "t": 14.37,
+      "net_bp": -0.131,
+      "total_per_h": -10.94
+    },
+    {
+      "theta": 0.25,
+      "pass_rate": 0.1833,
+      "legs_h": 82.5,
+      "edge_bp": 2.195,
+      "t": 14.52,
+      "net_bp": -0.105,
+      "total_per_h": -8.67
+    },
+    {
+      "theta": 0.3,
+      "pass_rate": 0.1817,
+      "legs_h": 81.8,
+      "edge_bp": 2.233,
+      "t": 14.76,
+      "net_bp": -0.067,
+      "total_per_h": -5.48
+    },
+    {
+      "theta": 0.4,
+      "pass_rate": 0.1772,
+      "legs_h": 79.8,
+      "edge_bp": 2.285,
+      "t": 15.06,
+      "net_bp": -0.015,
+      "total_per_h": -1.16
+    },
+    {
+      "theta": 0.5,
+      "pass_rate": 0.1733,
+      "legs_h": 78.0,
+      "edge_bp": 2.328,
+      "t": 15.19,
+      "net_bp": 0.028,
+      "total_per_h": 2.18
+    },
+    {
+      "theta": 0.6,
+      "pass_rate": 0.1691,
+      "legs_h": 76.1,
+      "edge_bp": 2.298,
+      "t": 14.86,
+      "net_bp": -0.002,
+      "total_per_h": -0.16
+    },
+    {
+      "theta": 0.8,
+      "pass_rate": 0.1587,
+      "legs_h": 71.4,
+      "edge_bp": 2.442,
+      "t": 15.65,
+      "net_bp": 0.142,
+      "total_per_h": 10.11
+    }
+  ],
+  "best_unconstrained": {
+    "theta": 0.8,
+    "pass_rate": 0.1587,
+    "legs_h": 71.4,
+    "edge_bp": 2.442,
+    "t": 15.65,
+    "net_bp": 0.142,
+    "total_per_h": 10.11
+  },
+  "best_feasible": {
+    "theta": 0.8,
+    "pass_rate": 0.1587,
+    "legs_h": 71.4,
+    "edge_bp": 2.442,
+    "t": 15.65,
+    "net_bp": 0.142,
+    "total_per_h": 10.11
+  }
+}

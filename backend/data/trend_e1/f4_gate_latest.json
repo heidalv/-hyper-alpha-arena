@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789403701562,
+  "ts_ms": 1791563700759,
   "passed": false,
   "live_aster_requested": false,
   "live_allowed": false,
@@ -7,26 +7,26 @@
     {
       "name": "trend_drift",
       "ok": false,
-      "trend_drift": 0,
-      "weight_drift": 3,
+      "trend_drift": 1,
+      "weight_drift": 0,
       "leverage_violations": 0,
-      "max_weight_deviation": 0.1484,
+      "max_weight_deviation": 0.0949,
       "max_ok": 0.1,
       "accounts_checked": 1,
-      "as_of_bar": "2026-09-12",
-      "reason": "max|权重偏差|=0.1484 > 0.1"
+      "as_of_bar": "2026-10-07",
+      "reason": "trend_drift=1（方向不符仓位数，要求 0）"
     },
     {
       "name": "run_days",
-      "ok": false,
-      "days": 12.0,
+      "ok": true,
+      "days": 40.0,
       "min_days": 28,
-      "reason": "模拟天数 12.0 < 28"
+      "reason": null
     },
     {
       "name": "fee_budget",
       "ok": true,
-      "fee_pct_week": 0.005355,
+      "fee_pct_week": 0.001761,
       "max": 0.01,
       "reason": null
     },

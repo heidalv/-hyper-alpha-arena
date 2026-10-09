@@ -1,0 +1,62 @@
+{
+  "ts": 1791102793.406686,
+  "horizon_sec": 90,
+  "cost_bp": 6.0,
+  "report": [
+    {
+      "symbol": "1000SHIB",
+      "n": 5652,
+      "n_selected": 0,
+      "oos_edge_bp": null,
+      "hit_rate": null,
+      "brier_raw": 0.1561,
+      "brier_cal": 0.1507,
+      "n_selected_cal": 127,
+      "oos_edge_cal_bp": -5.19
+    },
+    {
+      "symbol": "NEAR",
+      "n": 5720,
+      "n_selected": 0,
+      "oos_edge_bp": null,
+      "hit_rate": null,
+      "brier_raw": 0.1957,
+      "brier_cal": 0.1875,
+      "n_selected_cal": 0,
+      "oos_edge_cal_bp": null
+    },
+    {
+      "symbol": "PENGU",
+      "n": 4791,
+      "n_selected": 0,
+      "oos_edge_bp": null,
+      "hit_rate": null,
+      "brier_raw": 0.1752,
+      "brier_cal": 0.1591,
+      "n_selected_cal": 0,
+      "oos_edge_cal_bp": null
+    },
+    {
+      "symbol": "CBRS",
+      "n": 4508,
+      "n_selected": 0,
+      "oos_edge_bp": null,
+      "hit_rate": null,
+      "brier_raw": 0.2887,
+      "brier_cal": 0.2417,
+      "n_selected_cal": 15,
+      "oos_edge_cal_bp": null
+    },
+    {
+      "symbol": "RESOLV",
+      "n": 4790,
+      "n_selected": 0,
+      "oos_edge_bp": null,
+      "hit_rate": null,
+      "brier_raw": 0.1173,
+      "brier_cal": 0.1126,
+      "n_selected_cal": 24,
+      "oos_edge_cal_bp": null
+    }
+  ]
+}

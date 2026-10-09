@@ -1303,6 +1303,20 @@ def ops_errors(limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:
     return ttl_cached_stale(f"ops_errors:{limit}", 30.0, lambda: _ops_errors_impl(limit))
 
 
+@router.get("/gil-watch")
+def ops_gil_watch() -> Dict[str, Any]:
+    """GIL/排队可观测快照（只读、不缓存）。
+
+    [2026-09-18 前端刷新慢治理] 用于把"端点慢"区分为**查询慢**还是**排队久**：
+    - `last_window.cpu_pct`：窗口内进程内所有线程合计 CPU / 墙钟。CPython 里长期贴 100%
+      即 GIL 饱和——此时任何同步 `def` 端点都会排队（实测同端点 25ms~4.6s）。
+    - `inflight_*`：并发压力；`over_1s/over_3s`：与 `SLOW` 日志同口径的超阈计数。
+    """
+    from backend.services import gil_watch
+
+    return gil_watch.snapshot()
+
+
 def _ops_errors_impl(limit: int) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     try:

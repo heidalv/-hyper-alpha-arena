@@ -24,18 +24,29 @@ from typing import Any, Deque, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Agent 列表（与 ALL_CARDS 保持一致）
-_KNOWN_AGENTS = [
-    "market_data",
-    "factor_engine",
-    "intel_signal",
-    "risk_control",
-    "mt_orchestrator",
-    "master_controller",
-    "trade_execution",
-    "signal_bus",
-    "genetic_optimizer",
-]
+# [2026-09-19 退役修正] 原 _KNOWN_AGENTS 硬编码为 QAA v3 的 9 张卡片 id
+# （market_data/factor_engine/intel_signal/…），而那 9 个 Agent **从未注册、从未执行**（QAA 编排层已退役，
+# 见 docs/ADR_QAA退役_20260919.md）。结果是：看板能查到的 9 个名字全没跑、真正在跑的 6 个观察型 Agent
+# 与 3 条车道一个都查不到（`/api/monitor/agents/anomaly` 恒 404）。
+# 现改为**从真实注册表动态取**（`services/agents/jobs.py ensure_registered()` 填充），
+# 取不到时返回空列表——**宁可空，也不列一份不存在的名单**。
+
+
+def known_agents() -> List[str]:
+    """当前真实注册的观察型 Agent id（动态）。失败返回空列表（不虚报名单）。"""
+    try:
+        from backend.services.agents.base import registered_agents
+        from backend.services.agents.jobs import ensure_registered
+
+        ensure_registered()
+        return sorted(registered_agents())
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[AgentMonitor] 真实 Agent 注册表不可用: %s", exc)
+        return []
+
+
+#: 兼容旧引用（模块加载时求值一次；新代码请用 `known_agents()`）
+_KNOWN_AGENTS: List[str] = []
 
 # Agent display_name 映射
 _AGENT_DISPLAY_NAMES: Dict[str, str] = {
@@ -128,7 +139,7 @@ class AgentRuntimeMonitor:
 
     def __init__(self):
         self._stats: Dict[str, AgentRuntimeStats] = {
-            aid: AgentRuntimeStats(agent_id=aid) for aid in _KNOWN_AGENTS
+            aid: AgentRuntimeStats(agent_id=aid) for aid in known_agents()
         }
         self._lock = threading.Lock()
         self._start_time = time.time()
@@ -315,17 +326,29 @@ class AgentRuntimeMonitor:
 
     # ─── 健康度计算 ───
 
-    def compute_health_score(self, agent_id: str) -> float:
-        """综合健康度评分 (0-100)。
+    def compute_health_score(self, agent_id: str) -> Optional[float]:
+        """综合健康度评分 (0-100)；**无运行数据时返回 None（不虚报）**。
 
         权重：
           - 活跃度 40%（10分钟内有活动 → 40分，30分钟内 → 25分，更久 → 0分）
           - 错误状态 35%（无错误 → 35分，有失败/超时但<20% → 扣分，高错误率 → 0分）
           - 熔断器状态 25%（closed → 25分, half_open → 12.5分, open → 0分）
+
+        [2026-09-19 退役修正] 旧实现对**从未运行**的 agent 也返回 60 分
+        （error_score=35 + cb_score=25 两项默认值白送），看板上 9 个从未执行的 QAA 卡片因此
+        显示"健康 60 分"——比没有更糟（假健康）。现改为：无任何运行数据 ⇒ `None`，
+        由调用方显示"无数据"，禁止用默认值凑分。
         """
         stats = self._stats.get(agent_id)
         if stats is None:
-            return 0.0
+            return None
+        if not getattr(stats, "call_count", 0) and not getattr(stats, "last_exec_ts", 0):
+            # [2026-09-19 修复] 原写 `total_calls` —— 那**不是**该对象的字段（真实字段是 `call_count`，见 :84）。
+            # `getattr(..., 0)` 恒返回 0 ⇒ 守卫退化成 `not last_exec_ts`；而 `record_log`(:302) 只设
+            # `last_exec_ts` 不增 `call_count` ⇒ **只打过一条日志的 agent 也能通过守卫**，
+            # 白拿 error_score 35 + cb_score 25 + activity 40 = 最高 100 分（"假健康"）。
+            # 当前未触发（6 个 agent 的 last_exec_ts 全为 0.0 ⇒ 真返回 None），属"已武装待触发"缺陷。
+            return None            # 从未有过任何运行痕迹 ⇒ 无数据，而不是"60 分"
 
         now = time.time()
 
@@ -374,7 +397,7 @@ class AgentRuntimeMonitor:
         self._backfill_from_event_bus()
         with self._lock:
             results = []
-            for aid in _KNOWN_AGENTS:
+            for aid in known_agents():
                 stats = self._stats.get(aid)
                 if stats is None:
                     continue
@@ -493,7 +516,7 @@ class AgentRuntimeMonitor:
         totals: Dict[str, int] = {}
 
         with self._lock:
-            for aid in _KNOWN_AGENTS:
+            for aid in known_agents():
                 stats = self._stats.get(aid)
                 counts = {entry["hour"]: entry["count"] for entry in (stats.hourly_calls if stats else [])}
                 row = []
@@ -506,7 +529,7 @@ class AgentRuntimeMonitor:
                 totals[aid] = total
 
         return {
-            "agents": list(_KNOWN_AGENTS),
+            "agents": known_agents(),
             "hours": hour_labels,
             "matrix": matrix,
             "total_calls": totals,
@@ -514,7 +537,7 @@ class AgentRuntimeMonitor:
 
     def get_all_agent_ids(self) -> List[str]:
         """返回所有已知 Agent ID。"""
-        return list(_KNOWN_AGENTS)
+        return known_agents()
 
     @property
     def uptime_seconds(self) -> float:

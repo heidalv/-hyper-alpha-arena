@@ -1,0 +1,44 @@
+轮115: 冷却「只冻不解」根因 —— 单向棘轮 + 台账从不记解冻
+
+用户原话：「冷却是冷却，但是设计的冷却好像从来都没有解冻过啊。只冻不解，并且
+单交易对冷却，但是弄个全局冻结不解冻。」—— 对，而且比"没解冻"更糟。
+
+## 根因：装配冷却时计数永不回落（单向棘轮）
+_record_proposal_block 的逻辑是"同因连续 5 次 → 该 (symbol,tier) 冷却 30 分钟"，
+但装配后计数停在 >= 5 ⇒ 窗口过期、放行 1 次尝试、同因拦截使 count 变 6(>=5) ⇒
+立刻重新装配。等效"永远冻结、每个窗口只放行一次尝试"。
+日志地面真值（reports/_probe115b.txt，逐行解析 [BlockCooldown]）：
+  ASTER:mid 三次装配时打印的连续计数 = 5 → 6 → 7（从不回落），
+  相邻装配间隔 45.3 / 31.8 分钟 ≈ 冷却窗口 + 一个扫描周期；
+  BNB/SOL/ASTER:long 的计数已到 25/21/16 ⇒ 累计冻结约 10.5h / 8.5h / 6h。
+12 个 (symbol,tier) 计数 >=5，合起来覆盖整个可交易集合 ⇒ 看起来就是"全局冻结"。
+另：状态文件 cooldowns 12 条里 10 条是"已过期 57~1214 分钟"的残留（从不 prune）。
+
+## 第二处"只冻不解"：风险台账
+data/freeze_events.jsonl 实测 387 条事件、0 条解冻（kind 只有 freeze /
+freeze_per_symbol）—— 解冻走惰性过期、从不写事件，唯一写 unfreeze 的函数
+只被修复链调用、实测从没被调到。
+
+## 改动（都可回滚）
+1) 装配冷却时计数归零：解冻后重新拥有完整 5 次预算（旧：1 次尝试就再冻 30 分钟）。
+2) 成功即解冻：新增 clear_proposal_block，host 显式接线、成功分支调用
+   （此前没有任何成功路径清状态）。
+3) 确定性拒绝不冷却：long/short_template_source_block（轮37/轮40 的策略决定，
+   重试永不成功）—— 想恢复节流把 _BLOCK_COOLDOWN_SKIP_CODES 置空。
+4) 落盘前 prune 过期冷却 + 超 2h 未更新的计数。
+5) 解冻要看得见：[BlockCooldown] **冷却结束** 日志、台账 expire 事件、
+   装配时打印全局读数（当前 N 个 (symbol,tier) 在冷却中）。
+回滚：.env PROPOSAL_BLOCK_COOLDOWN_RESET_ON_ARM=false。
+瞬态回环（decision_price_stale / strategy_detached）仍被冷却，有专门用例钉住。
+
+## 顺带查清"有没有真的全局冻结"
+reentry_cooldown / midlong_circuit_gate / tier_circuit_breaker / parity_score 均有
+解冻路径；portfolio_budget._frozen_until（真·全局）没有任何代码路径会写它。
+台账噪音来自已停止的会话（fa_185f162052 / account 188 / mode=live）与不存在的
+account 0。account 14 的 mid/long/trend/swing 读到同一个 51.08σ（cap 10σ），
+但 paper 已被 2026-09-11 的 PB_PAPER_SKIP 指令整体跳过 —— 属实盘地雷，本轮只记录。
+
+## 验证
+新增 test_block_cooldown_thaw(14) + test_freeze_ledger_thaw(6)；相关回归
+portfolio_budget/dd_sigma/p1_fixes/trading_mode(60) + open_block(14) 全绿；
+verify 新增轮115 段 7 项；报告 §十三（复查清单顺延 §十四）。

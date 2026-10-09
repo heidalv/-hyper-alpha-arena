@@ -3,10 +3,11 @@
   "session_id": "fa_test",
   "mid": {
     "symbols": [
-      "TON"
+      "TON",
+      "XMR"
     ],
-    "updated_at": 1789319474.5850916,
-    "reason": "resample age>=10800s from midlong_board min_conf=0.4"
+    "updated_at": 1791536162.5286033,
+    "reason": "retention kept=0 evicted=['DOGE', 'ENA'] added=['TON', 'XMR'] from midlong_board min_conf=0.4"
   },
-  "updated_at": 1789319474.5850916
+  "updated_at": 1791536162.5286033
 }

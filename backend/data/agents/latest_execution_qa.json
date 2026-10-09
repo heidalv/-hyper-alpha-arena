@@ -1,6 +1,6 @@
 {
   "agent": "execution_qa",
-  "ts_ms": 1789427702130,
+  "ts_ms": 1791501300627,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,23 +9,23 @@
   "credibility": {
     "agent": "execution_qa",
     "days": 60,
-    "n": 11,
-    "n_scored": 7,
-    "avg_score": 0.42857142857142855,
-    "avg_brier": 0.2115964365178571,
+    "n": 32,
+    "n_scored": 22,
+    "avg_score": 0.7727272727272727,
+    "avg_brier": 0.15861958659090902,
     "by_kind": [
       {
         "kind": "exec_quality",
-        "n": 11,
-        "n_scored": 7,
-        "avg_score": 0.42857142857142855,
-        "avg_brier": 0.2115964365178571,
-        "last_ms": 1789341302972
+        "n": 32,
+        "n_scored": 22,
+        "avg_score": 0.7727272727272727,
+        "avg_brier": 0.15861958659090902,
+        "last_ms": 1791414911702
       }
     ],
     "verdict": {
       "passed": false,
-      "reason": "已评分样本 7 < 30",
+      "reason": "已评分样本 22 < 30",
       "gate": {
         "min_scored": 30,
         "min_avg_score": 0.55,
@@ -39,60 +39,64 @@
     "per_account": [
       {
         "account_id": null,
-        "since_ms": 1788822902517,
-        "until_ms": 1789427702517,
-        "n_orders": 195,
+        "since_ms": 1790896500997,
+        "until_ms": 1791501300997,
+        "n_orders": 76,
         "notes": [
           "maker/taker 占比与下单延迟未落库（仅存在于仿真器内存），本轮不评估"
         ],
-        "n_filled": 110,
+        "n_filled": 39,
         "n_rejected": 0,
         "n_partial": 0,
         "reject_rate": 0.0,
         "partial_rate": 0.0,
-        "median_slippage_bp": 18.293,
-        "avg_slippage_bp": 16.464,
-        "p90_slippage_bp": 29.411,
-        "n_slippage_samples": 110,
+        "median_slippage_bp": 29.239,
+        "avg_slippage_bp": 26.496,
+        "p90_slippage_bp": 47.702,
+        "n_slippage_samples": 39,
         "slippage_by_type": {
           "market": {
-            "n": 107,
-            "median_bp": 18.46
+            "n": 37,
+            "median_bp": 29.24
+          },
+          "limit": {
+            "n": 1,
+            "median_bp": -3.16
           },
           "stop_loss": {
-            "n": 3,
-            "median_bp": -0.0
+            "n": 1,
+            "median_bp": 30.0
           }
         },
         "worst_symbols": [
           {
-            "symbol": "ASTER",
-            "n": 12,
-            "median_bp": 20.4
-          },
-          {
-            "symbol": "VIRTUAL",
-            "n": 9,
-            "median_bp": 19.86
+            "symbol": "BTC",
+            "n": 5,
+            "median_bp": 29.25
           },
           {
             "symbol": "SOL",
-            "n": 15,
-            "median_bp": 19.4
+            "n": 5,
+            "median_bp": 29.24
           },
           {
             "symbol": "XRP",
-            "n": 15,
-            "median_bp": 18.85
+            "n": 4,
+            "median_bp": 27.58
+          },
+          {
+            "symbol": "AVAX",
+            "n": 16,
+            "median_bp": 27.39
           },
           {
             "symbol": "ETH",
-            "n": 8,
-            "median_bp": 18.76
+            "n": 5,
+            "median_bp": 25.57
           }
         ],
-        "avg_fee_bp": 3.998,
-        "n_fee_samples": 110
+        "avg_fee_bp": 4.6,
+        "n_fee_samples": 39
       }
     ],
     "n_usable": 1,
@@ -100,33 +104,33 @@
       {
         "account_id": null,
         "type": "slippage",
-        "value": 18.293,
+        "value": 29.239,
         "threshold": 8.0,
         "worst": [
           {
-            "symbol": "ASTER",
-            "n": 12,
-            "median_bp": 20.4
-          },
-          {
-            "symbol": "VIRTUAL",
-            "n": 9,
-            "median_bp": 19.86
+            "symbol": "BTC",
+            "n": 5,
+            "median_bp": 29.25
           },
           {
             "symbol": "SOL",
-            "n": 15,
-            "median_bp": 19.4
+            "n": 5,
+            "median_bp": 29.24
           },
           {
             "symbol": "XRP",
-            "n": 15,
-            "median_bp": 18.85
+            "n": 4,
+            "median_bp": 27.58
+          },
+          {
+            "symbol": "AVAX",
+            "n": 16,
+            "median_bp": 27.39
           },
           {
             "symbol": "ETH",
-            "n": 8,
-            "median_bp": 18.76
+            "n": 5,
+            "median_bp": 25.57
           }
         ]
       }
@@ -138,14 +142,48 @@
     }
   },
   "predictions": [
-    "ac052bdf40874ed4889a5594a593bd52"
+    "277064b37e1941fa904cfd32a0394f6b"
   ],
-  "advice": [],
+  "advice": [
+    {
+      "action": "propose_experiment",
+      "target": "account:None",
+      "params": {
+        "title": "账户 None 滑点治理",
+        "hypothesis": "当前平均滑点 29.239bp 高于 8.0bp 警戒线；若把高滑点币的下单方式改为限价追价，滑点应回落到警戒线以下。",
+        "change": {
+          "apply": false,
+          "kind": "execution",
+          "proposal": "高滑点币改限价追价（maker-first）",
+          "symbols": [
+            "BTC",
+            "SOL",
+            "XRP",
+            "AVAX",
+            "ETH"
+          ]
+        },
+        "expected_metrics": [
+          {
+            "metric": "slippage_bp",
+            "op": "<",
+            "threshold": 8.0,
+            "scope": "exec:all",
+            "min_n": 20
+          }
+        ],
+        "window_hours": 168,
+        "rollback_condition": "若滑点未改善或拒单率上升超过 2 个百分点，回退为市价单"
+      },
+      "reason": "平均滑点 29.239bp 超过 8.0bp，集中在 BTC(29.25bp), SOL(29.24bp), XRP(27.58bp)",
+      "severity": 3,
+      "applied": false,
+      "apply_note": "observe 模式：实验卡仅记录不落库"
+    }
+  ],
   "experiments": [],
-  "errors": [
-    "advise: 'avg_bp'"
-  ],
-  "elapsed_sec": 4.654,
+  "errors": [],
+  "elapsed_sec": 3.672,
   "latest_path": null,
   "dry_run": false
 }

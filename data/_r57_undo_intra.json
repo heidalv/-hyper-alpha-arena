@@ -1,0 +1,12 @@
+[
+  {
+    "id": 128,
+    "factor_id": "intra_2abe5b53d94029ec",
+    "prev_state": "ACTIVE"
+  },
+  {
+    "id": 126,
+    "factor_id": "intra_180ee6eedd1fe9cc",
+    "prev_state": "ACTIVE"
+  }
+]

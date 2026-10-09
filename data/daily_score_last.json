@@ -1,0 +1,267 @@
+{
+  "ts": 1791504303.2465014,
+  "streak_positive_days": 0,
+  "days": [
+    {
+      "date": "2026-09-09",
+      "legs": 153,
+      "net_usd": -8.2189,
+      "net_bp_per_leg": -5.245,
+      "notional": 15784.0,
+      "active_hours": 12.4,
+      "net_per_active_h": -0.6642
+    },
+    {
+      "date": "2026-09-10",
+      "legs": 327,
+      "net_usd": -5.1713,
+      "net_bp_per_leg": -1.931,
+      "notional": 29208.0,
+      "active_hours": 23.2,
+      "net_per_active_h": -0.2225
+    },
+    {
+      "date": "2026-09-11",
+      "legs": 312,
+      "net_usd": -9.5747,
+      "net_bp_per_leg": -3.605,
+      "notional": 27902.0,
+      "active_hours": 23.7,
+      "net_per_active_h": -0.4035
+    },
+    {
+      "date": "2026-09-12",
+      "legs": 154,
+      "net_usd": -5.6556,
+      "net_bp_per_leg": -4.892,
+      "notional": 13699.0,
+      "active_hours": 11.2,
+      "net_per_active_h": -0.504
+    },
+    {
+      "date": "2026-09-13",
+      "legs": 2,
+      "net_usd": -0.2807,
+      "net_bp_per_leg": -7.007,
+      "notional": 400.0,
+      "active_hours": 0.3,
+      "net_per_active_h": -1.1044
+    },
+    {
+      "date": "2026-09-14",
+      "legs": 996,
+      "net_usd": -21.0031,
+      "net_bp_per_leg": -0.528,
+      "notional": 326266.0,
+      "active_hours": 23.9,
+      "net_per_active_h": -0.8805
+    },
+    {
+      "date": "2026-09-15",
+      "legs": 3199,
+      "net_usd": -93.2923,
+      "net_bp_per_leg": 2.054,
+      "notional": 633784.0,
+      "active_hours": 23.9,
+      "net_per_active_h": -3.901
+    },
+    {
+      "date": "2026-09-16",
+      "legs": 135,
+      "net_usd": -2.2077,
+      "net_bp_per_leg": -2.643,
+      "notional": 30086.0,
+      "active_hours": 23.7,
+      "net_per_active_h": -0.093
+    },
+    {
+      "date": "2026-09-17",
+      "legs": 20,
+      "net_usd": -0.0035,
+      "net_bp_per_leg": 7.345,
+      "notional": 659.0,
+      "active_hours": 5.0,
+      "net_per_active_h": -0.0007
+    },
+    {
+      "date": "2026-09-20",
+      "legs": 1666,
+      "net_usd": -16.1241,
+      "net_bp_per_leg": -1.602,
+      "notional": 58955.0,
+      "active_hours": 7.6,
+      "net_per_active_h": -2.1286
+    },
+    {
+      "date": "2026-09-21",
+      "legs": 12426,
+      "net_usd": -139.0876,
+      "net_bp_per_leg": -0.521,
+      "notional": 2620683.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -5.798
+    },
+    {
+      "date": "2026-09-22",
+      "legs": 6059,
+      "net_usd": -127.7669,
+      "net_bp_per_leg": -0.555,
+      "notional": 1516859.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -5.3255
+    },
+    {
+      "date": "2026-09-23",
+      "legs": 4162,
+      "net_usd": -351.5057,
+      "net_bp_per_leg": -0.5,
+      "notional": 3033864.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -14.6517
+    },
+    {
+      "date": "2026-09-24",
+      "legs": 4064,
+      "net_usd": -67.2807,
+      "net_bp_per_leg": -0.111,
+      "notional": 4503747.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -2.8044
+    },
+    {
+      "date": "2026-09-25",
+      "legs": 2829,
+      "net_usd": -20.594,
+      "net_bp_per_leg": -0.223,
+      "notional": 715812.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.8583
+    },
+    {
+      "date": "2026-09-26",
+      "legs": 1462,
+      "net_usd": -7.0606,
+      "net_bp_per_leg": -0.37,
+      "notional": 366640.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.2946
+    },
+    {
+      "date": "2026-09-27",
+      "legs": 3872,
+      "net_usd": -13.1741,
+      "net_bp_per_leg": 0.069,
+      "notional": 920202.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.5497
+    },
+    {
+      "date": "2026-09-28",
+      "legs": 3612,
+      "net_usd": -35.4356,
+      "net_bp_per_leg": -0.468,
+      "notional": 725277.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -1.4778
+    },
+    {
+      "date": "2026-09-29",
+      "legs": 1215,
+      "net_usd": -22.3734,
+      "net_bp_per_leg": -2.437,
+      "notional": 90793.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.9322
+    },
+    {
+      "date": "2026-09-30",
+      "legs": 3479,
+      "net_usd": -32.391,
+      "net_bp_per_leg": -1.087,
+      "notional": 267362.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -1.3503
+    },
+    {
+      "date": "2026-10-01",
+      "legs": 1609,
+      "net_usd": -2.7722,
+      "net_bp_per_leg": -0.219,
+      "notional": 36814.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.1157
+    },
+    {
+      "date": "2026-10-02",
+      "legs": 961,
+      "net_usd": -2.3629,
+      "net_bp_per_leg": -0.105,
+      "notional": 32469.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.0985
+    },
+    {
+      "date": "2026-10-03",
+      "legs": 1193,
+      "net_usd": -27.9247,
+      "net_bp_per_leg": -1.089,
+      "notional": 30210.0,
+      "active_hours": 23.7,
+      "net_per_active_h": -1.1759
+    },
+    {
+      "date": "2026-10-04",
+      "legs": 1546,
+      "net_usd": -12.0564,
+      "net_bp_per_leg": -3.89,
+      "notional": 58490.0,
+      "active_hours": 23.9,
+      "net_per_active_h": -0.5037
+    },
+    {
+      "date": "2026-10-05",
+      "legs": 1562,
+      "net_usd": 70.6711,
+      "net_bp_per_leg": -4.678,
+      "notional": 2046689.0,
+      "active_hours": 23.6,
+      "net_per_active_h": 2.9911
+    },
+    {
+      "date": "2026-10-06",
+      "legs": 562,
+      "net_usd": 79.8155,
+      "net_bp_per_leg": -3.262,
+      "notional": 800597.0,
+      "active_hours": 24.0,
+      "net_per_active_h": 3.327
+    },
+    {
+      "date": "2026-10-07",
+      "legs": 837,
+      "net_usd": -250.3534,
+      "net_bp_per_leg": -4.207,
+      "notional": 546864.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -10.4476
+    },
+    {
+      "date": "2026-10-08",
+      "legs": 653,
+      "net_usd": -3.315,
+      "net_bp_per_leg": -3.211,
+      "notional": 10170.0,
+      "active_hours": 24.0,
+      "net_per_active_h": -0.1382
+    },
+    {
+      "date": "2026-10-09",
+      "legs": 86,
+      "net_usd": -16.0702,
+      "net_bp_per_leg": -5.471,
+      "notional": 30416.0,
+      "active_hours": 7.5,
+      "net_per_active_h": -2.1475
+    }
+  ]
+}

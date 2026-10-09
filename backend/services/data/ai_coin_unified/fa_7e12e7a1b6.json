@@ -1,19 +1,28 @@
 {
   "mid": {
     "symbols": [
+      "LINK",
+      "TRX",
       "AAVE"
     ],
-    "updated_at": 1789443957.3166249,
-    "reason": "resample age>=10800s from midlong_board min_conf=0.4"
+    "updated_at": 1790937330.38933,
+    "reason": "retention kept=2 evicted=['SUI'] added=['LINK'] from midlong_board min_conf=0.4"
   },
   "version": 1,
   "session_id": "fa_7e12e7a1b6",
-  "updated_at": 1789443957.3166249,
+  "updated_at": 1790937330.4415913,
   "short": {
     "symbols": [
       "DOGE"
     ],
-    "updated_at": 1789226308.2059417,
+    "updated_at": 1790188368.9420273,
     "reason": "selector_inject"
+  },
+  "long": {
+    "symbols": [
+      "LINK"
+    ],
+    "updated_at": 1790937330.4415913,
+    "reason": "retention kept=0 evicted=['SUI', 'TRX'] added=['LINK'] from long_board min_conf=0.5"
   }
 }

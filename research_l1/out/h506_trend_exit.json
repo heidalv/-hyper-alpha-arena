@@ -1,0 +1,171 @@
+{
+  "hours": 72.0,
+  "trips": 2336,
+  "grid": {
+    "0-10": {
+      "n": 1485,
+      "usd": -16.62,
+      "bp_mean": -0.225,
+      "paths": {
+        "stop_loss_taker": 15,
+        "timeout_hard_taker": 103,
+        "reversal_decay_taker": 6,
+        "REDUCE": 1283,
+        "jump_exit_taker": 38,
+        "take_profit_taker": 10,
+        "trail_lock_taker": 1,
+        "ofi_flatten_taker": 26,
+        "ofi_flatten_maker": 3
+      },
+      "path_usd": {
+        "stop_loss_taker": -13.0,
+        "timeout_hard_taker": 7.36,
+        "reversal_decay_taker": -0.35,
+        "REDUCE": -9.39,
+        "jump_exit_taker": -14.44,
+        "take_profit_taker": 14.04,
+        "trail_lock_taker": -0.06,
+        "ofi_flatten_taker": -0.58,
+        "ofi_flatten_maker": -0.2
+      }
+    },
+    "20-40": {
+      "n": 233,
+      "usd": -15.24,
+      "bp_mean": -2.043,
+      "paths": {
+        "stop_loss_taker": 18,
+        "timeout_hard_taker": 32,
+        "REDUCE": 131,
+        "take_profit_taker": 5,
+        "reversal_decay_taker": 6,
+        "jump_exit_taker": 18,
+        "ofi_flatten_taker": 21,
+        "trail_lock_taker": 2
+      },
+      "path_usd": {
+        "stop_loss_taker": -12.8,
+        "timeout_hard_taker": 1.25,
+        "REDUCE": 6.71,
+        "take_profit_taker": 3.24,
+        "reversal_decay_taker": -1.31,
+        "jump_exit_taker": -11.82,
+        "ofi_flatten_taker": -0.51,
+        "trail_lock_taker": 0.0
+      }
+    },
+    "10-20": {
+      "n": 459,
+      "usd": -17.63,
+      "bp_mean": -0.626,
+      "paths": {
+        "stop_loss_taker": 12,
+        "REDUCE": 348,
+        "timeout_hard_taker": 46,
+        "jump_exit_taker": 20,
+        "reversal_decay_taker": 4,
+        "take_profit_taker": 4,
+        "ofi_flatten_taker": 22,
+        "ofi_flatten_maker": 1,
+        "trail_lock_taker": 2
+      },
+      "path_usd": {
+        "stop_loss_taker": -9.83,
+        "REDUCE": 4.56,
+        "timeout_hard_taker": -5.96,
+        "jump_exit_taker": -9.97,
+        "reversal_decay_taker": -0.03,
+        "take_profit_taker": 4.71,
+        "ofi_flatten_taker": -0.65,
+        "ofi_flatten_maker": -0.23,
+        "trail_lock_taker": -0.23
+      }
+    },
+    ">=40": {
+      "n": 155,
+      "usd": -2.48,
+      "bp_mean": -4.327,
+      "paths": {
+        "timeout_hard_taker": 26,
+        "REDUCE": 46,
+        "reversal_decay_taker": 4,
+        "jump_exit_taker": 21,
+        "ofi_flatten_taker": 23,
+        "take_profit_taker": 4,
+        "stop_loss_taker": 25,
+        "trail_lock_taker": 5,
+        "ofi_flatten_maker": 1
+      },
+      "path_usd": {
+        "timeout_hard_taker": 6.12,
+        "REDUCE": 9.64,
+        "reversal_decay_taker": -0.78,
+        "jump_exit_taker": -7.6,
+        "ofi_flatten_taker": -0.86,
+        "take_profit_taker": 3.51,
+        "stop_loss_taker": -11.26,
+        "trail_lock_taker": -0.92,
+        "ofi_flatten_maker": -0.32
+      }
+    }
+  },
+  "strong": {
+    "n": 155,
+    "usd": -2.48,
+    "paths": {
+      "timeout_hard_taker": 26,
+      "REDUCE": 46,
+      "reversal_decay_taker": 4,
+      "jump_exit_taker": 21,
+      "ofi_flatten_taker": 23,
+      "take_profit_taker": 4,
+      "stop_loss_taker": 25,
+      "trail_lock_taker": 5,
+      "ofi_flatten_maker": 1
+    },
+    "path_usd": {
+      "timeout_hard_taker": 6.12,
+      "REDUCE": 9.64,
+      "reversal_decay_taker": -0.78,
+      "jump_exit_taker": -7.6,
+      "ofi_flatten_taker": -0.86,
+      "take_profit_taker": 3.51,
+      "stop_loss_taker": -11.26,
+      "trail_lock_taker": -0.92,
+      "ofi_flatten_maker": -0.32
+    },
+    "stop_share": 0.161,
+    "reduce_share": 0.297,
+    "hard_share": 0.168
+  },
+  "weak": {
+    "n": 1485,
+    "usd": -16.62,
+    "paths": {
+      "stop_loss_taker": 15,
+      "timeout_hard_taker": 103,
+      "reversal_decay_taker": 6,
+      "REDUCE": 1283,
+      "jump_exit_taker": 38,
+      "take_profit_taker": 10,
+      "trail_lock_taker": 1,
+      "ofi_flatten_taker": 26,
+      "ofi_flatten_maker": 3
+    },
+    "path_usd": {
+      "stop_loss_taker": -13.0,
+      "timeout_hard_taker": 7.36,
+      "reversal_decay_taker": -0.35,
+      "REDUCE": -9.39,
+      "jump_exit_taker": -14.44,
+      "take_profit_taker": 14.04,
+      "trail_lock_taker": -0.06,
+      "ofi_flatten_taker": -0.58,
+      "ofi_flatten_maker": -0.2
+    },
+    "stop_share": 0.01,
+    "reduce_share": 0.864,
+    "hard_share": 0.069
+  },
+  "verdict": "强趋势里**止损占比 16%（弱趋势 1%）**、被动收口 30%（弱趋势 86%）⇒ 「出场机制与趋势不匹配」成立：强趋势里被动回摆收口显著更少、止损显著更多 ⇒ 应针对**强趋势**单独设计出口（顺趋势出场/延迟止损）"
+}

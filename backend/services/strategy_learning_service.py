@@ -549,6 +549,13 @@ class StrategyLearningService:
                 db, strategy_id=strategy_id, lookback_days=30
             )
             if not contributions:
+                # [F332 2026-09-18 复查修复] 三个 `return False` 分支此前**全部静默** ⇒
+                # 两路独立复查只能靠推断、并得出互相矛盾的结论（"表空"vs"RLS陷阱"）。
+                # 注意：`analyze_factor_contribution` 目前**忽略 strategy_id**（死参数，
+                # 见 signal_feedback_tracker.py:246/258-266）⇒ 这里是**全库口径**，不是本策略口径。
+                logger.info(
+                    "[Learning] %s 因子权重未更新：贡献度为空（全库 factor: 口径，30 天）",
+                    strategy_id)
                 return False
 
             # 2. 通过 DynamicFactorWeighting 计算调整后的权重
@@ -556,6 +563,9 @@ class StrategyLearningService:
             weighting = get_factor_weighting()
             adjusted = weighting.apply_feedback_adjustments(contributions)
             if not adjusted:
+                logger.info(
+                    "[Learning] %s 因子权重未更新：apply_feedback_adjustments 返回空"
+                    "（输入贡献 %d 个因子）", strategy_id, len(contributions))
                 return False
 
             # 3. 更新 AIStrategy.factor_weights
@@ -563,6 +573,9 @@ class StrategyLearningService:
                 AIStrategy.strategy_id == strategy_id
             ).first()
             if not strategy:
+                logger.info(
+                    "[Learning] %s 因子权重未更新：按 strategy_id 取不到 AIStrategy 行"
+                    "（可能是 ID 口径/租户/已归档不匹配）", strategy_id)
                 return False
 
             current_weights = strategy.factor_weights or {}

@@ -1,0 +1,18 @@
+{
+  "ts": 1791564782.5942643,
+  "as_of": "2026-10-10T00:53:02",
+  "window_hours": 2.0,
+  "maker_n": 0,
+  "maker_capture_bp": null,
+  "timeout_n": 0,
+  "timeout_cross_bp": null,
+  "timeout_price_bp": null,
+  "timeout_net_bp": null,
+  "stop_n": 0,
+  "stop_gap_bp": null,
+  "jump_n": 0,
+  "jump_avg_net_bp": null,
+  "reduce_touch_after_sec": 300.0,
+  "jump_exit_bp": 70.0,
+  "hints": []
+}

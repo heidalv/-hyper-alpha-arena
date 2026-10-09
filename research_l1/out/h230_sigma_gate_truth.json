@@ -1,0 +1,49 @@
+{
+  "sigma_thr": 0.7,
+  "window": 20,
+  "hours": 6.0,
+  "summary": {
+    "ASTER": {
+      "baseline": 3.6678,
+      "sigma_median": 1.374,
+      "gate_open_pct": 100.0,
+      "vol_median": 8.708
+    },
+    "HYPE": {
+      "baseline": 4.1819,
+      "sigma_median": 0.618,
+      "gate_open_pct": 0.0,
+      "vol_median": 6.766
+    },
+    "SOL": {
+      "baseline": 3.2726,
+      "sigma_median": 0.138,
+      "gate_open_pct": 0.0,
+      "vol_median": 3.725
+    },
+    "XRP": {
+      "baseline": 3.9099,
+      "sigma_median": 0.765,
+      "gate_open_pct": 100.0,
+      "vol_median": 6.9
+    }
+  },
+  "recomputed_baseline": {
+    "ASTERUSDT": 6.1129,
+    "HYPEUSDT": 4.1819,
+    "SOLUSDT": 3.898,
+    "XRPUSDT": 5.4749
+  },
+  "registry_baseline": {
+    "ARB": 11.7218,
+    "SEI": 3.9164,
+    "SOL": 3.2726,
+    "UNI": 9.0309,
+    "XRP": 3.9099,
+    "DOGE": 3.414,
+    "ASTER": 3.6678,
+    "PENDLE": 7.5478,
+    "VIRTUAL": 4.5372,
+    "1000SHIB": 4.1838
+  }
+}

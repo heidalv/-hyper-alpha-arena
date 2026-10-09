@@ -23,7 +23,11 @@ def get_kline_collector_executor() -> ThreadPoolExecutor:
         with _lock:
             if _executor is None:
                 max_workers = int(os.getenv("KLINE_COLLECTOR_MAX_WORKERS", "6"))
-                max_workers = max(2, min(max_workers, 16))
+                # [续作R19] 上限 16→64：周期对齐（KLINE_P0_PERIOD_ALIGN）后任务量
+                # 318→约162/轮，但 12 线程 × ~1s 单任务 ⇒ 队尾等待 ≈13.5s 仍 > 6s 单请求超时
+                # （实测 601 轮：成功率中位 94.8%、0ok 2.3%，未达预写死阈值 ≥98%/1%）。
+                # 48 线程 ⇒ 队尾 ≈3.4s < 6s。上限放 64 留余量，实际值仍由 env 决定。
+                max_workers = max(2, min(max_workers, 64))
                 _executor = ThreadPoolExecutor(
                     max_workers=max_workers,
                     thread_name_prefix="kline-collector",

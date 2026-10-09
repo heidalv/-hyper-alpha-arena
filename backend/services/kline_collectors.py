@@ -357,6 +357,16 @@ def _create_sync_ccxt(exchange_id: str):
     raise ValueError(f"unsupported exchange for sync ccxt: {exchange_id}")
 
 
+def prewarm_sync_ccxt(exchange_id: str) -> None:
+    """[新目标 R4] 主动预载：在采集循环开始前完成一次 load_markets。
+
+    背景（§80 实测）：重启后第 1 轮 P0 全灭（0ok/214err）、第 2 轮起 96.3% ——
+    48 线程首次使用 `_make_sync_ccxt` 时各自 `load_markets`，冷启动风暴叠加当分钟任务
+    把整轮拖爆。此函数让风暴在开盘前消化；失败只抛给调用方记 WARNING，不阻断。
+    """
+    _make_sync_ccxt(exchange_id)
+
+
 def _make_sync_ccxt(exchange_id: str):
     """线程内复用同步 ccxt，并预加载 markets。"""
     cache: dict = getattr(_tls, "exchanges", None) or {}

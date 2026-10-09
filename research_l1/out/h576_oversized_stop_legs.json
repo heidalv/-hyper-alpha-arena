@@ -1,0 +1,173 @@
+{
+  "params_notional_related": {
+    "max_width_bp": 60.0,
+    "fill_notional": 300.0,
+    "k_vol_sigma_cap": 2.0,
+    "frozen_max_move_bp": 8.0,
+    "max_one_side_seconds": 90.0,
+    "max_leg_notional_mult": 3,
+    "max_net_exposure_ratio": 24.0,
+    "max_gross_notional_ratio": 48.0,
+    "max_net_directional_ratio": 2.0,
+    "max_symbol_notional_ratio": 12.0
+  },
+  "per_coin_notional": {
+    "ARB": {
+      "n": 105,
+      "p50": 143.35829980852805,
+      "p90": 147.26289500499843,
+      "p99": 290.64792611131713,
+      "max": 360.0648266947127
+    },
+    "BNB": {
+      "n": 589,
+      "p50": 124.72347590344474,
+      "p90": 265.39507930910344,
+      "p99": 329.08260494918994,
+      "max": 580.8523015841066
+    },
+    "ENA": {
+      "n": 65,
+      "p50": 62.47404580678881,
+      "p90": 165.49068240000003,
+      "p99": 395.59850879943724,
+      "max": 579.2426486519283
+    },
+    "NEAR": {
+      "n": 228,
+      "p50": 34.154999999999994,
+      "p90": 144.9403174818286,
+      "p99": 290.3706234868794,
+      "max": 349.7581831720779
+    },
+    "XRP": {
+      "n": 219,
+      "p50": 144.8251170052624,
+      "p90": 291.4848862073883,
+      "p99": 578.7209208806784,
+      "max": 587.3728152668604
+    }
+  },
+  "worst_legs": [
+    {
+      "ts": "2026-09-29 03:36:19.339200+08:00",
+      "symbol": "NEAR",
+      "net_bp": -112.8545,
+      "notional": 70.56954523503524,
+      "q": "P50–P90",
+      "ratio_to_p50": 2.066155620993566,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-29 03:41:24.199604+08:00",
+      "symbol": "NEAR",
+      "net_bp": -98.519,
+      "notional": 71.4891354759107,
+      "q": "P50–P90",
+      "ratio_to_p50": 2.093079650883054,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "trend_down"
+    },
+    {
+      "ts": "2026-09-29 09:07:53.647786+08:00",
+      "symbol": "NEAR",
+      "net_bp": -98.3395,
+      "notional": 58.67305907476636,
+      "q": "P50–P90",
+      "ratio_to_p50": 1.717846847453268,
+      "exit_path": "timeout_hard_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-28 15:22:45.028588+08:00",
+      "symbol": "ARB",
+      "net_bp": -89.6815,
+      "notional": 288.1981740602545,
+      "q": "P90–P99",
+      "ratio_to_p50": 2.010334765724602,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-28 17:53:31.083802+08:00",
+      "symbol": "ARB",
+      "net_bp": -75.0767,
+      "notional": 146.65033482157546,
+      "q": "P50–P90",
+      "ratio_to_p50": 1.022963686214501,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-29 09:43:06.936738+08:00",
+      "symbol": "ENA",
+      "net_bp": -73.0668,
+      "notional": 142.0624181166439,
+      "q": "P50–P90",
+      "ratio_to_p50": 2.273942983555045,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "trend_only_flat"
+    },
+    {
+      "ts": "2026-09-29 10:39:04.112037+08:00",
+      "symbol": "ARB",
+      "net_bp": -67.2503,
+      "notional": 30.1966488,
+      "q": "≤P50",
+      "ratio_to_p50": 0.21063760410336332,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "trend_up"
+    },
+    {
+      "ts": "2026-09-28 22:46:49.949147+08:00",
+      "symbol": "ENA",
+      "net_bp": -66.3223,
+      "notional": 26.130795,
+      "q": "≤P50",
+      "ratio_to_p50": 0.41826641227644756,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-29 10:52:09.250678+08:00",
+      "symbol": "NEAR",
+      "net_bp": -65.9762,
+      "notional": 80.71848752606428,
+      "q": "P50–P90",
+      "ratio_to_p50": 2.3632992980841543,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "trend_down"
+    },
+    {
+      "ts": "2026-09-28 15:33:25.168710+08:00",
+      "symbol": "NEAR",
+      "net_bp": -65.4271,
+      "notional": 15.384,
+      "q": "≤P50",
+      "ratio_to_p50": 0.450417215634607,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-28 13:41:36.239563+08:00",
+      "symbol": "ARB",
+      "net_bp": -64.8126,
+      "notional": 144.931529720116,
+      "q": "P50–P90",
+      "ratio_to_p50": 1.0109741111166162,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    },
+    {
+      "ts": "2026-09-29 00:17:52.715755+08:00",
+      "symbol": "ENA",
+      "net_bp": -64.5826,
+      "notional": 88.61408099999998,
+      "q": "P50–P90",
+      "ratio_to_p50": 1.4184143167877026,
+      "exit_path": "stop_loss_taker",
+      "exit_reason": "sudden_move"
+    }
+  ]
+}

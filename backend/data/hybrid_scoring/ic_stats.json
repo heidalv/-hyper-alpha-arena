@@ -1,0 +1,15 @@
+{
+  "updated_at": "2026-09-18T00:05:00.090763+00:00",
+  "days": 0,
+  "ic_a": null,
+  "ic_b": null,
+  "ic_fused": null,
+  "ic_thesis_mixed": null,
+  "std_diff": 0.25,
+  "per_arm_days": {
+    "A0": 0,
+    "A1": 0,
+    "A2": 0,
+    "A3": 0
+  }
+}

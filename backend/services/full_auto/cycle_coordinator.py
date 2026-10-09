@@ -26,6 +26,33 @@ logger = logging.getLogger(__name__)
 _CONF_TH = 0.6
 
 
+def _allow_cycle_opposite() -> bool:
+    """[2026-10-09 用户授权] 允许中线/长线反向（解除"空头锁死"）。
+
+    实测：中线论题在偏空市况下全是 short，却被本协调器以
+    `cycle_conflict:长线强多(conf=0.68)禁mid开空` 硬拒 ⇒ 中线自 9 月仅 1 笔持仓。
+    开关 MIDLONG_ALLOW_CYCLE_OPPOSITE（默认 false = 今日行为）；读 .env 兜底。
+    """
+    import os as _os_c
+
+    v = _os_c.getenv("MIDLONG_ALLOW_CYCLE_OPPOSITE")
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("MIDLONG_ALLOW_CYCLE_OPPOSITE="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v or "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+
 def coordinator_enabled() -> bool:
     try:
         from backend.config.settings import CYCLE_COORDINATOR_ENABLED
@@ -83,11 +110,11 @@ def lane_permission(
     _trend_aligned_tiers = ("mid", "long")
 
     if strong_bull:
-        if d == "short" and t in _trend_aligned_tiers:
+        if d == "short" and t in _trend_aligned_tiers and not _allow_cycle_opposite():
             return False, f"cycle_conflict:长线强多(conf={lc:.2f})禁{t}开空", 1.0
         return True, "", 1.0
     if strong_bear:
-        if d == "long" and t in _trend_aligned_tiers:
+        if d == "long" and t in _trend_aligned_tiers and not _allow_cycle_opposite():
             return False, f"cycle_conflict:长线强空(conf={lc:.2f})禁{t}开多", 1.0
         return True, "", 1.0
     # 中性/弱：日内双向但降仓 0.5；中线双向不变；长线车道自决不拦

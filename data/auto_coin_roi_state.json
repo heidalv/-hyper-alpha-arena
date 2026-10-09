@@ -1,6 +1,6 @@
 {
  "session_id": "fa_7e12e7a1b6",
- "downgraded": false,
- "reason": "",
- "updated_at": "2026-09-14T08:00:01.023615"
+ "downgraded": true,
+ "reason": "连续2周负ROI: 2026-W38(diff=-42.5712) 2026-W39(diff=-11.5107)",
+ "updated_at": "2026-09-28T08:00:00.934115"
 }

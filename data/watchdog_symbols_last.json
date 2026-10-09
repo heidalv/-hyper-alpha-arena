@@ -1,0 +1,41 @@
+{
+  "ts": 1791565083.867392,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "PUMPUSDT",
+    "PLAYUSDT",
+    "USUSDT",
+    "DRAMUSDT",
+    "AVGOUSDT",
+    "HUMAUSDT",
+    "NATGASUSDT",
+    "BCHUSDT",
+    "PONSUSDT",
+    "METUSDT",
+    "ICPUSDT",
+    "TRUMPUSDT",
+    "LINKUSDT",
+    "GRAMUSDT",
+    "CASHCATUSDT",
+    "AAVEUSDT",
+    "FETUSDT",
+    "SYNUSDT",
+    "VVVUSDT",
+    "INJUSDT",
+    "DOSUSDT",
+    "MRNAUSDT",
+    "SEIUSDT",
+    "PENGUUSDT",
+    "KITEUSDT",
+    "SOLUSD1",
+    "BTCUSD1",
+    "ETHUSD1"
+  ],
+  "depth": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "PUMPUSDT",
+    "PLAYUSDT"
+  ]
+}

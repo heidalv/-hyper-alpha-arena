@@ -1,0 +1,23 @@
+{
+  "hours": 3.0,
+  "entry_legs": 153,
+  "exit_legs": 68,
+  "quoted_half_width_bp": 0.913,
+  "entry_spread_bp": {
+    "p10": 0.0324,
+    "p50": 0.1946,
+    "p90": 1.5071,
+    "mean": 0.466
+  },
+  "entry_price_bp_mean": -0.08,
+  "entry_net_bp_mean": 0.387,
+  "entry_fee_bp_mean": 0.0,
+  "px_exact_hit": {
+    "true": 0,
+    "false": 0,
+    "missing": 153
+  },
+  "quote_ts_coverage": 1.0,
+  "capture_ratio": 0.511,
+  "verdict": "捕获率 0.5–0.8 ⇒ 有可观漏损（成交时中价已向挂单移动 = 逆向选择的机械结果）⇒ 加宽对已成交腿的毛利提升**小于按比例**；净效果必须实测"
+}

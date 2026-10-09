@@ -1,0 +1,284 @@
+[
+  {
+    "to": {
+      "trend_only_q": 0.35
+    },
+    "ts": "2026-09-28T15:46:50.600913+00:00",
+    "from": {
+      "trend_only_q": 0.0
+    },
+    "note": "自适应趋势门槛（trend_only_q 0→0.35，≈|r300|≥30bp 但随市场自适应）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.trend_only_q",
+    "action": "h454_deploy"
+  },
+  {
+    "ts": "2026-09-28T15:47:01.519524+00:00",
+    "note": "frequency_collapse 79.9/h < 0.8×223.5/h",
+    "trial": {
+      "legs": 958,
+      "net_bp": -764.6587999999998,
+      "legs_per_hour": 79.88472332008145
+    },
+    "welch": {
+      "p": 0.4411822886327284,
+      "t": -0.770593270884801,
+      "delta": -0.42928421588911786,
+      "n_base": 2682,
+      "n_trial": 958,
+      "mean_base": -0.36889824757643547,
+      "mean_trial": -0.7981824634655533
+    },
+    "action": "h411_hardcap_judge_rollback",
+    "hardcap": {
+      "legs": 57,
+      "mean_net_bp": 8.214431578947368
+    },
+    "baseline": {
+      "legs": 2682,
+      "net_bp": -989.3850999999917,
+      "legs_per_hour": 223.5
+    }
+  },
+  {
+    "to": 0.0,
+    "ts": "2026-09-28T15:47:01.519524+00:00",
+    "from": 300.0,
+    "note": "12h 判定：frequency_collapse 79.9/h < 0.8×223.5/h",
+    "field": "params.timeout_hard_taker_sec",
+    "action": "h411_hardcap_rollback"
+  },
+  {
+    "to": {
+      "vwap_revert_bp": 0.0,
+      "vwap_flow_block": 0.0
+    },
+    "ts": "2026-09-28T15:51:07.673516+00:00",
+    "from": {
+      "vwap_revert_bp": 2.0,
+      "vwap_flow_block": 0.3
+    },
+    "note": "证据回滚：h354 判定 INCONCLUSIVE delta=+0.011bp（零效应）却拦 32% 入场；今晚市场活跃（988/758 桶/h）而腿速仅 35-42/h ⇒ 闸门压穿 ≥60/h 硬约束；连带 vwap_flow_block 一并关闭（同分支，父闸关即失效）",
+    "field": "params.vwap_revert_bp",
+    "action": "h455_rollback_vwap_revert"
+  },
+  {
+    "to": 0.0,
+    "ts": "2026-09-28T15:56:04.597163+00:00",
+    "from": 90.0,
+    "note": "证据回滚：h429 判定 INCONCLUSIVE delta=−0.470bp（无正面证据）；实测 2min sudden_move 拦 8 次 × 90s 冷却 ⇒ 大幅停摆、fills 归零，压穿 ≥60 腿/h 硬约束 ⇒ 恢复为「只暂停命中那一 tick」（旧行为）",
+    "field": "params.sudden_move_cooldown_sec",
+    "action": "h456_rollback_sudden_cooldown"
+  },
+  {
+    "to": "2026-09-28T09:32:55.885380",
+    "ts": "2026-09-28T16:11:58.732380+00:00",
+    "from": null,
+    "note": "面板口径修正：以「账户真实重置时刻」为界（由账户行 realized_pnl 对流水反推得到），不再受 stats_since（试跑脚本会改）影响",
+    "field": "meta.account_reset_at",
+    "action": "set_account_reset_at"
+  },
+  {
+    "to": 300.0,
+    "ts": "2026-09-28T16:14:46.827390+00:00",
+    "from": 0.0,
+    "note": "合规兜底恢复（用户硬约束 30s–5min）：实测 3h+ 未平仓（NEAR $97）；23:47 的自动回滚判据用跨 regime 基线（223.5/h 白天 vs 79.9/h 夜间）不公平 ⇒ 作为兜底恢复，正常仓位（中位 61s）不受影响",
+    "field": "params.timeout_hard_taker_sec",
+    "action": "restore_hard_cap_compliance"
+  },
+  {
+    "ts": "2026-09-28T16:56:01.543438+00:00",
+    "sub": {
+      "trial": {},
+      "baseline": {}
+    },
+    "note": "frequency_collapse 65.2/h < 0.8×223.0/h",
+    "trial": {
+      "legs": 782,
+      "net_bp": -745.0699999999998,
+      "legs_per_hour": 65.22357593973412
+    },
+    "welch": {
+      "p": 0.3979764334871342,
+      "t": -0.8457815858343322,
+      "delta": -0.5517851378551031,
+      "n_base": 2676,
+      "n_trial": 782,
+      "mean_base": -0.40098979820627806,
+      "mean_trial": -0.9527749360613811
+    },
+    "action": "h436_judge_rollback",
+    "baseline": {
+      "legs": 2676,
+      "net_bp": -1073.0486999999998,
+      "legs_per_hour": 223.0
+    }
+  },
+  {
+    "to": {
+      "post_stop_decay": 0.0
+    },
+    "ts": "2026-09-28T16:56:01.543438+00:00",
+    "from": {
+      "post_stop_decay": 0.5
+    },
+    "note": "12h 判定：frequency_collapse 65.2/h < 0.8×223.0/h",
+    "field": "params.post_stop_decay",
+    "action": "h436_rollback"
+  },
+  {
+    "ts": "2026-09-28T16:56:01.649111+00:00",
+    "sub": {
+      "trial": {},
+      "baseline": {}
+    },
+    "note": "frequency_collapse 65.2/h < 0.8×223.0/h",
+    "trial": {
+      "legs": 782,
+      "net_bp": -745.0699999999998,
+      "legs_per_hour": 65.22016179083663
+    },
+    "welch": {
+      "p": 0.3979764334871342,
+      "t": -0.8457815858343322,
+      "delta": -0.5517851378551031,
+      "n_base": 2676,
+      "n_trial": 782,
+      "mean_base": -0.40098979820627806,
+      "mean_trial": -0.9527749360613811
+    },
+    "action": "h434_judge_rollback",
+    "baseline": {
+      "legs": 2676,
+      "net_bp": -1073.0486999999998,
+      "legs_per_hour": 223.0
+    }
+  },
+  {
+    "to": {
+      "pullback_flow_block": 0.0
+    },
+    "ts": "2026-09-28T16:56:01.649111+00:00",
+    "from": {
+      "pullback_flow_block": 0.0
+    },
+    "note": "12h 判定：frequency_collapse 65.2/h < 0.8×223.0/h",
+    "field": "params.pullback_flow_block",
+    "action": "h434_rollback"
+  },
+  {
+    "ts": "2026-09-28T17:26:47.816928+00:00",
+    "note": "合并并行判定丢失的结果 ['h433', 'h435', 'h437', 'h438']；标注 spurious_rollback（跨 regime 基线误杀）；判据已改为绝对 ≥60 腿/h（用户硬约束）",
+    "action": "h458_merge_spurious_verdicts"
+  },
+  {
+    "ts": "2026-09-28T17:26:47.816928+00:00",
+    "note": "恢复 4 项被误杀的功能（trail_lock #17 / post_stop_decay #16③ / p1_hold+p45_hold h404）；各自重挂 T+12h 判定（判据已修正）",
+    "action": "h458_restore_after_spurious_rollback",
+    "fields": {
+      "p1_hold_sec": 60.0,
+      "p45_hold_sec": 300.0,
+      "trail_lock_bp": 20.0,
+      "post_stop_decay": 0.5
+    }
+  },
+  {
+    "to": {
+      "trail_lock_bp": 20.0
+    },
+    "ts": "2026-09-28T17:28:27.679048+00:00",
+    "from": {
+      "trail_lock_bp": 20.0
+    },
+    "note": "#17 尾随锁利通电（trail_lock_bp 0→20，h389）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.trail_lock_bp",
+    "action": "h435_deploy"
+  },
+  {
+    "to": {
+      "post_stop_decay": 0.5
+    },
+    "ts": "2026-09-28T17:28:28.399888+00:00",
+    "from": {
+      "post_stop_decay": 0.5
+    },
+    "note": "#16③ 止损后衰减通电（post_stop_decay 0→0.5，h396）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.post_stop_decay",
+    "action": "h436_deploy"
+  },
+  {
+    "to": {
+      "p1_hold_sec": 60.0
+    },
+    "ts": "2026-09-28T17:28:29.140957+00:00",
+    "from": {
+      "p1_hold_sec": 60.0
+    },
+    "note": "P1 形态持有期通电（p1_hold_sec 0→60，h404）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.p1_hold_sec",
+    "action": "h437_deploy"
+  },
+  {
+    "to": {
+      "p45_hold_sec": 300.0
+    },
+    "ts": "2026-09-28T17:28:29.973488+00:00",
+    "from": {
+      "p45_hold_sec": 300.0
+    },
+    "note": "P4/P5 形态持有期通电（p45_hold_sec 0→300，h404）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.p45_hold_sec",
+    "action": "h438_deploy"
+  },
+  {
+    "ts": "2026-09-28T17:44:01.531233+00:00",
+    "sub": {
+      "trial": {},
+      "baseline": {}
+    },
+    "note": "welch_p=0.028 delta=-1.875bp",
+    "trial": {
+      "legs": 778,
+      "net_bp": -1040.7409000000014,
+      "legs_per_hour": 64.89641770184313
+    },
+    "welch": {
+      "p": 0.027553262202576808,
+      "t": -2.2060774258004634,
+      "delta": -1.8746730037804324,
+      "n_base": 850,
+      "n_trial": 778,
+      "mean_base": 0.5369597647058824,
+      "mean_trial": -1.33771323907455
+    },
+    "action": "h440_judge_rollback",
+    "baseline": {
+      "legs": 850,
+      "net_bp": 456.41579999999965,
+      "legs_per_hour": 70.83333333333333
+    }
+  },
+  {
+    "to": {
+      "k_trend": 0.0
+    },
+    "ts": "2026-09-28T17:44:01.531233+00:00",
+    "from": {
+      "k_trend": 0.0
+    },
+    "note": "12h 判定：welch_p=0.028 delta=-1.875bp",
+    "field": "params.k_trend",
+    "action": "h440_rollback"
+  },
+  {
+    "to": {
+      "max_one_side_seconds": 90.0
+    },
+    "ts": "2026-09-28T18:20:35.353787+00:00",
+    "from": {
+      "max_one_side_seconds": 45.0
+    },
+    "note": "加仓窗口 45→90s（h461：被动出场 30-60s 净 −0.83bp vs 更长窗更好）。判定=T+12h；回滚=--rollback（热采用 ≤60s）；【guards_bypassed：--force（用户全面修复委任）】",
+    "field": "params.max_one_side_seconds",
+    "action": "h463_deploy"
+  }
+]

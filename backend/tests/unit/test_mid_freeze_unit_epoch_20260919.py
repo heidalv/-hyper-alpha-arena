@@ -152,7 +152,7 @@ def test_margin_pct_docstring_is_corrected():
 
 def test_allocation_is_balanced_not_skewed_by_stale_data():
     from backend.config.settings import TIER_BUDGET_ALLOCATION as A
-    assert A["short"] == 0.0, "结构事实：车道永久关闭"
+    assert A["short"] == 0.0, "结构事实：短线车道当前退役（轮160），预算并入 mid/long；非永久禁令"
     assert A["mid"] == 0.40 and A["long"] == 0.45, A
     assert abs(A["mid"] - A["long"]) <= 0.05, \
         "现役时代样本仅 48 笔 ⇒ 不做偏斜（轮116 的 0.35/0.50 建立在 30 天混账上）"

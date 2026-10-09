@@ -1,0 +1,182 @@
+{
+  "ETH|C_with_f120|2026-09-28": {
+    "day": "2026-09-28",
+    "key": "C_with_f120"
+  },
+  "DOGE|A_with_f60|2026-09-28": {
+    "day": "2026-09-28",
+    "key": "A_with_f60"
+  },
+  "XRP|C_with_f120|2026-09-28": {
+    "day": "2026-09-28",
+    "key": "C_with_f120"
+  },
+  "BNB|A_with_f60|2026-09-28": {
+    "day": "2026-09-28",
+    "key": "A_with_f60"
+  },
+  "XRP|A_against_f60|2026-09-30": {
+    "day": "2026-09-30",
+    "key": "A_against_f60"
+  },
+  "BNB|C_against_f120|2026-09-30": {
+    "day": "2026-09-30",
+    "key": "C_against_f120"
+  },
+  "XRP|B_with_f60|2026-09-30": {
+    "day": "2026-09-30",
+    "key": "B_with_f60"
+  },
+  "XRP|A_against_f60|2026-10-01": {
+    "day": "2026-10-01",
+    "key": "A_against_f60"
+  },
+  "BNB|A_against_f60|2026-10-01": {
+    "day": "2026-10-01",
+    "key": "A_against_f60"
+  },
+  "BNB|B_against_f60|2026-10-01": {
+    "day": "2026-10-01",
+    "key": "B_against_f60"
+  },
+  "ONDO|A_against_f60|2026-10-01": {
+    "day": "2026-10-01",
+    "key": "A_against_f60"
+  },
+  "XLM|C_against_f120|2026-10-02": {
+    "day": "2026-10-02",
+    "key": "C_against_f120"
+  },
+  "PLAY|A_against_f60|2026-10-04": {
+    "day": "2026-10-04",
+    "key": "A_against_f60"
+  },
+  "PLAY|B_against_f60|2026-10-04": {
+    "day": "2026-10-04",
+    "key": "B_against_f60"
+  },
+  "GTC|A_with_f60|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "A_with_f60"
+  },
+  "GTC|C_against_f120|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "C_against_f120"
+  },
+  "PLAY|A_against_f60|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "A_against_f60"
+  },
+  "PLAY|B_against_f60|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "B_against_f60"
+  },
+  "PLAY|C_with_f60|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "C_with_f60"
+  },
+  "PLAY|C_against_f60|2026-10-05": {
+    "day": "2026-10-05",
+    "key": "C_against_f60"
+  },
+  "PLAY|A_against_f60|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "A_against_f60"
+  },
+  "PLAY|B_with_f60|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "B_with_f60"
+  },
+  "PLAY|C_with_f120|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "C_with_f120"
+  },
+  "PLAY|C_with_f60|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "C_with_f60"
+  },
+  "TQQQ|C_against_f120|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "C_against_f120"
+  },
+  "TQQQ|C_against_f60|2026-10-06": {
+    "day": "2026-10-06",
+    "key": "C_against_f60"
+  },
+  "BTW|B_with_f60|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "B_with_f60"
+  },
+  "PLAY|A_with_f60|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "A_with_f60"
+  },
+  "PLAY|B_against_f60|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "B_against_f60"
+  },
+  "PLAY|C_against_f120|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "C_against_f120"
+  },
+  "PLAY|C_against_f60|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "C_against_f60"
+  },
+  "PLAY|C_with_f120|2026-10-07": {
+    "day": "2026-10-07",
+    "key": "C_with_f120"
+  },
+  "PLAY|A_against_f60|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "A_against_f60"
+  },
+  "PLAY|B_against_f60|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "B_against_f60"
+  },
+  "PLAY|C_with_f120|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "C_with_f120"
+  },
+  "PLAY|C_with_f60|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "C_with_f60"
+  },
+  "PLAY|B_with_f60|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "B_with_f60"
+  },
+  "PLAY|C_against_f120|2026-10-08": {
+    "day": "2026-10-08",
+    "key": "C_against_f120"
+  },
+  "PLAY|A_with_f60|2026-10-09": {
+    "day": "2026-10-09",
+    "key": "A_with_f60"
+  },
+  "PLAY|B_with_f60|2026-10-09": {
+    "day": "2026-10-09",
+    "key": "B_with_f60"
+  },
+  "PLAY|C_with_f120|2026-10-09": {
+    "day": "2026-10-09",
+    "key": "C_with_f120"
+  },
+  "PLAY|C_with_f60|2026-10-09": {
+    "day": "2026-10-09",
+    "key": "C_with_f60"
+  },
+  "PLAY|A_against_f60|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "A_against_f60"
+  },
+  "PLAY|C_with_f120|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "C_with_f120"
+  },
+  "PLAY|C_with_f60|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "C_with_f60"
+  }
+}

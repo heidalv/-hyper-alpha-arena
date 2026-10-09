@@ -60,7 +60,9 @@ def load_funding_series(exchange: str, since_ms: int, until_ms: int, *,
         from backend.services.events.funding_universe import rate_8h
     except Exception:
         def rate_8h(ex: str, rate: float) -> float:  # type: ignore
-            return float(rate)
+            # [R29] 兜底也必须归一到 8h：否则 hyperliquid 的 1h 费率被当 8h（高估 8×）。
+            _hrs = {"hyperliquid": 1.0}.get(str(ex or "").lower(), 8.0)
+            return float(rate) * (8.0 / _hrs) if _hrs > 0 else float(rate)
 
     out: Dict[str, List[Dict[str, Any]]] = {}
     db = _market_db()

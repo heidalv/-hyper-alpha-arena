@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Callable, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,11 @@ def finalize_open_tp_sl(
     plan_tp: Optional[float],
     is_auto_coin: bool = False,
     on_event: Optional[Callable[..., None]] = None,
+    volatility_pct: Optional[float] = None,
 ) -> Tuple[float, float]:
-    """强制 TP/SL 兜底、精选币 SL 收紧、最低 2.5:1 比率校正。"""
+    """强制 TP/SL 兜底、精选币 SL 收紧、最低 2.5:1 比率校正、
+    [P3 大轮回 2026-09-27] 波动止损下限（§6.1：SL 距离 ≥ 2.2σ_1h，封顶 3%）。
+    """
     _def_sl_pct, _def_tp_pct = DEFAULT_TP_SL_BY_NATURE.get(trade_nature, (0.025, 0.060))
     _is_long = side in ("long", "buy")
     _final_sl = plan_sl if (plan_sl and plan_sl > 0) else None
@@ -78,6 +82,44 @@ def finalize_open_tp_sl(
                 "auto_coin_sl_clamp",
                 f"🌟 {symbol} 精选币止损收紧 {_sl_dist_pct:.1%}→{_def_sl_pct:.1%}",
             )
+
+    # [P3 大轮回 2026-09-27] 波动止损下限（§6.1）：SL 距离 = max(计划/结构位, 2.2σ_1h)，
+    # 封顶 3%（现 cap）——过紧的止损会被噪音扫掉（赢家 p90 MAE 1.04%，2.2σ 通常 1~2%）。
+    # 仅在当前距离 < 2.2σ 且 2.2σ ≤ cap 时加宽到 2.2σ；2.2σ > cap 或已有结构位更宽 → 不动。
+    try:
+        _vol_floor_on = (os.getenv("MIDLONG_VOL_STOP_FLOOR_ENABLED", "true") or "true"
+                         ).strip().lower() in ("1", "true", "yes", "on")
+    except Exception:
+        _vol_floor_on = True
+    if _vol_floor_on and _final_sl and price > 0:
+        try:
+            _vol = float(volatility_pct or 0)
+        except (TypeError, ValueError):
+            _vol = 0.0
+        if _vol > 0:
+            try:
+                _mult = float(os.getenv("MIDLONG_SL_SIGMA_MULT", "2.2") or 2.2)
+                _cap = float(os.getenv("MIDLONG_SL_MAX_PCT", "0.03") or 0.03)
+            except (TypeError, ValueError):
+                _mult, _cap = 2.2, 0.03
+            _sigma_dist = min(_mult * _vol, _cap)
+            _sl_dist_pct = abs(price - _final_sl) / price
+            if _sl_dist_pct < _sigma_dist:
+                _old_sl = _final_sl
+                _final_sl = round(
+                    price * (1 - _sigma_dist) if _is_long else price * (1 + _sigma_dist), 6
+                )
+                logger.info(
+                    "[VolStopFloor] %s[%s] SL 距离 %.2f%% < 2.2σ=%.2f%% → 加宽到 %.2f%%"
+                    "（%s→%s，封顶 %.0f%%）",
+                    symbol, trade_nature, _sl_dist_pct * 100, _mult * _vol * 100,
+                    _sigma_dist * 100, _old_sl, _final_sl, _cap * 100,
+                )
+                _emit(
+                    "vol_stop_floor",
+                    f"📏 {symbol} 波动止损下限：SL 距离加宽到 {_sigma_dist:.1%}"
+                    f"（2.2σ 保护，防噪音扫损）",
+                )
 
     if _final_sl and _final_tp and price > 0:
         _sl_dist = abs(price - _final_sl)

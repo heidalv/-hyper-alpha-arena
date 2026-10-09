@@ -20,6 +20,7 @@ API、前端统一读取，避免各处自行拼装、语义漂移。
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -55,7 +56,13 @@ class ArbSwitchStatus:
                 "auto_execute": self.rebate_auto_execute,
                 "scan_runnable": self.rebate_scan_runnable,
                 "auto_open": self.rebate_auto_open,
-                "note": "Paper 下恒可扫描/模拟；auto_execute 才会自动开仓",
+                # [F327] note 必须反映**当前**裁决。此前恒写"Paper 下恒可扫描"，
+                # 而该结论已被总开关（ARBITRAGE_CENTER_ENABLED）取代 ⇒ 会误导排查。
+                "note": ("需 ARBITRAGE_CENTER_ENABLED=true 才可扫描/模拟"
+                         if not self.rebate_scan_runnable
+                         else "可扫描/模拟")
+                        + ("；auto_execute=true 才会自动开仓"
+                           if not self.rebate_auto_execute else "；自动开仓已开"),
             },
             "live_trading": {
                 "enabled": self.live_trading_enabled,
@@ -90,8 +97,27 @@ def get_arb_switch_status(session_arb_enabled: Optional[bool] = None) -> ArbSwit
         paper_mode, auto_execute = True, False
 
     # Paper 下扫描/模拟恒可运行；自动开仓需 auto_execute。
-    rebate_scan_runnable = True
-    rebate_auto_open = auto_execute
+    #
+    # [F327 2026-09-17] **套利中心总开关**：用户要求「完全停止整个套利中心的运行」。
+    # 此前这里是**硬编码 True**（注释：Paper 下恒可运行），于是：
+    #   · `/api/rebate/status` 与 `/api/arbitrage/status` **永远报 engine_enabled=true**
+    #     （前者此处恒真，后者在 arbitrage_routes 里也是硬编码 True）；
+    #   · 前端据此显示"运行中"，即使用户已经把全部车道停掉 ——
+    #     两套状态（车道注册表 / 返佣引擎）互不知情。
+    #   ⇒ 现在由 `ARBITRAGE_CENTER_ENABLED`（默认 **false** = 停止）统一裁决。
+    #
+    # 语义：
+    #   · `ARBITRAGE_CENTER_ENABLED` 未设置或非真值 ⇒ `rebate_scan_runnable=False`
+    #     ⇒ 引擎状态如实报 false、前端不再显示"运行中"；
+    #   · 设 `ARBITRAGE_CENTER_ENABLED=1` ⇒ 恢复旧行为（Paper 下可扫描）。
+    #
+    # 为什么不改动 `rebate_config`：那是**策略参数**配置；本开关是**运行裁决**，
+    # 与车道注册表的 `status` 同层，放在这里才能被 `/api/rebate/arb-switches`
+    # 与所有消费方**一致地**读到。
+    _center_on = os.getenv("ARBITRAGE_CENTER_ENABLED", "false").strip().lower() in (
+        "1", "true", "yes", "on")
+    rebate_scan_runnable = bool(_center_on)
+    rebate_auto_open = bool(auto_execute) and bool(_center_on)
 
     return ArbSwitchStatus(
         v3_env_enabled=v3_env,

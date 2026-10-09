@@ -1,0 +1,171 @@
+{
+  "ok": true,
+  "round_ts": 1790631600.0819924,
+  "iso": "2026-09-28T21:40:00.081992+00:00",
+  "stages": {
+    "literature": {
+      "ok": false,
+      "fetched": 0,
+      "fed": 0,
+      "error": "<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1010)>"
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 4,
+      "rejected": 0
+    },
+    "engineer": {
+      "candidates": 7,
+      "unit_pass": 3
+    },
+    "backtest": {
+      "evaluated": 3,
+      "best_ic": 0.02002
+    },
+    "feedback": {
+      "stats": {
+        "pass": 0,
+        "reject": 3,
+        "fail": 4
+      },
+      "guidance": "按当前假设池分布自由探索，注意与近 30 天假设的异质性。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1790631616158_0",
+      "expr_id": "796693de928072eb",
+      "hyp": "h1790631613346_0",
+      "note": "20日收益和除以20日收益波动，风险调整动量",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790631616225_1",
+      "expr_id": "7c0827dd617309c9",
+      "hyp": "h1790631613346_0",
+      "note": "20日价格变化除以波动率乘价格，等价风险调整动量",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.01048,
+      "icir": 0.0413,
+      "quantile_spread": 0.003675,
+      "turnover": 0.0845,
+      "ic_half_life_bars": 4,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0105 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1790631630509_0",
+      "expr_id": "5f58d277b5ef9ea6",
+      "hyp": "h1790631613356_1",
+      "note": "20日VWAP收益减收盘收益，偏离越大做空",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": -0.02002,
+      "icir": -0.0736,
+      "quantile_spread": -0.000134,
+      "turnover": 1.058,
+      "ic_half_life_bars": 2,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "hot_turnover",
+        "reason": "turnover=1.058"
+      }
+    },
+    {
+      "cand_id": "c1790631644351_0",
+      "expr_id": "9ec735ea24cbcfbe",
+      "hyp": "h1790631613367_2",
+      "note": "20日最大正收益占累计正收益比，集中度越高越做空",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790631644353_1",
+      "expr_id": "f3cefea33686d59e",
+      "hyp": "h1790631613367_2",
+      "note": "20日最大正收益占收益绝对值和比，衡量单日主导度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790631647875_0",
+      "expr_id": "31ecd8b09b9b9cba",
+      "hyp": "h1790631613375_3",
+      "note": "20日内收盘处于高低区间40%-60%的天数占比",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.01852,
+      "icir": 0.0687,
+      "quantile_spread": 0.001186,
+      "turnover": 0.0134,
+      "ic_half_life_bars": 2,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0185 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1790631647886_1",
+      "expr_id": "f2bfaa5981a7e55a",
+      "hyp": "h1790631613375_3",
+      "note": "用乘法等价实现区间中位停留天数占比",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 58.2
+}

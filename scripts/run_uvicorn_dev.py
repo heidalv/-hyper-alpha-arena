@@ -115,6 +115,11 @@ def main() -> None:
         "port": port,
         "log_level": "info",
         "timeout_graceful_shutdown": 8,
+        # [2026-09-18 前端刷新慢治理] keep-alive 5s → 65s。
+        # 实测访问日志：前端轮询间隔 3~5s 与 uvicorn 默认 5s keep-alive 边界冲突，
+        # 同一页面在 2~3 分钟内跨 13+ 个客户端端口（连接被反复重建）。
+        # 65s > 最长轮询间隔，连接可复用。（浏览器侧另有每源约 6 条连接上限，不受此影响。）
+        "timeout_keep_alive": int(os.getenv("UVICORN_KEEP_ALIVE_S", "65")),
     }
     if not no_reload:
         kwargs.update(

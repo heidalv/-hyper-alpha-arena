@@ -222,6 +222,92 @@ def estimate_open_notional_aligned(
     return abs(eq * rp / sl * tf)
 
 
+def concurrent_loss_tripwire(
+    *,
+    positions: Sequence[Dict[str, Any]],
+    equity: float,
+    new_notional: float = 0.0,
+    new_sl_pct: Optional[float] = None,
+    ceiling_pct: float = 2.5,
+    default_sl_pct: Optional[float] = None,
+) -> Tuple[bool, str]:
+    """[续作R17] **风险政策 C**：并发最坏损失跳闸（实测口径）。
+
+    背景：`test_deployed_cap_is_conservative` 的静态不等式
+    （并发帽 × 单笔风险上限 ≤ 2.5% 权益）在中线止损 1.5%→3.0% 后被打红
+    （8 × 0.15 × 3.0% = 3.6% > 2.5%）。但配置上限 ≠ 实际持仓风险：
+    真实持仓各自有实际的止损距离（多数远小于上限）。
+    本函数用**实际口径**求和：Σ(每笔名义 × 该笔实际 sl_pct)，加上新仓的
+    （新仓 sl_pct 未知时用 default_sl_pct=配置上限，保持保守），
+    超过 `ceiling_pct`（默认 2.5%）即拦。
+    `sl_pct` 口径 = **百分点**（3.0 = 3%），与 `.env` 的 `MIDLONG_SL_MAX_PCT_*` 一致。
+    """
+    try:
+        equity_f = float(equity or 0)
+        ceiling = max(0.0, float(ceiling_pct)) / 100.0
+    except (TypeError, ValueError):
+        return True, "bad_param"
+    if equity_f <= 0:
+        return True, "no_equity"
+    worst = 0.0
+    for p in positions or []:
+        try:
+            _n = p.get("notional") if isinstance(p, dict) else None
+            n = float(_n) if _n is not None else float(_notional(p))
+        except Exception:
+            n = 0.0
+        sl = None
+        if isinstance(p, dict):
+            try:
+                _s = p.get("sl_pct")
+                sl = float(_s) / 100.0 if _s is not None else None
+            except (TypeError, ValueError):
+                sl = None
+            if sl is None:
+                # 无 sl_pct ⇒ 尝试从价格实测：(entry - sl) / entry
+                try:
+                    _slp = p.get("sl_price") or p.get("stop_price")
+                    _ep = p.get("entry_price") or p.get("avg_entry_price")
+                    if _slp and _ep:
+                        sl = abs(float(_ep) - float(_slp)) / abs(float(_ep))
+                except (TypeError, ValueError):
+                    sl = None
+        if sl is None:
+            # [续作R17] 无任何可测止损数据 ⇒ 该笔按 0 计（fail-open 单仓），每进程告警一次。
+            # 绝不回退到配置上限：否则跳闸会退化成"5 仓即拦"的隐性并发帽。
+            _w = globals().setdefault("_TRIPWIRE_WARN_NO_SL", {"fired": False})
+            if not _w["fired"]:
+                _w["fired"] = True
+                try:
+                    logger.warning(
+                        "[Tripwire] 持仓缺 sl_pct/sl_price/entry_price，"
+                        "该笔最坏损失按 0 计（fail-open 单仓）"
+                    )
+                except Exception:
+                    pass
+            continue
+        worst += abs(n) * max(0.0, sl)
+    _ns = 0.0
+    try:
+        _ns = abs(float(new_notional or 0))
+    except (TypeError, ValueError):
+        _ns = 0.0
+    if _ns > 0:
+        if new_sl_pct is not None:
+            try:
+                _nsl = float(new_sl_pct) / 100.0
+            except (TypeError, ValueError):
+                _nsl = 0.0
+        else:
+            _nsl = (float(default_sl_pct) / 100.0) if default_sl_pct else 0.0
+        worst += _ns * max(0.0, _nsl)
+    if worst > equity_f * ceiling:
+        return False, (
+            f"concurrent_loss_tripwire:{worst / equity_f:.2%}>{ceiling:.2%}"
+        )
+    return True, "ok"
+
+
 def check_portfolio_open_allowed(
     *,
     symbol: str,
@@ -257,6 +343,26 @@ def check_portfolio_open_allowed(
         p for p in mids if not _is_long_lane_pos(p)
     ]
     equity = _equity_from_portfolio(portfolio)
+
+    # [续作R17] 风险政策 C：并发最坏损失跳闸（实测口径）。
+    # 只拦"最坏损失总和 > 2.5% 权益"；开关/上限可配，自身异常时 fail-open（其余闸兜底）。
+    if _cfg_bool("MIDLONG_CONCURRENT_LOSS_TRIPWIRE_ENABLED", True):
+        try:
+            _tw_ok, _tw_why = concurrent_loss_tripwire(
+                positions=mids,
+                equity=equity,
+                new_notional=abs(float(new_notional or 0)),
+                new_sl_pct=None,
+                ceiling_pct=_cfg_float("MIDLONG_CONCURRENT_LOSS_CEILING_PCT", 2.5),
+                default_sl_pct=_cfg_float(
+                    "MIDLONG_SL_MAX_PCT_LONG" if long_lane else "MIDLONG_SL_MAX_PCT_MID",
+                    0.03,
+                ),
+            )
+            if not _tw_ok:
+                return False, _tw_why
+        except Exception:
+            pass
 
     # ── 净方向敞口 ──
     signed = 0.0

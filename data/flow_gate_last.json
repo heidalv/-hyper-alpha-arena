@@ -1,0 +1,325 @@
+{
+  "ts": 1791537724.9060147,
+  "as_of": "2026-10-09T17:22:04",
+  "hours": 24,
+  "protocol": "purged_60_20_20_embargo",
+  "cost_bp": 4.0,
+  "gates": {
+    "ETH": {
+      "allow": false,
+      "side": "sell",
+      "mu": -1.612,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -1.612,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "US": {
+      "allow": true,
+      "side": "buy",
+      "mu": 8.86,
+      "max_hold_sec": 180.0,
+      "horizon_sec": 180.0,
+      "reason": "ok",
+      "oos": {
+        "mean_y": 63.456,
+        "n_eff": 48.92,
+        "win_rate": 0.688
+      },
+      "deciles": [
+        {
+          "decile": 0,
+          "n": 181,
+          "mean_y": 21.3678,
+          "win_rate": 0.6022,
+          "n_eff": 15.08,
+          "tradable": false
+        },
+        {
+          "decile": 1,
+          "n": 83,
+          "mean_y": -25.3382,
+          "win_rate": 0.5783,
+          "n_eff": 6.92,
+          "tradable": false
+        },
+        {
+          "decile": 2,
+          "n": 62,
+          "mean_y": 26.9186,
+          "win_rate": 0.5484,
+          "n_eff": 5.17,
+          "tradable": false
+        },
+        {
+          "decile": 3,
+          "n": 25,
+          "mean_y": 1.1796,
+          "win_rate": 0.6,
+          "n_eff": 2.08,
+          "tradable": false
+        },
+        {
+          "decile": 4,
+          "n": 23,
+          "mean_y": 74.3827,
+          "win_rate": 0.8261,
+          "n_eff": 1.92,
+          "tradable": false
+        },
+        {
+          "decile": 5,
+          "n": 24,
+          "mean_y": 37.2772,
+          "win_rate": 0.7083,
+          "n_eff": 2.0,
+          "tradable": false
+        },
+        {
+          "decile": 6,
+          "n": 21,
+          "mean_y": 48.3439,
+          "win_rate": 0.619,
+          "n_eff": 1.75,
+          "tradable": false
+        },
+        {
+          "decile": 7,
+          "n": 33,
+          "mean_y": 45.0255,
+          "win_rate": 0.697,
+          "n_eff": 2.75,
+          "tradable": false
+        },
+        {
+          "decile": 8,
+          "n": 55,
+          "mean_y": 78.7141,
+          "win_rate": 0.7273,
+          "n_eff": 4.58,
+          "tradable": false
+        },
+        {
+          "decile": 9,
+          "n": 163,
+          "mean_y": 136.4837,
+          "win_rate": 0.8221,
+          "n_eff": 13.58,
+          "tradable": false
+        }
+      ],
+      "n_obs": 3470
+    },
+    "BTC": {
+      "allow": false,
+      "side": "buy",
+      "mu": 0.823,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": 0.823,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "PLAY": {
+      "allow": true,
+      "side": "sell",
+      "mu": 3.213,
+      "max_hold_sec": 90.0,
+      "horizon_sec": 90.0,
+      "reason": "ok",
+      "oos": {
+        "mean_y": 6.736,
+        "n_eff": 108.83,
+        "win_rate": 0.632
+      },
+      "deciles": [
+        {
+          "decile": 0,
+          "n": 33,
+          "mean_y": 4.2971,
+          "win_rate": 0.6667,
+          "n_eff": 5.5,
+          "tradable": false
+        },
+        {
+          "decile": 1,
+          "n": 56,
+          "mean_y": 4.9171,
+          "win_rate": 0.6071,
+          "n_eff": 9.33,
+          "tradable": false
+        },
+        {
+          "decile": 2,
+          "n": 43,
+          "mean_y": 4.8407,
+          "win_rate": 0.6279,
+          "n_eff": 7.17,
+          "tradable": false
+        },
+        {
+          "decile": 3,
+          "n": 57,
+          "mean_y": 8.2748,
+          "win_rate": 0.6842,
+          "n_eff": 9.5,
+          "tradable": false
+        },
+        {
+          "decile": 4,
+          "n": 88,
+          "mean_y": 7.4571,
+          "win_rate": 0.5682,
+          "n_eff": 14.67,
+          "tradable": false
+        },
+        {
+          "decile": 5,
+          "n": 83,
+          "mean_y": 5.5257,
+          "win_rate": 0.5301,
+          "n_eff": 13.83,
+          "tradable": false
+        },
+        {
+          "decile": 6,
+          "n": 65,
+          "mean_y": 6.4982,
+          "win_rate": 0.6769,
+          "n_eff": 10.83,
+          "tradable": false
+        },
+        {
+          "decile": 7,
+          "n": 77,
+          "mean_y": 7.8098,
+          "win_rate": 0.7143,
+          "n_eff": 12.83,
+          "tradable": false
+        },
+        {
+          "decile": 8,
+          "n": 85,
+          "mean_y": 8.6178,
+          "win_rate": 0.6824,
+          "n_eff": 14.17,
+          "tradable": false
+        },
+        {
+          "decile": 9,
+          "n": 66,
+          "mean_y": 6.5277,
+          "win_rate": 0.6061,
+          "n_eff": 11.0,
+          "tradable": false
+        }
+      ],
+      "n_obs": 3325
+    },
+    "NEAR": {
+      "allow": false,
+      "side": "sell",
+      "mu": -13.929,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -13.929,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "PUMP": {
+      "allow": false,
+      "side": "sell",
+      "mu": -2.184,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -2.184,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "PONS": {
+      "allow": false,
+      "side": "sell",
+      "mu": -13.456,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -13.456,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "LYN": {
+      "allow": false,
+      "side": "sell",
+      "mu": -1.605,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -1.605,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "QNT": {
+      "allow": false,
+      "side": "sell",
+      "mu": -13.166,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -13.166,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "ETHUSD1": {
+      "allow": false,
+      "side": "buy",
+      "mu": 0.0,
+      "reason": "insufficient_data",
+      "fallback": true
+    },
+    "SI": {
+      "allow": false,
+      "side": "buy",
+      "mu": 117.052,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": 117.052,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "ADA": {
+      "allow": false,
+      "side": "sell",
+      "mu": -9.051,
+      "max_hold_sec": 60.0,
+      "reason": "no_tradable_bucket",
+      "fallback": true,
+      "oos": {
+        "mean_y": -9.051,
+        "n_eff": 0.0,
+        "win_rate": 0.0
+      }
+    }
+  }
+}

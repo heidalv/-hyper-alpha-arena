@@ -5,7 +5,7 @@
 
 职责：
   1. 登记每条车道（lane_id / mode / status / edge_metric / risk_budget / health）；
-  2. 承载**晋升判定**（paper → live / live → paper / 永久关闭），判定条件写死在
+  2. 承载**晋升判定**（paper → live / live → paper / 退役），判定条件写死在
      `PROMOTION_CRITERIA`，任何车道不得绕过；
   3. 为前端「套利中心 · 总览/车道」两页提供唯一数据源。
 
@@ -90,7 +90,7 @@ DEFAULT_LANES: List[Dict[str, Any]] = [
         "status": "stopped",
         "risk": {"budget_pct": 0.0},
         "meta": {"name": "L5 方向性短线（旧 scalp）", "edge_source": "-",
-                 "note": "已证无边际，永久关闭（SCALP_OPEN_DISABLED=true）"},
+                 "note": "当前退役（SCALP_OPEN_DISABLED=true）；非永久——晋升判定恢复可用"},
     },
 ]
 

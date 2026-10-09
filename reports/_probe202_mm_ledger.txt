@@ -1,0 +1,49 @@
+﻿
+lane_ledger 列： ['id', 'lane_id', 'symbol', 'position_id', 'event', 'ts', 'notional', 'spread_bp', 'funding_bp', 'price_
+bp', 'fee_bp', 'slippage_bp', 'points_usd', 'net_bp', 'meta_json', 'position_id_state']
+mm_asterdex fill 行数 = 16476
+
+最近 5 行（含 meta_json 键）：
+   09-21 16:58:50 ASTER    spread=0.1324 price=-2.6474 net=-2.515 notional=278.4759130975907
+      meta keys=['qty', 'side', 'mid_px', 'source', 'fill_px', 'flatten', 'seg_low', 'notional', 'seg_high', 'price_usd
+', 'px_exact_hit']
+   09-21 16:58:50 ASTER    spread=0.4964 price=0.0 net=0.4964 notional=278.3265755768467
+      meta keys=['qty', 'side', 'mid_px', 'source', 'fill_px', 'flatten', 'seg_low', 'notional', 'seg_high', 'price_usd
+', 'px_exact_hit']
+   09-21 16:58:35 ASTER    spread=0.1324 price=-6.6204 net=-6.488 notional=278.439997223847
+      meta keys=['qty', 'side', 'mid_px', 'source', 'fill_px', 'flatten', 'seg_low', 'notional', 'seg_high', 'price_usd
+', 'px_exact_hit']
+   09-21 16:58:35 ASTER    spread=0.4965 price=0.0 net=0.4965 notional=278.4196974130262
+      meta keys=['qty', 'side', 'mid_px', 'source', 'fill_px', 'flatten', 'seg_low', 'notional', 'seg_high', 'price_usd
+', 'px_exact_hit']
+   09-21 16:58:05 ASTER    spread=0.1325 price=-5.2998 net=-5.1673 notional=278.31090200423597
+      meta keys=['qty', 'side', 'mid_px', 'source', 'fill_px', 'flatten', 'seg_low', 'notional', 'seg_high', 'price_usd
+', 'px_exact_hit']
+
+近 24h 按小时汇总：
+   09-20 17  n=1     avg_net=-83.53   med_net=-83.53   min_net=-83.53    notional=$17
+   09-20 18  n=75    avg_net=-0.39    med_net=1.25     min_net=-40.11    notional=$2419
+   09-20 19  n=318   avg_net=-0.50    med_net=1.25     min_net=-36.60    notional=$11491
+   09-20 20  n=300   avg_net=-1.78    med_net=1.25     min_net=-101.28   notional=$11033
+   09-20 21  n=350   avg_net=-2.11    med_net=1.25     min_net=-85.32    notional=$11711
+   09-20 22  n=334   avg_net=-1.27    med_net=1.25     min_net=-55.88    notional=$11966
+   09-20 23  n=287   avg_net=-2.56    med_net=1.35     min_net=-98.83    notional=$10300
+   09-21 00  n=423   avg_net=-1.85    med_net=0.41     min_net=-77.01    notional=$14762
+   09-21 01  n=489   avg_net=-0.24    med_net=0.41     min_net=-47.06    notional=$33309
+   09-21 02  n=676   avg_net=-1.39    med_net=0.36     min_net=-99.18    notional=$91052
+   09-21 03  n=670   avg_net=-0.40    med_net=0.41     min_net=-187.22   notional=$83229
+   09-21 04  n=704   avg_net=-1.16    med_net=0.32     min_net=-79.30    notional=$78655
+   09-21 05  n=570   avg_net=-0.39    med_net=0.22     min_net=-140.03   notional=$74038
+   09-21 06  n=854   avg_net=-0.23    med_net=0.32     min_net=-153.69   notional=$103742
+   09-21 07  n=833   avg_net=-0.36    med_net=0.35     min_net=-92.94    notional=$93963
+   09-21 08  n=353   avg_net=-1.62    med_net=0.45     min_net=-139.06   notional=$45994
+   09-21 09  n=338   avg_net=-2.28    med_net=0.40     min_net=-181.89   notional=$65054
+   09-21 10  n=572   avg_net=-0.01    med_net=0.43     min_net=-59.68    notional=$112284
+   09-21 11  n=595   avg_net=-0.22    med_net=0.42     min_net=-27.62    notional=$97447
+   09-21 12  n=604   avg_net=-0.28    med_net=0.34     min_net=-66.36    notional=$121753
+   09-21 13  n=609   avg_net=0.16     med_net=0.27     min_net=-53.00    notional=$206771
+   09-21 14  n=668   avg_net=-0.28    med_net=0.24     min_net=-21.45    notional=$292331
+   09-21 15  n=353   avg_net=-1.14    med_net=0.22     min_net=-60.48    notional=$126012
+   09-21 16  n=201   avg_net=-0.61    med_net=0.27     min_net=-73.02    notional=$63851
+
+

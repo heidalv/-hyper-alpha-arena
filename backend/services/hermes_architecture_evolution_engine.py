@@ -288,17 +288,44 @@ class ArchitectureEvolutionEngine:
         except Exception:
             return False
 
-    def auto_accept_pending_paper(self, *, limit: Optional[int] = None) -> Dict[str, Any]:
-        """Paper ģʽ���� accept pending L3 �᰸ �� Governor��Paper �Զ� approve����"""
-        if not self._paper_auto_accept_enabled():
-            return {"skipped": "HERMES_L3_AUTO_ACCEPT_PAPER=false or not paper", "accepted": 0}
+    def auto_accept_pending_paper(self, *, limit: Optional[int] = None,
+                                  dry_run: bool = False) -> Dict[str, Any]:
+        """Paper 模式下批量 accept pending L3 提案 → Governor（Paper 自动 approve）。
 
+        [2026-10-03 用户指令] 增加 `dry_run`：**只预览不落库** —— 批量裁决会直接把提案
+        置为 implemented（accept_proposal 的语义），304 条待审一次动 20-100 条属于不可逆的
+        架构改动，必须先能看清"将要通过哪些"。dry_run 返回候选清单（id/标题/类别/可行性）
+        与 `would_accept`，**不调用 accept_proposal、不写库**。
+        """
         if limit is None:
             try:
                 from backend.config.settings import HERMES_L3_AUTO_ACCEPT_BATCH
                 limit = int(HERMES_L3_AUTO_ACCEPT_BATCH or 20)
             except Exception:
                 limit = 20
+
+        # dry_run **先于功能门禁**：预览本身无副作用，且正是"要不要开这个功能"的决策依据
+        if dry_run:
+            preview = hermes_fetchall(
+                """SELECT id, title, category, feasibility, expected_impact, created_at
+                   FROM architecture_evolution_proposals
+                   WHERE status='pending' ORDER BY id ASC LIMIT ?""",
+                (int(limit),),
+            )
+            stats = self.get_stats()
+            logger.info("[Hermes:L3] auto_accept DRY-RUN: would_accept=%d（未写库）", len(preview))
+            return {
+                "dry_run": True,
+                "would_accept": len(preview),
+                "preview": [dict(r) for r in preview],
+                "remaining_pending": stats.get("pending", 0),
+                "stats": stats,
+                "auto_accept_enabled": self._paper_auto_accept_enabled(),
+                "note": "预览：未调用 accept_proposal，库未变动",
+            }
+
+        if not self._paper_auto_accept_enabled():
+            return {"skipped": "HERMES_L3_AUTO_ACCEPT_PAPER=false or not paper", "accepted": 0}
 
         rows = hermes_fetchall(
             """SELECT id FROM architecture_evolution_proposals
@@ -385,19 +412,18 @@ class ArchitectureEvolutionEngine:
 
     def _call_llm(self, system_prompt: str, user_text: str) -> Dict[str, Any]:
         try:
-            from backend.services.opencode_bridge import (
-                collect_http_agent_stream_text,
-                _agent_plan,
-                _model,
-                _extract_json,
-            )
-            # ǰ�� JSON ���Э�飬ѹ�� plan agent �Ĵ���̽���嶯
+            # [2026-10-03 用户指令] 不再强制 OpenCode sidecar：默认直连项目内 LLM 配置
+            # （DeepSeek Flash / tier 由 HERMES_LLM_TIER 决定）；driver 选择见 hermes_llm_driver。
+            from backend.services.hermes_llm_driver import collect_hermes_text
+            from backend.services.opencode_bridge import _agent_plan, _model, _extract_json
+
+            # 前置 JSON 输出协议，压低 plan agent 的自由发挥
             protocol = self._json_output_protocol(
                 '{"proposals": [{category, title, rationale, evidence, '
                 'expected_impact, feasibility, implementation_hint}], '
                 '"priority_ranking": [{title, score}]}'
             )
-            raw, err = collect_http_agent_stream_text(
+            raw, err = collect_hermes_text(
                 system_prompt=protocol + system_prompt,
                 user_text=user_text,
                 agent=_agent_plan(),

@@ -558,6 +558,14 @@ def is_reasoning_model(model: str) -> bool:
         # 流式输出 reasoning_content 思维链。此前只匹配 v4-pro 而漏掉 v4-flash，
         # 导致 flash 走旧参数 → 返回空响应 → TrendAgent 规则回退 → 中长线长期 hold。
         "deepseek-v4",
+        # [2026-10-03 复发修复] 本项目 LLM 配置（id=17「DeepSeek V4 (Flash)」）的
+        # `model`/`model_deep` 字面值是 **`deepseek-flash`**，**不含 `deepseek-v4`**
+        # ⇒ 上一版名单漏判 ⇒ 又走回旧参数。实测后果：
+        #   · `/api/analysis/tasks/daily_brief` 每天 07:00 必失败（0 token、550ms、
+        #     `RuntimeError: deepseek 空响应`）；
+        #   · `mlto_debate` 7 天 6,433 次调用失败 1,351 次（21%）⇒ 大脑降级 hold。
+        # 这里把 v4 家族的**实际模型名**补全（flash/pro/reasoner 共用新参数协议）。
+        "deepseek-flash", "deepseek-v4-flash", "deepseek-v4-pro", "v4-flash",
         "qwq", "qwen-plus-thinking", "qwen-max-thinking", "qwen3-thinking",
         "claude-4", "claude-sonnet-4-5",
         "gemini-2.5", "gemini-3", "gemini-2.0-flash-thinking",

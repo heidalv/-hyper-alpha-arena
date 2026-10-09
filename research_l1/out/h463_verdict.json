@@ -1,0 +1,94 @@
+{
+  "trial": {
+    "legs": 3923,
+    "net_bp": -3659.1757999999973,
+    "legs_per_hour": 50.94979796822007
+  },
+  "verdict": "INCONCLUSIVE",
+  "why": "freq_shortfall_market_explained 51.0/h < 60/h，但窗口内**市场更冷/波动更高**（真实逐笔 活跃度 0.79×、波动代理 0.96×）⇒ 短fall 归因于外部（风控闸在高波动里按设计收紧），**不据此回滚该参数**；需在同类市况下重开窗口再判",
+  "judged_at": "2026-10-02T06:48:01.524026+00:00",
+  "hours": 76.99736125444444,
+  "baseline": {
+    "legs": 749,
+    "net_bp": -582.6610000000007,
+    "legs_per_hour": 62.416666666666664
+  },
+  "welch": {
+    "t": -0.2454303399801196,
+    "p": 0.8062133075535778,
+    "mean_trial": -0.9327493754779506,
+    "mean_base": -0.7779185580774367,
+    "n_trial": 3923,
+    "n_base": 749,
+    "delta": -0.15483081740051385
+  },
+  "freq_ok": false,
+  "sub": {
+    "trial": {
+      "hold_window": {
+        "legs": 3923,
+        "exit_legs": 181,
+        "add_legs": 3742,
+        "legs_per_trip": 21.674,
+        "taker_legs": 178,
+        "timeout_legs": 97,
+        "stop_legs": 81,
+        "entry_net_bp": 0.085,
+        "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+      }
+    },
+    "baseline": {
+      "hold_window": {
+        "legs": 749,
+        "exit_legs": 111,
+        "add_legs": 638,
+        "legs_per_trip": 6.7477,
+        "taker_legs": 120,
+        "timeout_legs": 53,
+        "stop_legs": 25,
+        "entry_net_bp": 0.842,
+        "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+      }
+    }
+  },
+  "two_halves": {
+    "mid": "2026-09-30T16:18:06.273768+00:00",
+    "first_half": {
+      "hold_window": {
+        "legs": 2194,
+        "exit_legs": 124,
+        "add_legs": 2070,
+        "legs_per_trip": 17.6935,
+        "taker_legs": 126,
+        "timeout_legs": 71,
+        "stop_legs": 39,
+        "entry_net_bp": 0.049,
+        "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+      }
+    },
+    "second_half": {
+      "hold_window": {
+        "legs": 1729,
+        "exit_legs": 57,
+        "add_legs": 1672,
+        "legs_per_trip": 30.3333,
+        "taker_legs": 52,
+        "timeout_legs": 26,
+        "stop_legs": 42,
+        "entry_net_bp": 0.129,
+        "note": "判据 C 的预注册替换：账本无持仓年龄 ⇒ 用 legs_per_trip 代理（判定前记录，见 h547）"
+      }
+    }
+  },
+  "breaks_in_window": [],
+  "covered": {
+    "trial_h": 76.967,
+    "trial_ratio": 0.9996,
+    "baseline_h": 12.017,
+    "legs_per_hour_covered": 50.97,
+    "baseline_legs_per_hour_covered": 62.33,
+    "legs_per_hour_wall": 50.95,
+    "baseline_legs_per_hour_wall": 62.42
+  },
+  "dry_run": false
+}

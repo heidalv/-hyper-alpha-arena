@@ -1,0 +1,63 @@
+{
+  "ts": 1790949915.1423037,
+  "capture_ratio": 0.42,
+  "adverse_cond_bp": 1.0,
+  "per_symbol": [
+    {
+      "symbol": "SOL",
+      "k": 0.297,
+      "delta_opt_bp": 2.5,
+      "ev_fill_per_h": 181.3,
+      "ev_net_usd_per_h": 3.2359,
+      "realized_net_usd_per_h": -0.0298,
+      "avg_notional": 32.4
+    },
+    {
+      "symbol": "DOGE",
+      "k": 0.277,
+      "delta_opt_bp": 2.5,
+      "ev_fill_per_h": 187.8,
+      "ev_net_usd_per_h": 2.08,
+      "realized_net_usd_per_h": -0.0235,
+      "avg_notional": 20.1
+    },
+    {
+      "symbol": "ASTER",
+      "k": 0.348,
+      "delta_opt_bp": 2.5,
+      "ev_fill_per_h": 155.2,
+      "ev_net_usd_per_h": 3.2343,
+      "realized_net_usd_per_h": -0.0175,
+      "avg_notional": 37.8
+    },
+    {
+      "symbol": "ADA",
+      "k": 0.159,
+      "delta_opt_bp": 0.5,
+      "ev_fill_per_h": 315.2,
+      "ev_net_usd_per_h": 0.0,
+      "realized_net_usd_per_h": 0.0,
+      "avg_notional": 0.0
+    },
+    {
+      "symbol": "PENDLE",
+      "k": 0.09,
+      "delta_opt_bp": 0.5,
+      "ev_fill_per_h": 298.8,
+      "ev_net_usd_per_h": 0.0,
+      "realized_net_usd_per_h": 0.0,
+      "avg_notional": 0.0
+    },
+    {
+      "symbol": "SUI",
+      "k": 0.081,
+      "delta_opt_bp": 2.5,
+      "ev_fill_per_h": 252.4,
+      "ev_net_usd_per_h": 2.6342,
+      "realized_net_usd_per_h": 0.0025,
+      "avg_notional": 18.9
+    }
+  ],
+  "blocked_cf_bp_legs": 1019.474,
+  "note": "ev_net_per_h_unit 与 realized_net_per_h 单位不同(见下文口径说明),对比看方向不看绝对值"
+}

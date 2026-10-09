@@ -1,0 +1,394 @@
+{
+  "hours": 72,
+  "beta": -0.914,
+  "gamma": 0.293,
+  "t_beta": -3.06,
+  "r2": 0.144,
+  "rows": [
+    {
+      "hour": 1790452800,
+      "half_spread_bp": 0.686716045307163,
+      "mkt_trades": 1958,
+      "legs": 130,
+      "entries": 130,
+      "legs_per_1000_trades": 66.39427987742594
+    },
+    {
+      "hour": 1790456400,
+      "half_spread_bp": 2.523751317931409,
+      "mkt_trades": 1817,
+      "legs": 124,
+      "entries": 124,
+      "legs_per_1000_trades": 68.2443588332416
+    },
+    {
+      "hour": 1790460000,
+      "half_spread_bp": 1.9025394101502158,
+      "mkt_trades": 1032,
+      "legs": 116,
+      "entries": 116,
+      "legs_per_1000_trades": 112.4031007751938
+    },
+    {
+      "hour": 1790463600,
+      "half_spread_bp": 1.9847772938986,
+      "mkt_trades": 1112,
+      "legs": 141,
+      "entries": 141,
+      "legs_per_1000_trades": 126.79856115107913
+    },
+    {
+      "hour": 1790467200,
+      "half_spread_bp": 2.4072792342669094,
+      "mkt_trades": 1668,
+      "legs": 111,
+      "entries": 111,
+      "legs_per_1000_trades": 66.54676258992806
+    },
+    {
+      "hour": 1790470800,
+      "half_spread_bp": 1.416766449471488,
+      "mkt_trades": 1603,
+      "legs": 104,
+      "entries": 104,
+      "legs_per_1000_trades": 64.87835308796006
+    },
+    {
+      "hour": 1790474400,
+      "half_spread_bp": 2.0332203348534064,
+      "mkt_trades": 1102,
+      "legs": 125,
+      "entries": 125,
+      "legs_per_1000_trades": 113.43012704174228
+    },
+    {
+      "hour": 1790478000,
+      "half_spread_bp": 2.066791553047851,
+      "mkt_trades": 969,
+      "legs": 81,
+      "entries": 81,
+      "legs_per_1000_trades": 83.59133126934984
+    },
+    {
+      "hour": 1790481600,
+      "half_spread_bp": 1.161604901486053,
+      "mkt_trades": 1553,
+      "legs": 128,
+      "entries": 128,
+      "legs_per_1000_trades": 82.4211204121056
+    },
+    {
+      "hour": 1790485200,
+      "half_spread_bp": 1.2395415404324162,
+      "mkt_trades": 2389,
+      "legs": 157,
+      "entries": 157,
+      "legs_per_1000_trades": 65.71787358727502
+    },
+    {
+      "hour": 1790488800,
+      "half_spread_bp": 1.2365283161186638,
+      "mkt_trades": 1587,
+      "legs": 60,
+      "entries": 60,
+      "legs_per_1000_trades": 37.80718336483932
+    },
+    {
+      "hour": 1790492400,
+      "half_spread_bp": 0.8926014190702058,
+      "mkt_trades": 2105,
+      "legs": 288,
+      "entries": 280,
+      "legs_per_1000_trades": 136.81710213776722
+    },
+    {
+      "hour": 1790496000,
+      "half_spread_bp": 1.2399244756940766,
+      "mkt_trades": 1867,
+      "legs": 282,
+      "entries": 273,
+      "legs_per_1000_trades": 151.04445634708088
+    },
+    {
+      "hour": 1790499600,
+      "half_spread_bp": 1.0305020155183686,
+      "mkt_trades": 1540,
+      "legs": 261,
+      "entries": 254,
+      "legs_per_1000_trades": 169.4805194805195
+    },
+    {
+      "hour": 1790503200,
+      "half_spread_bp": 1.0968607096426957,
+      "mkt_trades": 1237,
+      "legs": 229,
+      "entries": 225,
+      "legs_per_1000_trades": 185.125303152789
+    },
+    {
+      "hour": 1790506800,
+      "half_spread_bp": 1.3248786411795297,
+      "mkt_trades": 1465,
+      "legs": 229,
+      "entries": 218,
+      "legs_per_1000_trades": 156.31399317406144
+    },
+    {
+      "hour": 1790510400,
+      "half_spread_bp": 0.8163484000139865,
+      "mkt_trades": 2211,
+      "legs": 178,
+      "entries": 166,
+      "legs_per_1000_trades": 80.50655811849842
+    },
+    {
+      "hour": 1790514000,
+      "half_spread_bp": 1.9675128095568262,
+      "mkt_trades": 2203,
+      "legs": 247,
+      "entries": 228,
+      "legs_per_1000_trades": 112.119836586473
+    },
+    {
+      "hour": 1790517600,
+      "half_spread_bp": 1.3838206076297423,
+      "mkt_trades": 2866,
+      "legs": 231,
+      "entries": 212,
+      "legs_per_1000_trades": 80.60013956734124
+    },
+    {
+      "hour": 1790521200,
+      "half_spread_bp": 1.2751057236884076,
+      "mkt_trades": 1707,
+      "legs": 229,
+      "entries": 209,
+      "legs_per_1000_trades": 134.15348564733452
+    },
+    {
+      "hour": 1790524800,
+      "half_spread_bp": 1.4754924253402038,
+      "mkt_trades": 1729,
+      "legs": 251,
+      "entries": 234,
+      "legs_per_1000_trades": 145.17061885482937
+    },
+    {
+      "hour": 1790528400,
+      "half_spread_bp": 0.9970147092265517,
+      "mkt_trades": 1550,
+      "legs": 201,
+      "entries": 185,
+      "legs_per_1000_trades": 129.6774193548387
+    },
+    {
+      "hour": 1790532000,
+      "half_spread_bp": 1.322093472548684,
+      "mkt_trades": 2402,
+      "legs": 212,
+      "entries": 188,
+      "legs_per_1000_trades": 88.25978351373854
+    },
+    {
+      "hour": 1790535600,
+      "half_spread_bp": 1.7434650398809162,
+      "mkt_trades": 1955,
+      "legs": 231,
+      "entries": 206,
+      "legs_per_1000_trades": 118.15856777493606
+    },
+    {
+      "hour": 1790539200,
+      "half_spread_bp": 1.7209149655258178,
+      "mkt_trades": 1808,
+      "legs": 256,
+      "entries": 240,
+      "legs_per_1000_trades": 141.5929203539823
+    },
+    {
+      "hour": 1790542800,
+      "half_spread_bp": 0.9745418117446453,
+      "mkt_trades": 2684,
+      "legs": 208,
+      "entries": 179,
+      "legs_per_1000_trades": 77.4962742175857
+    },
+    {
+      "hour": 1790546400,
+      "half_spread_bp": 1.4585210865791245,
+      "mkt_trades": 2445,
+      "legs": 213,
+      "entries": 190,
+      "legs_per_1000_trades": 87.11656441717791
+    },
+    {
+      "hour": 1790550000,
+      "half_spread_bp": 1.1265554644736,
+      "mkt_trades": 2383,
+      "legs": 218,
+      "entries": 203,
+      "legs_per_1000_trades": 91.48132605958875
+    },
+    {
+      "hour": 1790553600,
+      "half_spread_bp": 1.1582505742085494,
+      "mkt_trades": 3807,
+      "legs": 206,
+      "entries": 190,
+      "legs_per_1000_trades": 54.11084843708957
+    },
+    {
+      "hour": 1790557200,
+      "half_spread_bp": 1.2842161386660713,
+      "mkt_trades": 3498,
+      "legs": 235,
+      "entries": 222,
+      "legs_per_1000_trades": 67.18124642652946
+    },
+    {
+      "hour": 1790560800,
+      "half_spread_bp": 1.4858043063533384,
+      "mkt_trades": 2888,
+      "legs": 226,
+      "entries": 215,
+      "legs_per_1000_trades": 78.25484764542936
+    },
+    {
+      "hour": 1790564400,
+      "half_spread_bp": 1.4702769831214513,
+      "mkt_trades": 3084,
+      "legs": 237,
+      "entries": 225,
+      "legs_per_1000_trades": 76.84824902723736
+    },
+    {
+      "hour": 1790568000,
+      "half_spread_bp": 1.4168336471984817,
+      "mkt_trades": 2033,
+      "legs": 225,
+      "entries": 209,
+      "legs_per_1000_trades": 110.67388096409248
+    },
+    {
+      "hour": 1790571600,
+      "half_spread_bp": 1.6766931885086822,
+      "mkt_trades": 2598,
+      "legs": 65,
+      "entries": 52,
+      "legs_per_1000_trades": 25.01924557351809
+    },
+    {
+      "hour": 1790575200,
+      "half_spread_bp": 1.9517897420057984,
+      "mkt_trades": 2140,
+      "legs": 61,
+      "entries": 52,
+      "legs_per_1000_trades": 28.50467289719626
+    },
+    {
+      "hour": 1790578800,
+      "half_spread_bp": 1.8030541953595114,
+      "mkt_trades": 2544,
+      "legs": 64,
+      "entries": 56,
+      "legs_per_1000_trades": 25.157232704402517
+    },
+    {
+      "hour": 1790582400,
+      "half_spread_bp": 1.8788448055625966,
+      "mkt_trades": 2814,
+      "legs": 56,
+      "entries": 47,
+      "legs_per_1000_trades": 19.90049751243781
+    },
+    {
+      "hour": 1790586000,
+      "half_spread_bp": 1.6952005568776316,
+      "mkt_trades": 2431,
+      "legs": 76,
+      "entries": 67,
+      "legs_per_1000_trades": 31.26285479226656
+    },
+    {
+      "hour": 1790589600,
+      "half_spread_bp": 1.8064359471890166,
+      "mkt_trades": 2269,
+      "legs": 60,
+      "entries": 48,
+      "legs_per_1000_trades": 26.44336712208021
+    },
+    {
+      "hour": 1790593200,
+      "half_spread_bp": 1.8385511052553143,
+      "mkt_trades": 2793,
+      "legs": 89,
+      "entries": 79,
+      "legs_per_1000_trades": 31.865377730039384
+    },
+    {
+      "hour": 1790596800,
+      "half_spread_bp": 2.24778579911156,
+      "mkt_trades": 2701,
+      "legs": 72,
+      "entries": 61,
+      "legs_per_1000_trades": 26.656793780081454
+    },
+    {
+      "hour": 1790600400,
+      "half_spread_bp": 1.7768439653777202,
+      "mkt_trades": 4107,
+      "legs": 58,
+      "entries": 38,
+      "legs_per_1000_trades": 14.122230338446554
+    },
+    {
+      "hour": 1790604000,
+      "half_spread_bp": 1.9487236528488583,
+      "mkt_trades": 5708,
+      "legs": 42,
+      "entries": 24,
+      "legs_per_1000_trades": 7.358093903293622
+    },
+    {
+      "hour": 1790607600,
+      "half_spread_bp": 1.8616423497291685,
+      "mkt_trades": 3721,
+      "legs": 50,
+      "entries": 31,
+      "legs_per_1000_trades": 13.437248051599033
+    },
+    {
+      "hour": 1790611200,
+      "half_spread_bp": 2.310023657011642,
+      "mkt_trades": 3552,
+      "legs": 83,
+      "entries": 53,
+      "legs_per_1000_trades": 23.367117117117118
+    },
+    {
+      "hour": 1790614800,
+      "half_spread_bp": 1.3714190438483342,
+      "mkt_trades": 1941,
+      "legs": 71,
+      "entries": 47,
+      "legs_per_1000_trades": 36.57908294693457
+    },
+    {
+      "hour": 1790618400,
+      "half_spread_bp": 1.4694179333414954,
+      "mkt_trades": 2079,
+      "legs": 95,
+      "entries": 67,
+      "legs_per_1000_trades": 45.6950456950457
+    },
+    {
+      "hour": 1790622000,
+      "half_spread_bp": 2.591438673257755,
+      "mkt_trades": 2045,
+      "legs": 51,
+      "entries": 37,
+      "legs_per_1000_trades": 24.93887530562347
+    }
+  ],
+  "verdict": "β=-0.91 比反比还陡 ⇒ 加宽会破频率硬约束 ⇒ 优先从**入场信号侧**（③ 方向）要质量，别动挂宽"
+}

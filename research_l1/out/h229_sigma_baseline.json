@@ -1,0 +1,40 @@
+{
+  "as_of": "2026-09-20T07:59:32.795622+00:00",
+  "hours": 6.0,
+  "current": {
+    "ASTER": {
+      "baseline": 3.6678,
+      "now_median": 26.645,
+      "ratio": 7.265,
+      "sigma": 6.265,
+      "gate_0.7": true
+    },
+    "HYPE": {
+      "baseline": null,
+      "now_median": 18.13,
+      "note": "无基准 ⇒ σ 恒为 0 ⇒ 该币永不被车道 σ 闸拦"
+    },
+    "SOL": {
+      "baseline": 3.2726,
+      "now_median": 17.127,
+      "ratio": 5.233,
+      "sigma": 4.233,
+      "gate_0.7": true
+    },
+    "XRP": {
+      "baseline": 3.9099,
+      "now_median": 23.791,
+      "ratio": 6.085,
+      "sigma": 5.085,
+      "gate_0.7": true
+    }
+  },
+  "gated": [
+    "ASTER",
+    "SOL",
+    "XRP"
+  ],
+  "no_baseline": [
+    "HYPE"
+  ]
+}

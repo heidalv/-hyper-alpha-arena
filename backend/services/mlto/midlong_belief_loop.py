@@ -205,6 +205,48 @@ def _upsert_belief(data: Dict[str, Any], belief_id: str, lesson: str, regime: st
     return True
 
 
+def _owm_nudge_mode() -> str:
+    """[续作R16] belief nudge 的口径开关。
+
+    `relative`（默认，= 修复后）：llm 步长 = 其基础权重 ×5%（≈0.30×0.05=0.015），
+      framework = |llm 步长| × 0.5 —— 与 `learning_bridge._bump_owm` 的"相对 ±5%"同口径，
+      消除"下行 0.03 是上行 0.015 两倍"的不对称（§42.3 实测：16 次 nudge 把 long llm
+      从 1.0 压到 clamp 下界 0.5，且无回收）。
+    `legacy`：绝对 −0.03 / +0.015（原行为）。
+    回滚：MIDLONG_BELIEF_OWM_NUDGE_MODE=legacy。非法值按 legacy（fail-closed 到旧行为）。
+    """
+    import os
+    v = (os.getenv("MIDLONG_BELIEF_OWM_NUDGE_MODE", "relative") or "relative").strip().lower()
+    return v if v in ("legacy", "relative") else "legacy"
+
+
+def _nudge_deltas(mode: str, llm_delta: float) -> list:
+    """按口径算出 (source, delta) 列表（纯函数，便于单测）。"""
+    if mode == "relative":
+        try:
+            from backend.services.mlto.learning_bridge import _base_weight_for_source
+            _base_llm = _base_weight_for_source("llm", "long")
+            llm_delta = -(_base_llm * 0.05)
+        except Exception:
+            pass
+    return [("llm", llm_delta), ("framework", abs(llm_delta) * 0.5)]
+
+
+def _nudge_decay_weight(weight: float, hours: float) -> float:
+    """[续作R16] 衰减/回收：每满 1 小时，把权重向 1.0 回补 5% 的距离（并夹回 [0.5,1.5]）。
+
+    解决 §42.3 的"无衰减"：过去 16 次 nudge 把 long llm 钉死在 0.5 下界，永不回收。
+    """
+    w = max(0.5, min(1.5, float(weight or 1.0)))
+    try:
+        steps = min(400, int(max(0.0, float(hours))))
+    except (TypeError, ValueError):
+        steps = 0
+    for _ in range(steps):
+        w = w + (1.0 - w) * 0.05
+    return max(0.5, min(1.5, w))
+
+
 def _apply_owm_nudge(session_id: str, *, llm_delta: float = -0.03) -> None:
     """震荡追涨信念触发时，略降 llm 源权重、略升 framework。"""
     if not session_id:
@@ -217,7 +259,7 @@ def _apply_owm_nudge(session_id: str, *, llm_delta: float = -0.03) -> None:
     adb = None
     try:
         adb = AnalyticsSessionLocal()
-        for src, delta in (("llm", llm_delta), ("framework", abs(llm_delta) * 0.5)):
+        for src, delta in _nudge_deltas(_owm_nudge_mode(), llm_delta):
             row = (
                 adb.query(MltoSignalWeight)
                 .filter(
@@ -232,7 +274,22 @@ def _apply_owm_nudge(session_id: str, *, llm_delta: float = -0.03) -> None:
                     session_id=session_id, tier="long", source=src, weight=1.0,
                 )
                 adb.add(row)
-            row.weight = max(0.5, min(1.5, float(row.weight or 1.0) + delta))
+            # [续作R16] 先衰减（按距上次写入的小时数向 1.0 回补），再施加本轮 nudge
+            _cur_w = float(row.weight or 1.0)
+            try:
+                _upd = getattr(row, "updated_at", None)
+                if _upd is not None:
+                    import datetime as _dt
+                    _now = _dt.datetime.now()
+                    if getattr(_upd, "tzinfo", None) is None:
+                        _now = _now.replace(tzinfo=None)
+                    elif _now.tzinfo is None:
+                        _now = _now.replace(tzinfo=_upd.tzinfo)
+                    _hours = max(0.0, (_now - _upd).total_seconds() / 3600.0)
+                    _cur_w = _nudge_decay_weight(_cur_w, _hours)
+            except Exception:
+                pass
+            row.weight = max(0.5, min(1.5, _cur_w + delta))
         adb.commit()
         logger.info(
             "[MidLongBelief] OWM nudge session=%s llm%+.3f",

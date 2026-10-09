@@ -1017,6 +1017,8 @@ class StrategyTrade(Base):
     closed_at = Column(TIMESTAMP, nullable=True)
     # [2026-08-22 M1-1] 与 DB DDL 对齐声明 tenant_id（此前 ORM 未声明 → 自动填钩子失效）
     tenant_id = Column(Integer, nullable=False, default=1, server_default="1")  # RLS multi-tenant
+    # [P0 2026-09-29] 学习链硬外键（paper_positions.id，回填脚本已填充历史）
+    paper_position_id = Column(Integer, nullable=True, index=True)
 
 
 class PromptTrainingRecord(Base):
@@ -2565,6 +2567,18 @@ class PaperPosition(Base):
     # 分批止盈累计（用于平仓时给学习系统完整的 PnL）
     partial_realized_pnl = Column(Float, nullable=False, default=0.0)
     partial_fee_paid = Column(Float, nullable=False, default=0.0)
+    # [2026-09-20 账务修正] 最后一腿全平的手续费（此前只落在订单/事件流，未回写持仓行）。
+    # closed 仓 = 最终平仓费；open 仓 = NULL。全仓手续费 = partial_fee_paid + coalesce(final_fee_paid,0)。
+    # 禁止并入 partial_fee_paid：edge_ledger/trade_facts_reconcile 的兜底路径会双计。
+    final_fee_paid = Column(Float, nullable=True)
+    # [2026-09-20 资金费] 8h 结算网格口径的累计资金费（position_funding_events 汇总回填）。
+    # 多头付（funding_paid>0）、空头收（funding_received>0）；open 仓由 display 层实时累计。
+    funding_paid = Column(Float, nullable=False, default=0.0)
+    funding_received = Column(Float, nullable=False, default=0.0)
+    # [P0 大轮回 2026-09-27] 开/平仓滑点（bp，1bp=0.01%）：回测成本模型与实盘对账依据。
+    # 开仓时按 fee_guard 动态滑点模型记录；平仓时按最后一腿成交的滑点记录（止损类含反向滑点）。
+    entry_slippage_bp = Column(Float, nullable=True)
+    exit_slippage_bp = Column(Float, nullable=True)
     original_size = Column(Float, nullable=True)
 
     # 已触发的止盈级别（0=未触发, 1=L1已平30%, 2=L2已平30%, 3=L3已全平）
@@ -2591,6 +2605,11 @@ class PaperPosition(Base):
     # 用它区分"止损太紧"(MAE浅仍被扫出) vs "方向错"(MAE深)。资金费累计不入列，
     # 由 paper_funding_ledger 按 position_id 聚合（engine._funding_accrued_total）。
     trough_unrealized_pnl = Column(Float, nullable=False, default=0.0)
+    # [P0 2026-09-29] 出场模块归因（§10.5：barrier:* / hard_sl / staged_tp / thesis_rule / time_stop / manual …）
+    exit_module = Column(String(32), nullable=True)
+    # [P0 2026-09-29] MFE/MAE 到达时间（peak_at/trough_at，§10.3 标定原料）
+    peak_at = Column(TIMESTAMP, nullable=True)
+    trough_at = Column(TIMESTAMP, nullable=True)
     trough_pnl_pct = Column(Float, nullable=False, default=0.0)
     health_score = Column(Float, nullable=True)
     health_regime = Column(String(30), nullable=True)
@@ -2697,6 +2716,12 @@ class PaperOrder(Base):
     close_reason = Column(String(100), nullable=True)
 
     trade_nature = Column(String(20), nullable=True)  # 子仓位身份标签
+    # [P6 bug 修复⑤ 2026-09-28] 挂单（pending 限价）成交后建仓所需的上下文：
+    # check_pending_orders 补单时若无这些字段，仓位会丢 tier/nature/open_metadata
+    # （thesis_id/决策身份），P0 关联链断裂。
+    timeframe_tier = Column(String(10), nullable=True)
+    expected_hold_hours = Column(Float, nullable=True)
+    metadata_json = Column(Text, nullable=True)
 
     status = Column(String(20), nullable=False, default="pending", index=True)  # pending / filled / cancelled / rejected
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())

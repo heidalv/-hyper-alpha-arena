@@ -1,0 +1,56 @@
+{
+  "hours": 12.0,
+  "k": 120.0,
+  "rows": [
+    {
+      "symbol": "HYPE",
+      "ct_n": 427,
+      "mt_n": 393,
+      "ct_net": 1.1228,
+      "mt_net": -2.4925,
+      "diff": 3.6153,
+      "ct_pos_pct": 83.37,
+      "notional": 181356.0
+    },
+    {
+      "symbol": "SOL",
+      "ct_n": 340,
+      "mt_n": 323,
+      "ct_net": 1.1652,
+      "mt_net": -1.8378,
+      "diff": 3.003,
+      "ct_pos_pct": 83.24,
+      "notional": 163198.0
+    },
+    {
+      "symbol": "ASTER",
+      "ct_n": 303,
+      "mt_n": 278,
+      "ct_net": 0.2374,
+      "mt_net": -2.2738,
+      "diff": 2.5112,
+      "ct_pos_pct": 77.89,
+      "notional": 149962.0
+    },
+    {
+      "symbol": "XRP",
+      "ct_n": 264,
+      "mt_n": 260,
+      "ct_net": 0.8435,
+      "mt_net": -3.1875,
+      "diff": 4.0311,
+      "ct_pos_pct": 81.82,
+      "notional": 123267.0
+    },
+    {
+      "symbol": "ADA",
+      "ct_n": 16,
+      "mt_n": 11,
+      "ct_net": -2.7532,
+      "mt_net": 5.5778,
+      "diff": -8.331,
+      "ct_pos_pct": 75.0,
+      "notional": 2933.0
+    }
+  ]
+}

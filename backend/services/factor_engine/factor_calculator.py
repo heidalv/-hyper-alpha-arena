@@ -20,6 +20,28 @@ from .factor_cache import FactorCache
 logger = logging.getLogger(__name__)
 
 
+def _factor_unknown_neutral() -> bool:
+    """未注册因子是否按中性 0 处理（.env 直读兜底 —— 本仓库 .env 键不进 os.environ）。"""
+    import os as _os_f
+
+    v = _os_f.getenv("FACTOR_UNKNOWN_NEUTRAL")
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("FACTOR_UNKNOWN_NEUTRAL="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v if v is not None else "true").strip().lower() in ("1", "true", "yes", "on")
+
+
+
 class FactorCalculator:
     """
     因子计算引擎
@@ -55,7 +77,10 @@ class FactorCalculator:
         
         self.registry = registry
         
-        logger.info(
+        # [2026-09-19 降噪] 原为 logger.info —— 实测 2.5 小时内打 **5,826 次**
+        # （每次主脑子进程/每次计算器重建都打一行），是 backend.log 家族的第二大噪音源。
+        # 降为 DEBUG，信息不丢。
+        logger.debug(
             f"FactorCalculator initialized: "
             f"parallel={parallel}, max_workers={max_workers}"
         )
@@ -121,9 +146,18 @@ class FactorCalculator:
                 results[factor_id] = result
                 
             except Exception as e:
-                logger.error(f"Failed to calculate factor {factor_id}: {e}", exc_info=True)
-                # 继续计算其他因子
-                results[factor_id] = pd.Series(np.nan, index=data.index, name=factor_id)
+                # [2026-10-09] 未注册因子按中性 0：AI 生成策略引用不存在的因子 id
+                # 时（ai_gen_* 三连 KeyError），原逻辑置 NaN ⇒ 组合分 NaN ⇒ 开仓被拒。
+                _missing = ("not found" in str(e)) or isinstance(e, KeyError)
+                if _missing and _factor_unknown_neutral():
+                    logger.warning(
+                        "[Factor] unknown factor %s -> neutral 0 (%s)", factor_id, str(e)[:90]
+                    )
+                    results[factor_id] = pd.Series(0.0, index=data.index, name=factor_id)
+                else:
+                    logger.error(f"Failed to calculate factor {factor_id}: {e}", exc_info=True)
+                    # 继续计算其他因子
+                    results[factor_id] = pd.Series(np.nan, index=data.index, name=factor_id)
         
         # 只返回用户请求的因子
         final_results = {fid: results[fid] for fid in factor_ids if fid in results}

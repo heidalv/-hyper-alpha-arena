@@ -1,0 +1,241 @@
+{
+  "hours": 72.0,
+  "trips": 2842,
+  "stops": 61,
+  "features": {
+    "noise_1m": {
+      "stop_median": 10.387,
+      "other_median": 1.384,
+      "delta_mean": 8.506,
+      "t": 12.54
+    },
+    "noise_5m": {
+      "stop_median": 10.659,
+      "other_median": 1.411,
+      "delta_mean": 8.549,
+      "t": 16.22
+    },
+    "r60": {
+      "stop_median": 11.596,
+      "other_median": 2.751,
+      "delta_mean": 14.342,
+      "t": 5.85
+    },
+    "r300": {
+      "stop_median": 32.99,
+      "other_median": 6.302,
+      "delta_mean": 33.858,
+      "t": 5.71
+    },
+    "burst": {
+      "stop_median": 0.0,
+      "other_median": 0.0,
+      "delta_mean": -0.136,
+      "t": -2.32
+    }
+  },
+  "tradeoff_absolute": [
+    {
+      "threshold_bp": 1.43,
+      "keep": 1391,
+      "keep_stops": 2,
+      "dropped_stops": 59,
+      "keep_stop_rate": 0.0014
+    },
+    {
+      "threshold_bp": 1.805,
+      "keep": 1669,
+      "keep_stops": 2,
+      "dropped_stops": 59,
+      "keep_stop_rate": 0.0012
+    },
+    {
+      "threshold_bp": 2.573,
+      "keep": 1946,
+      "keep_stops": 2,
+      "dropped_stops": 59,
+      "keep_stop_rate": 0.001
+    },
+    {
+      "threshold_bp": 3.085,
+      "keep": 2086,
+      "keep_stops": 2,
+      "dropped_stops": 59,
+      "keep_stop_rate": 0.001
+    },
+    {
+      "threshold_bp": 3.905,
+      "keep": 2225,
+      "keep_stops": 4,
+      "dropped_stops": 57,
+      "keep_stop_rate": 0.0018
+    },
+    {
+      "threshold_bp": 7.78,
+      "keep": 2503,
+      "keep_stops": 18,
+      "dropped_stops": 43,
+      "keep_stop_rate": 0.0072
+    },
+    {
+      "threshold_bp": 11.495,
+      "keep": 2642,
+      "keep_stops": 34,
+      "dropped_stops": 27,
+      "keep_stop_rate": 0.0129
+    }
+  ],
+  "tradeoff_relative": [
+    {
+      "multiple": 1.0,
+      "keep": 1377,
+      "keep_stops": 22,
+      "dropped_stops": 38,
+      "keep_stop_rate": 0.016
+    },
+    {
+      "multiple": 1.199,
+      "keep": 1652,
+      "keep_stops": 33,
+      "dropped_stops": 27,
+      "keep_stop_rate": 0.02
+    },
+    {
+      "multiple": 1.399,
+      "keep": 1927,
+      "keep_stops": 42,
+      "dropped_stops": 18,
+      "keep_stop_rate": 0.0218
+    },
+    {
+      "multiple": 1.548,
+      "keep": 2065,
+      "keep_stops": 44,
+      "dropped_stops": 16,
+      "keep_stop_rate": 0.0213
+    },
+    {
+      "multiple": 1.722,
+      "keep": 2202,
+      "keep_stops": 49,
+      "dropped_stops": 11,
+      "keep_stop_rate": 0.0223
+    },
+    {
+      "multiple": 2.398,
+      "keep": 2477,
+      "keep_stops": 60,
+      "dropped_stops": 0,
+      "keep_stop_rate": 0.0242
+    },
+    {
+      "multiple": 3.265,
+      "keep": 2615,
+      "keep_stops": 60,
+      "dropped_stops": 0,
+      "keep_stop_rate": 0.0229
+    }
+  ],
+  "simpson": {
+    "within": [
+      {
+        "sym": "ARB",
+        "n": 59,
+        "stops": 6,
+        "median_noise": 8.97,
+        "lo_n": 30,
+        "lo_stops": 2,
+        "hi_n": 29,
+        "hi_stops": 4,
+        "lift": 2.069
+      },
+      {
+        "sym": "BTC",
+        "n": 920,
+        "stops": 0,
+        "median_noise": 0.815,
+        "lo_n": 460,
+        "lo_stops": 0,
+        "hi_n": 460,
+        "hi_stops": 0,
+        "lift": 1.0
+      },
+      {
+        "sym": "DOGE",
+        "n": 117,
+        "stops": 1,
+        "median_noise": 2.565,
+        "lo_n": 59,
+        "lo_stops": 0,
+        "hi_n": 58,
+        "hi_stops": 1,
+        "lift": null
+      },
+      {
+        "sym": "ENA",
+        "n": 61,
+        "stops": 12,
+        "median_noise": 11.162,
+        "lo_n": 31,
+        "lo_stops": 4,
+        "hi_n": 30,
+        "hi_stops": 8,
+        "lift": 2.067
+      },
+      {
+        "sym": "ETH",
+        "n": 1014,
+        "stops": 0,
+        "median_noise": 1.125,
+        "lo_n": 507,
+        "lo_stops": 0,
+        "hi_n": 507,
+        "hi_stops": 0,
+        "lift": 1.0
+      },
+      {
+        "sym": "NEAR",
+        "n": 184,
+        "stops": 28,
+        "median_noise": 9.643,
+        "lo_n": 92,
+        "lo_stops": 11,
+        "hi_n": 92,
+        "hi_stops": 17,
+        "lift": 1.545
+      },
+      {
+        "sym": "SUI",
+        "n": 107,
+        "stops": 10,
+        "median_noise": 8.239,
+        "lo_n": 54,
+        "lo_stops": 3,
+        "hi_n": 53,
+        "hi_stops": 7,
+        "lift": 2.377
+      },
+      {
+        "sym": "XRP",
+        "n": 301,
+        "stops": 3,
+        "median_noise": 2.454,
+        "lo_n": 151,
+        "lo_stops": 2,
+        "hi_n": 150,
+        "hi_stops": 1,
+        "lift": 0.503
+      }
+    ],
+    "pooled_lo": [
+      22,
+      1384
+    ],
+    "pooled_hi": [
+      38,
+      1379
+    ],
+    "coin_corr": 0.968
+  },
+  "verdict": "**入场市况可辨识**：['noise_1m', 'noise_5m', 'r60', 'r300', 'burst'] 在止损队列与其余之间存在显著差异 ⇒ 可在**入场侧**加闸（不必动止损/删币）；应预注册试跑验证"
+}

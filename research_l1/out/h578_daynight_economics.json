@@ -1,0 +1,277 @@
+{
+  "era_since": "2026-09-28T05:00:00+00:00",
+  "since_used": "2026-09-28T05:00:00+00:00",
+  "day_hours": [
+    8,
+    21
+  ],
+  "per_hour": {
+    "0": {
+      "legs": 83,
+      "net_usd": -3.5322245910874894,
+      "fee_usd": -1.3031880559206535,
+      "stops": 5,
+      "stop_usd": -2.4414912061258023,
+      "taker": 30
+    },
+    "1": {
+      "legs": 71,
+      "net_usd": -1.7124299414822886,
+      "fee_usd": -1.1055977849284582,
+      "stops": 6,
+      "stop_usd": -1.9625019565565633,
+      "taker": 24
+    },
+    "2": {
+      "legs": 95,
+      "net_usd": -3.15236460014128,
+      "fee_usd": -0.9540052812970731,
+      "stops": 4,
+      "stop_usd": -1.6827731116277405,
+      "taker": 24
+    },
+    "3": {
+      "legs": 51,
+      "net_usd": -1.517751890572411,
+      "fee_usd": -0.41757109134129083,
+      "stops": 3,
+      "stop_usd": -1.7269679242987532,
+      "taker": 12
+    },
+    "4": {
+      "legs": 25,
+      "net_usd": -1.0004860927676094,
+      "fee_usd": -0.18164705258303027,
+      "stops": 0,
+      "stop_usd": 0.0,
+      "taker": 4
+    },
+    "9": {
+      "legs": 56,
+      "net_usd": -2.041943345501248,
+      "fee_usd": -0.24958336284424865,
+      "stops": 6,
+      "stop_usd": -2.023363524166909,
+      "taker": 12
+    },
+    "10": {
+      "legs": 63,
+      "net_usd": -1.650910536867642,
+      "fee_usd": -0.20653273561446955,
+      "stops": 2,
+      "stop_usd": -0.7356232767511763,
+      "taker": 8
+    },
+    "11": {
+      "legs": 63,
+      "net_usd": -0.705155533837597,
+      "fee_usd": -0.13785514942398824,
+      "stops": 2,
+      "stop_usd": -0.4669604679167206,
+      "taker": 9
+    },
+    "12": {
+      "legs": 10,
+      "net_usd": -0.20922670387170345,
+      "fee_usd": -0.028233725999999994,
+      "stops": 0,
+      "stop_usd": 0.0,
+      "taker": 3
+    },
+    "13": {
+      "legs": 61,
+      "net_usd": 0.7411747075805427,
+      "fee_usd": -0.424407441049123,
+      "stops": 2,
+      "stop_usd": -0.915422627672706,
+      "taker": 12
+    },
+    "14": {
+      "legs": 61,
+      "net_usd": -0.7051384718456257,
+      "fee_usd": -0.655850536561173,
+      "stops": 4,
+      "stop_usd": -0.1963666615621892,
+      "taker": 9
+    },
+    "15": {
+      "legs": 64,
+      "net_usd": -1.2764299420561047,
+      "fee_usd": -0.2850587889605419,
+      "stops": 3,
+      "stop_usd": -2.771555064810371,
+      "taker": 8
+    },
+    "16": {
+      "legs": 56,
+      "net_usd": 1.7936283357660807,
+      "fee_usd": -0.6194746970764704,
+      "stops": 0,
+      "stop_usd": 0.0,
+      "taker": 9
+    },
+    "17": {
+      "legs": 76,
+      "net_usd": 0.6844424942555536,
+      "fee_usd": -0.421253868283035,
+      "stops": 3,
+      "stop_usd": -2.006798776840039,
+      "taker": 9
+    },
+    "18": {
+      "legs": 60,
+      "net_usd": -3.642494750459496,
+      "fee_usd": -0.8361702472207152,
+      "stops": 3,
+      "stop_usd": -2.1842337057195467,
+      "taker": 12
+    },
+    "19": {
+      "legs": 89,
+      "net_usd": 0.7213464585898476,
+      "fee_usd": -0.7464174788145169,
+      "stops": 0,
+      "stop_usd": 0.0,
+      "taker": 10
+    },
+    "20": {
+      "legs": 72,
+      "net_usd": -0.9247792591285979,
+      "fee_usd": -0.421023413765443,
+      "stops": 4,
+      "stop_usd": -1.7058341953995866,
+      "taker": 11
+    },
+    "21": {
+      "legs": 58,
+      "net_usd": -2.196408334471708,
+      "fee_usd": -0.958994638482713,
+      "stops": 3,
+      "stop_usd": -0.7985943602340563,
+      "taker": 20
+    },
+    "22": {
+      "legs": 42,
+      "net_usd": -1.2956899864041949,
+      "fee_usd": -0.5931676834430234,
+      "stops": 2,
+      "stop_usd": -0.33868664172285,
+      "taker": 18
+    },
+    "23": {
+      "legs": 50,
+      "net_usd": 0.34352061818379115,
+      "fee_usd": -0.7428030896969808,
+      "stops": 0,
+      "stop_usd": 0.0,
+      "taker": 19
+    }
+  },
+  "daynight": {
+    "昼": {
+      "legs": 731,
+      "covered_h": 11.2,
+      "legs_per_h": 65.3,
+      "net_usd": -7.215,
+      "usd_per_h": -0.644,
+      "fee_usd": -5.032,
+      "stops": 29,
+      "stop_rate": 0.0397,
+      "stop_usd": -13.006,
+      "taker_share": 0.1532,
+      "net_bp_per_leg": -0.00987
+    },
+    "夜": {
+      "legs": 475,
+      "covered_h": 7.65,
+      "legs_per_h": 62.1,
+      "net_usd": -14.064,
+      "usd_per_h": -1.838,
+      "fee_usd": -6.257,
+      "stops": 23,
+      "stop_rate": 0.0484,
+      "stop_usd": -8.951,
+      "taker_share": 0.3179,
+      "net_bp_per_leg": -0.02961
+    }
+  },
+  "per_coin_daynight": {
+    "BNB": {
+      "day_legs": 333,
+      "night_legs": 256,
+      "day_net_usd": -3.804,
+      "night_net_usd": -5.018,
+      "night_taker_share": 0.2539
+    },
+    "XRP": {
+      "day_legs": 166,
+      "night_legs": 53,
+      "day_net_usd": -0.195,
+      "night_net_usd": 0.166,
+      "night_taker_share": 0.2453
+    },
+    "NEAR": {
+      "day_legs": 121,
+      "night_legs": 107,
+      "day_net_usd": -0.496,
+      "night_net_usd": -5.527,
+      "night_taker_share": 0.4206
+    },
+    "ARB": {
+      "day_legs": 73,
+      "night_legs": 32,
+      "day_net_usd": -1.389,
+      "night_net_usd": -2.248,
+      "night_taker_share": 0.4375
+    },
+    "ENA": {
+      "day_legs": 38,
+      "night_legs": 27,
+      "day_net_usd": -1.331,
+      "night_net_usd": -1.436,
+      "night_taker_share": 0.5185
+    }
+  },
+  "exit_path_daynight": {
+    "(入场腿)": {
+      "day_legs": 610,
+      "night_legs": 317,
+      "night_net_usd": -0.656
+    },
+    "ofi_flatten_taker": {
+      "day_legs": 0,
+      "night_legs": 105,
+      "night_net_usd": -3.117
+    },
+    "stop_loss_taker": {
+      "day_legs": 29,
+      "night_legs": 23,
+      "night_net_usd": -8.951
+    },
+    "timeout_hard_taker": {
+      "day_legs": 56,
+      "night_legs": 14,
+      "night_net_usd": -0.941
+    },
+    "ofi_flatten_maker": {
+      "day_legs": 9,
+      "night_legs": 7,
+      "night_net_usd": -0.172
+    },
+    "reversal_decay_taker": {
+      "day_legs": 11,
+      "night_legs": 4,
+      "night_net_usd": -0.611
+    },
+    "take_profit_taker": {
+      "day_legs": 1,
+      "night_legs": 3,
+      "night_net_usd": 1.051
+    },
+    "trail_lock_taker": {
+      "day_legs": 15,
+      "night_legs": 2,
+      "night_net_usd": -0.667
+    }
+  }
+}

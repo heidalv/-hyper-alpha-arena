@@ -1,0 +1,34 @@
+轮133: 修 strategy_detached 循环（执行侧补建策略）+ long 模板族上游跳过（止住 193 次/天注定被拒的提案）
+
+按序继续（轮132 之后）：定位并处理"推荐/提案生成后必被拒"的两条最大拦阻。
+
+## 实测证据（近 24h 审计 midlong_direction_audit.jsonl）
+| 拦截码 | 次数 | 集中符号 |
+|---|---|---|
+| long_template_source_block | 193 | UNI |
+| cooldown:strategy_detached + strategy_detached | 127 + 94 = 221 | AAVE/LINK/ZEC |
+| v5gate + cooldown | 19 + 10 | ZEC/UNI/BTC |
+| decision_price_stale | 7 | ETH |
+| size_below_floor | 2 | — |
+
+（v5 运行时闸文件 data/v5_runtime_gates.json 不存在 ⇒ 该码不是来自运行时闸文件；
+decision_price_stale 24h 仅 7 次，不是大头，暂不放宽阈值——它是"决策价 vs 实时价偏离>1%"的
+一致性门禁，放宽会掩盖真正的价差问题。）
+
+## 修复 1：strategy_detached 循环（221 次/24h）
+根因：`full_auto/ai_decisions.py:344` 策略解析不到就**静默 continue** —— 不补建、不留原因；
+执行层随后拿到 `strat=None` 记 `strategy_detached`，下个 tick 重来（与轮118/122 的 ZEC 循环同模式）。
+修法（与主脑扫单 轮123 同一模式）：缺位 → `host.auto_create_strategy(db, session, sym, {})`
+→ 重解析（含**去掉 active_ids 约束**再试一次，因为新建策略未必已在会话的 active_strategy_ids 中）
+→ 仍无才跳过，并打印可见原因（不再是静默 continue）。
+
+## 修复 2：long 模板族上游跳过（193 次/24h）
+`long_template_source_block` 本身是**轮40 的有意决策**（tpl_ 模板族在 long 车道 30 天 21 笔净 −127.29，
+只允许做 mid），但提案仍在每 tick 生成→被拒→再生成，把审计与候选位占满（UNI 193 次）。
+修法：在 `ai_decisions` 里按**同一配置**提前判断（tier=long 且 strategy_id 以 tpl_ 开头且
+MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=true）⇒ 直接跳过并打日志，不再产生注定被拒的提案。
+下游闸保持不变（仍可回滚/复核），这里只是把"必死"提前到上游。
+
+测试：日志作用域守卫 8 项 + 画布 26 项 = 34 passed（本轮改动为控制流，未改判定口径）。
+回滚：两处均为新增分支；`MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false` 可放开模板族 long；
+策略补建失败时行为与修复前一致（仍跳过）。

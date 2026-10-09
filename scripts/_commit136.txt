@@ -1,0 +1,40 @@
+轮136: v5gate 溯源 —— 辩论折减被写回 confidence ⇒ 意外触发硬门槛（自己造成的"限制坏大事"）
+
+按序继续（轮135 之后）第 4 项：`v5gate` 判据溯源。结论是**这条拦阻由我自己在轮130 引入**。
+
+## 实证（`[V5Gate] BLOCK` 日志，共 20 条）
+```
+symbol=UNI action=buy rule=confidence detail=置信度 28% < 有效门槛 30%(生效门=trend 成熟度=warmup 松紧+20)
+symbol=BTC action=buy rule=confidence detail=置信度 25% < 有效门槛 30%(…)
+```
+- `llm_conviction` **同时是下游门槛的 confidence 输入**（`brain.py` maybe_open 传
+  `confidence=int(thesis.llm_conviction or 50)`；`[V5Gate] rule=confidence` 要求 ≥30%）；
+- 轮130 的辩论把 conviction 由 40 折到 24（reject→×0.6）⇒ 提案以 **25~28%** 撞 30% 门槛
+  ⇒ **被硬拦**（UNI/BTC 20 次）。即"辩论的去风险"变成了"事实否决"。
+
+这与架构分工相反：
+- **辩论** → 只产出裁决与证据（+ 规模倾向）；
+- **否决权** → 属风控官（`risk_officer.evaluate_open`，已按辩论主周期裁决行使否决）。
+
+## 修复
+1. brain.py：**不再把辩论折减写回 `dto.llm_conviction`**，改为**只记录**
+   （日志 `辩论折减记录（未写回 confidence）40→24（日内:reject→×0.6 …）` + 论题事件里的
+   `debate.primary_verdict/horizon_verdicts/risk_min` 照旧落库）；
+2. `MIDLONG_DEBATE_APPLY` 默认 **false**（只记录）；显式 true 时行为仍可用，
+   留给"规模链消费 debate_size_mult"落地之后再启用（折减该作用于**规模**，不是门槛置信度）；
+3. env_registry 注释同步写明原因。
+
+## 测试
+新增 `test_debate_not_hard_gate_20260920.py` **4 项**：
+① 默认只记录（APPLY 未设 ⇒ 返回 "off"）；② 显式开启后折减仍可用；
+③ **源码守卫**：brain.py 不得再出现 `dto.llm_conviction = int(_new_conv)`，且必须保留"只记录"日志；
+④ 把"门槛读 llm_conviction"这一事实钉住（一旦有人改这条链，测试会提醒复核本文件）。
+另更新一条因默认值变化而失效的旧断言（先显式开启 APPLY 再测 insufficient 分支）。
+合计 33 passed。
+
+## 意义（对"车道能不能开仓"）
+v5gate 是最后两道拦阻之一；它由 confidence 门槛触发，而 confidence 又被打折过。
+本轮之后：**门槛看到的恢复为 LLM 原始置信度（40%）**，辩论的去风险改由日志/事件体现、
+并由风控官（有明确否决权的那一环）承担。
+
+回滚：`MIDLONG_DEBATE_APPLY=true` 可恢复"折减写回"（不推荐，会重新触发硬拦）。

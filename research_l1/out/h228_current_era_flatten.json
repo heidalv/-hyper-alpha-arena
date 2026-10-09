@@ -1,0 +1,23 @@
+{
+  "since": "2026-09-22T10:22:37.381026+08:00",
+  "span_hours": 7.02,
+  "legs": 1358,
+  "maker_n": 1340,
+  "flatten_n": 18,
+  "maker_usd": -48.69,
+  "flatten_usd": 6.24,
+  "take_profit": {
+    "n": 17,
+    "usd": 11.12
+  },
+  "stop_loss": {
+    "n": 1,
+    "usd": -4.88
+  },
+  "by_exit_path": {
+    "(无/空 = F340 之前或未命名)": {
+      "n": 18,
+      "usd": 6.24
+    }
+  }
+}

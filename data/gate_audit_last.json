@@ -1,0 +1,46 @@
+{
+  "ts": 1791563282.657754,
+  "markout_sec": 10.0,
+  "gates": {
+    "sudden_move": {
+      "n": 301,
+      "mean_cf_bp": 2.928,
+      "verdict": "拦错了(挡了利润)"
+    },
+    "ofi_require": {
+      "n": 34,
+      "mean_cf_bp": 2.93,
+      "verdict": "拦错了(挡了利润)"
+    },
+    "mp_skew_buy": {
+      "n": 30,
+      "mean_cf_bp": 2.444,
+      "verdict": "拦错了(挡了利润)"
+    },
+    "mp_skew_sell": {
+      "n": 17,
+      "mean_cf_bp": 3.338,
+      "verdict": "样本不足"
+    },
+    "trend_h697_sell": {
+      "n": 13,
+      "mean_cf_bp": 0.456,
+      "verdict": "样本不足"
+    },
+    "trend_h697_both": {
+      "n": 11,
+      "mean_cf_bp": 2.712,
+      "verdict": "样本不足"
+    },
+    "ofi_toxic_sell": {
+      "n": 9,
+      "mean_cf_bp": 2.882,
+      "verdict": "样本不足"
+    },
+    "trend_add_block": {
+      "n": 9,
+      "mean_cf_bp": 2.998,
+      "verdict": "样本不足"
+    }
+  }
+}

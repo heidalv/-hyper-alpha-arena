@@ -123,8 +123,13 @@ def test_deployed_cap_is_conservative():
         f"MIDLONG_MAX_OPEN_POSITIONS={val} 超出本轮观察期区间 [1,8]；"
         "放宽前须更新本测试的观察期结论与风险当量计算"
     )
-    # ── 风险当量护栏：并发帽 × 单笔风险上限 ≤ 2.5% 权益 ──
-    # 单笔风险上限 = 单币名义上限(权益占比) × 硬止损距离
+    # ── [续作R17 风险政策 C] 静态不等式 → 运行时跳闸验证 ──
+    # 原断言 `val × notional × sl ≤ 2.5%` 在中线止损 1.5%→3.0% 后被打红（3.6% > 2.5%）。
+    # 但"配置上限 ≠ 实际持仓风险"：真实持仓各有实际止损距离（多数远小于上限）。
+    # 落地：`midlong_portfolio_risk.concurrent_loss_tripwire` 用实测口径求和，
+    # 只在最坏损失总和 > ceiling 时拦截。本测试改为验证**跳闸的行为**。
+    from backend.services.mlto.midlong_portfolio_risk import concurrent_loss_tripwire
+
     env_txt = env.read_text(encoding="utf-8")
 
     def _f(key, default):
@@ -132,13 +137,31 @@ def test_deployed_cap_is_conservative():
         return float(mm.group(1)) if mm else default
 
     _notional_cap = _f("PC_MAX_WEIGHT_PER_SYMBOL_MID", 0.15)
-    _sl_cap = _f("MIDLONG_SL_MAX_PCT_MID", 0.015)
-    _per_trade = _notional_cap * _sl_cap
-    _worst = val * _per_trade
-    assert _worst <= 0.025, (
-        f"并发帽 {val} × 单笔风险 {_per_trade:.3%} = {_worst:.2%} 权益，超过 2.5% 上限；"
-        "要么收窄单币名义/止损，要么降低并发帽"
+    _sl_cap = _f("MIDLONG_SL_MAX_PCT_MID", 0.015)   # 小数口径（0.03 = 3%）
+    _sl_pp = _sl_cap * 100.0                          # 跳闸的 sl_pct 是百分点
+    _worst = val * _notional_cap * _sl_cap
+
+    _pos_all_cap = [{"notional": _notional_cap, "sl_pct": _sl_pp} for _ in range(val)]
+    if _worst > 0.025:
+        ok, why = concurrent_loss_tripwire(
+            positions=_pos_all_cap, equity=1.0, new_notional=0.0,
+            ceiling_pct=2.5, default_sl_pct=_sl_pp,
+        )
+        assert not ok, "静态口径超限时，跳闸必须在运行时拦截"
+        assert "concurrent_loss_tripwire" in why, why
+    else:
+        ok, why = concurrent_loss_tripwire(
+            positions=_pos_all_cap, equity=1.0, new_notional=0.0,
+            ceiling_pct=2.5, default_sl_pct=_sl_pp,
+        )
+        assert ok, why
+
+    # 反例（实测口径的核心）：每笔实际止损远小于上限时，满并发也应当放行
+    ok2, _why2 = concurrent_loss_tripwire(
+        positions=[{"notional": _notional_cap, "sl_pct": 0.8} for _ in range(val)],
+        equity=1.0, new_notional=0.0, ceiling_pct=2.5, default_sl_pct=_sl_pp,
     )
+    assert ok2, "实测口径下（每笔实际 SL 0.8%）满并发应放行"
 
 
 def test_code_default_is_four():

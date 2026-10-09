@@ -1,0 +1,190 @@
+{
+  "ok": true,
+  "round_ts": 1789681201.6587925,
+  "iso": "2026-09-17T21:40:01.658792+00:00",
+  "stages": {
+    "literature": {
+      "ok": false,
+      "fetched": 0,
+      "fed": 0,
+      "error": "HTTP Error 406: Not Acceptable"
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 4,
+      "rejected": 0
+    },
+    "engineer": {
+      "candidates": 8,
+      "unit_pass": 2
+    },
+    "backtest": {
+      "evaluated": 2,
+      "best_ic": 0.03593
+    },
+    "feedback": {
+      "stats": {
+        "pass": 1,
+        "reject": 1,
+        "fail": 6
+      },
+      "guidance": "存在通过候选：下一轮在通过机制的正交方向延伸（不同数据字段或不同窗口尺度），而非同族加密。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1789681216281_0",
+      "expr_id": "7b3157a96137a038",
+      "hyp": "h1789681212659_0",
+      "note": "动量符号乘以低动量波动条件，弱趋势期方向延续",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1789681216284_1",
+      "expr_id": "59d627e58b04335e",
+      "hyp": "h1789681212659_0",
+      "note": "波动动量比大于1时取动量符号，噪声占比低方向纯净",
+      "unit": "align_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(align_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(align_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1789681222894_0",
+      "expr_id": "8c6fba46c4c7ee4f",
+      "hyp": "h1789681212661_1",
+      "note": "事件前10日累计收益取负，高收益预示低后续收益",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.00333,
+      "icir": 0.0121,
+      "quantile_spread": -0.002947,
+      "turnover": 0.1437,
+      "ic_half_life_bars": null,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0033 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1789681222899_1",
+      "expr_id": "e24fc5fd9e0d9270",
+      "hyp": "h1789681212661_1",
+      "note": "前10日收益在20日窗口内排名取负，捕捉反转",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1789681247516_0",
+      "expr_id": "62b7657cb9d57d3a",
+      "hyp": "h1789681212664_2",
+      "note": "收益方向乘以收益波动与成交量波动之比，捕捉量价冲击敏感度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1789681247519_1",
+      "expr_id": "33b825125976435a",
+      "hyp": "h1789681212664_2",
+      "note": "收益方向乘以收盘偏离VWAP幅度与成交量波动之比，衡量冲击敏感度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1789681252850_0",
+      "expr_id": "f6c1b9765c79e3cc",
+      "hyp": "h1789681212666_3",
+      "note": "价格距20日最低价距离，除以20日波动率，低波动下距离小得分高",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.03593,
+      "icir": 0.1388,
+      "quantile_spread": 0.002706,
+      "turnover": 0.1256,
+      "ic_half_life_bars": 4,
+      "reason": null,
+      "verdict": {
+        "verdict": "pass",
+        "mode": "pass",
+        "reason": "|RankIC|=0.0359 ICIR=0.1388 spread=0.002706"
+      }
+    },
+    {
+      "cand_id": "c1789681252865_1",
+      "expr_id": "b89f738de9e93c4c",
+      "hyp": "h1789681212666_3",
+      "note": "价格距20日低点时间位置，除以收益波动率，低波动下更贴近下轨",
+      "unit": "align_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(align_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(align_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 73.2
+}

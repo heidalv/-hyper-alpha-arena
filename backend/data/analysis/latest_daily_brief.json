@@ -1,15 +1,142 @@
 {
   "task": "daily_brief",
-  "ts_ms": 1789426942098,
-  "accepted": false,
-  "status": "degraded",
-  "consensus_score": 0.35,
-  "run_id": "5779be7b69df4a33b86df86f91faaec8",
-  "context_hash": "e1406102e8c5935c7c432018f917d9f79fc7d1a5f6e8697674d79e991237bfbb",
-  "final": null,
+  "ts_ms": 1791500506349,
+  "accepted": true,
+  "status": "ok",
+  "consensus_score": 0.62,
+  "run_id": "cbcf238105674767bf742221c755ed26",
+  "context_hash": "62ecceaf883e7b2ae6c8375977b5c8ba3bffca6a781c353eaa7bd109c43c78ad",
+  "final": {
+    "direction": "bearish",
+    "strength": 6,
+    "confidence": 0.62,
+    "regime": "range",
+    "regime_confidence": 0.45,
+    "bucket_weights": {
+      "trend": 0.25,
+      "cashflow": 0.55,
+      "research": 0.2
+    },
+    "symbol_views": [
+      {
+        "symbol": "BTCUSDT",
+        "direction": "bearish",
+        "strength": 5,
+        "horizon_hours": 24,
+        "reason": "24h -1.88%，1h/4h EMA 均偏空，4h RSI 28.5 超卖但 MACD 柱仍为负；日线 ADX 36.9 显示下行趋势动能，价格位于 24h 区间下半部（pos24 40%），周线仍多头、距 EMA200 上方 11.95%，属回调而非破位。"
+      },
+      {
+        "symbol": "ETHUSDT",
+        "direction": "bearish",
+        "strength": 6,
+        "horizon_hours": 24,
+        "reason": "24h -3.43%，7d -8.54%，4h RSI 15.8 极度超卖，1h/4h EMA 空头排列，MACD 柱双周期为负；与 BTC 相关性 0.91，跟随大盘下行，但超卖后存在技术性反抽风险。"
+      },
+      {
+        "symbol": "SOLUSDT",
+        "direction": "bearish",
+        "strength": 6,
+        "horizon_hours": 24,
+        "reason": "24h -4.15%，4h RSI 17.1 超卖，24h 内多次 5 分钟清算级联（单次 200-320 万美元，几乎全为多头），多头清算 1832 万美元，资金费多交易所为负，杠杆去化中。"
+      },
+      {
+        "symbol": "BNBUSDT",
+        "direction": "bearish",
+        "strength": 4,
+        "horizon_hours": 24,
+        "reason": "24h -4.55%，pos24 仅 29.2%，1h RSI 29.6、4h RSI 21.5 超卖，资金费 bybit/gateio/hyperliquid/okx 均为负；但日线 ADX 仅 13.9，趋势性弱，偏震荡下行。"
+      },
+      {
+        "symbol": "XRPUSDT",
+        "direction": "bearish",
+        "strength": 5,
+        "horizon_hours": 24,
+        "reason": "24h -3.02%，7d -7.58%，4h RSI 18.8 超卖，日线 ADX 49.3 显示强趋势，多头清算 1061 万美元，资金费多数交易所为负。"
+      },
+      {
+        "symbol": "DOGEUSDT",
+        "direction": "bearish",
+        "strength": 6,
+        "horizon_hours": 24,
+        "reason": "24h -4.88%，7d -10.52%，已跌破 EMA200（-5.13%），周线趋势与 EMA 均空头，4h RSI 25.2，多头清算 577 万美元，结构最弱之一。"
+      },
+      {
+        "symbol": "ADAUSDT",
+        "direction": "bearish",
+        "strength": 6,
+        "horizon_hours": 24,
+        "reason": "24h -8.10%，pos24 27.8%，周线趋势与 EMA 空头，距 EMA50 周线 -30.69%，资金费全交易所为负，OI 24h -14.61%，多头清算 220 万美元。"
+      },
+      {
+        "symbol": "AVAXUSDT",
+        "direction": "bearish",
+        "strength": 6,
+        "horizon_hours": 24,
+        "reason": "24h -10.25%，pos24 18.6% 为全池最低，30d 仍 +24.6% 存在获利了结压力，OI 24h -13.68%，资金费多数为负，波动率 rv30 116% 极高。"
+      },
+      {
+        "symbol": "UNIUSDT",
+        "direction": "bearish",
+        "strength": 5,
+        "horizon_hours": 24,
+        "reason": "24h -5.29%，7d -18.39%，4h RSI 15.8 超卖，日线 ADX 51.6 强趋势，多头清算 170 万美元，OI 24h -11.19%；但周线仍多头且距 EMA50 周线 +31%，属高位回撤。"
+      },
+      {
+        "symbol": "ASTERUSDT",
+        "direction": "neutral",
+        "strength": 3,
+        "horizon_hours": 24,
+        "reason": "24h -1.26% 相对抗跌，pos24 63.4% 位于区间上半部，日线 ADX 仅 10.2 无趋势，资金费各交易所接近 0，方向不明。"
+      },
+      {
+        "symbol": "VIRTUALUSDT",
+        "direction": "bearish",
+        "strength": 5,
+        "horizon_hours": 24,
+        "reason": "24h -7.74%，4h RSI 24.9，日线 ADX 56.5 强趋势，ATR14 日线 10.21% 波动极大，资金费 binance/gateio 为负，多头清算 7.8 万美元。"
+      },
+      {
+        "symbol": "XPLUSDT",
+        "direction": "bearish",
+        "strength": 5,
+        "horizon_hours": 24,
+        "reason": "24h -3.62%，7d -12.42%，30d -14.88%，已跌破 EMA200（-10.34%），周线趋势与 EMA 空头，距 EMA50 周线 -55.92%，ATR14 日线 10.86% 高波动。"
+      },
+      {
+        "symbol": "LINKUSDT",
+        "direction": "bearish",
+        "strength": 4,
+        "horizon_hours": 24,
+        "reason": "24h -4.13%，7d -11.45%，4h RSI 30.9，资金费多数交易所为负，OI 24h -10.41%；但周线仍多头、距 EMA50 周线 +3.68%，1h MACD 柱转正，短线或有反抽。"
+      }
+    ],
+    "key_factors": [
+      "全池 24h 普跌：13 个标的 ret_24h 全部为负，跌幅 -1.26%（ASTER）至 -10.25%（AVAX），BTC -1.88%、ETH -3.43%",
+      "短周期结构一致偏空：所有标的 ema_trend_1h 与 ema_trend_4h 均为 bearish，4h RSI 普遍在 15-31 超卖区",
+      "杠杆去化：BTC OI 24h -5.16%、ETH -6.84%、ADA -14.61%、DOGE -14.73%，全市场 24h 多头清算 2.007 亿美元 vs 空头 0.225 亿美元",
+      "资金费偏空：SOL/BNB/XRP/ADA/LINK/UNI 等多数交易对 funding_8h 为负，显示空头拥挤、多头被动去杠杆",
+      "SOL 出现多次 5 分钟清算级联（单次 200-320 万美元，几乎全为多头），为最集中的杠杆压力点",
+      "周线级别仍偏多：BTC/ETH/SOL/BNB/XRP/AVAX/UNI/LINK/ASTER 的 trend_1w 与 ema_trend_1w 均为 bullish，日线多数仍在 EMA200 上方，属回调而非趋势反转",
+      "相关性高企：avg_corr_to_btc 0.68，BTC-ETH 0.91、ETH-SOL 0.91、BTC-XRP 0.90，分散化效果有限",
+      "情绪指标 fear_greed 64（贪婪），与价格下跌背离，存在情绪修复风险",
+      "宏观/链上：btc_dominance 缺失，high_impact_news_24h 为 0，news_density 265 条（pos_ratio 0.48）",
+      "账户层：trading_state=active、kill_switch 未触发、open_count=0、gross_exposure 为空；账户 14 近 14 日 16 笔净 -11.06、胜率 6.25%、PF 0.273，long 档 15 笔全负"
+    ],
+    "risks": [
+      "4h RSI 普遍 15-31 深度超卖，短线存在空头回补式反弹风险，追空性价比下降",
+      "SOL 清算级联与高 OI 集中度可能引发二次瀑布或剧烈双向波动",
+      "BTC 距 EMA200 仍有 +11.95%、周线多头，若在 80344.8（24h 低点）附近获得支撑，可能快速反转向上",
+      "DOGE、XPL 已跌破 EMA200 且周线空头，若大盘继续走弱，弱势币种跌幅可能放大",
+      "ADA/AVAX/UNI/VIRTUAL/XPL 的 ATR14 日线在 6%-11%，仓位需按波动率下调",
+      "资金费极端值出现在 NATGAS/BWET/CTSI/SKL 等非本池标的（±0.5%-1.37%/8h），提示跨品种资金费套利拥挤，但不构成本池直接信号",
+      "账户 14 近 14 日胜率 6.25%、PF 0.273，long 档 15 笔全负，当前方向性做多策略处于失效状态，需控制仓位",
+      "数据不足：btc_dominance 缺失，无法评估资金在 BTC 与其他币种间的轮动；无期权/隐含波动率数据；无现货-合约基差数据",
+      "数据不足：open_count=0 且 gross_exposure_pct 为空，无法评估当前组合实际敞口与集中度"
+    ],
+    "summary": "全池 24h 普跌、短周期（1h/4h）结构一致偏空、多头清算 2.007 亿美元主导、资金费多数为负，判定当前为「range（区间内偏空回调）」而非趋势反转：日线 regime 字段均为 ranging（confidence 0.3），周线趋势与 EMA 仍普遍多头，多数币种仍在 EMA200 上方。方向偏空、强度 6、置信度 0.62。三桶权重建议 trend 0.25 / cashflow 0.55 / research 0.20——因 4h RSI 深度超卖、周线未破位，趋势桶不宜重仓；cashflow 桶承接资金费与清算后的均值回归机会；research 桶保留观察。核心币 24h 方向：BTC/ETH/SOL/BNB/XRP/DOGE/ADA/AVAX/UNI/VIRTUAL/XPL/LINK 偏空，ASTER 中性。主要风险为超卖反弹、SOL 清算级联二次冲击、以及账户 14 近 14 日胜率 6.25%/PF 0.273 的方向性策略失效。数据不足项：btc_dominance、期权隐含波动率、现货-合约基差、当前组合敞口均缺失。"
+  },
   "notes": [
-    "minimax: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)'}, 'request_id': '06f7af941a279238aa459fafc79d7ab1'}",
-    "单模型结论（glm_opencode），不得入 signal_ledger"
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.62 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ],
   "event": null
 }

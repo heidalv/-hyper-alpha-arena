@@ -1,0 +1,509 @@
+{
+  "ok": true,
+  "ts": 1791307514.2501373,
+  "iso": "2026-10-06T17:25:14.250137+00:00",
+  "mode": "shadow",
+  "period": "1d",
+  "n_symbols": 24,
+  "model_meta": {
+    "trained_at": 1789643737.894864,
+    "test_rank_ic": 0.037,
+    "valid_rank_ic": -0.0313,
+    "n_rows": 14859,
+    "n_symbols": 40,
+    "fresh": false
+  },
+  "fusion": {
+    "w_a": 0.5,
+    "w_b": 0.5,
+    "lambda": 1.0,
+    "regime": "unknown",
+    "channel_b_present": false
+  },
+  "channel_a": {
+    "ETH": {
+      "score": 0.6762136710259489,
+      "rank": 2,
+      "backend": "ic_weight"
+    },
+    "BTC": {
+      "score": 0.6921639326340903,
+      "rank": 1,
+      "backend": "ic_weight"
+    },
+    "UNI": {
+      "score": 0.6348248982066781,
+      "rank": 6,
+      "backend": "ic_weight"
+    },
+    "ONDO": {
+      "score": 0.5538348814165767,
+      "rank": 13,
+      "backend": "ic_weight"
+    },
+    "SOL": {
+      "score": 0.6579556934044015,
+      "rank": 3,
+      "backend": "ic_weight"
+    },
+    "LINK": {
+      "score": 0.5679873101843484,
+      "rank": 10,
+      "backend": "ic_weight"
+    },
+    "BNB": {
+      "score": 0.6215333079608957,
+      "rank": 7,
+      "backend": "ic_weight"
+    },
+    "NEAR": {
+      "score": 0.6421956517588641,
+      "rank": 5,
+      "backend": "ic_weight"
+    },
+    "AVAX": {
+      "score": 0.5610940608255349,
+      "rank": 12,
+      "backend": "ic_weight"
+    },
+    "HYPE": {
+      "score": 0.5616482376741752,
+      "rank": 11,
+      "backend": "ic_weight"
+    },
+    "BULLA": {
+      "score": 0.42873330817903565,
+      "rank": 19,
+      "backend": "ic_weight"
+    },
+    "APT": {
+      "score": 0.6005145157645053,
+      "rank": 8,
+      "backend": "ic_weight"
+    },
+    "AAVE": {
+      "score": 0.6527041873165615,
+      "rank": 4,
+      "backend": "ic_weight"
+    },
+    "IWM": {
+      "score": 0.2740790758890508,
+      "rank": 23,
+      "backend": "ic_weight"
+    },
+    "JPM": {
+      "score": 0.4427709818411086,
+      "rank": 17,
+      "backend": "ic_weight"
+    },
+    "ARB": {
+      "score": 0.4476251059800754,
+      "rank": 16,
+      "backend": "ic_weight"
+    },
+    "WIF": {
+      "score": 0.4818693289921259,
+      "rank": 15,
+      "backend": "ic_weight"
+    },
+    "BRKB": {
+      "score": 0.40290563389732015,
+      "rank": 20,
+      "backend": "ic_weight"
+    },
+    "SEI": {
+      "score": 0.589146918013697,
+      "rank": 9,
+      "backend": "ic_weight"
+    },
+    "COLLECT": {
+      "score": 0.0,
+      "rank": 24,
+      "backend": "ic_weight"
+    },
+    "MELANIA": {
+      "score": 0.4413540981955943,
+      "rank": 18,
+      "backend": "ic_weight"
+    },
+    "BLUAI": {
+      "score": 0.2746762094757651,
+      "rank": 22,
+      "backend": "ic_weight"
+    },
+    "FLOCK": {
+      "score": 0.3441982085677164,
+      "rank": 21,
+      "backend": "ic_weight"
+    },
+    "ASTER": {
+      "score": 0.5390480550676019,
+      "rank": 14,
+      "backend": "ic_weight"
+    }
+  },
+  "channel_b": {},
+  "fused": {
+    "BTC": {
+      "hybrid": 0.75,
+      "a_pct": 1.0,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 1
+    },
+    "ETH": {
+      "hybrid": 0.7283,
+      "a_pct": 0.9565,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 2
+    },
+    "SOL": {
+      "hybrid": 0.7065,
+      "a_pct": 0.913,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 3
+    },
+    "AAVE": {
+      "hybrid": 0.6848,
+      "a_pct": 0.8696,
+      "b_pct": null,
+      "a1": 0.4973,
+      "thesis_pct": 0.125,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 4
+    },
+    "NEAR": {
+      "hybrid": 0.663,
+      "a_pct": 0.8261,
+      "b_pct": null,
+      "a1": 0.6005,
+      "thesis_pct": 0.375,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 5
+    },
+    "UNI": {
+      "hybrid": 0.6413,
+      "a_pct": 0.7826,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 6
+    },
+    "BNB": {
+      "hybrid": 0.6196,
+      "a_pct": 0.7391,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 7
+    },
+    "APT": {
+      "hybrid": 0.5978,
+      "a_pct": 0.6957,
+      "b_pct": null,
+      "a1": 0.5978,
+      "thesis_pct": 0.5,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 8
+    },
+    "SEI": {
+      "hybrid": 0.5761,
+      "a_pct": 0.6522,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 9
+    },
+    "LINK": {
+      "hybrid": 0.5543,
+      "a_pct": 0.6087,
+      "b_pct": null,
+      "a1": 0.8043,
+      "thesis_pct": 1.0,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 10
+    },
+    "HYPE": {
+      "hybrid": 0.5326,
+      "a_pct": 0.5652,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 11
+    },
+    "AVAX": {
+      "hybrid": 0.5109,
+      "a_pct": 0.5217,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 12
+    },
+    "ONDO": {
+      "hybrid": 0.4891,
+      "a_pct": 0.4783,
+      "b_pct": null,
+      "a1": 0.3641,
+      "thesis_pct": 0.25,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 13
+    },
+    "ASTER": {
+      "hybrid": 0.4674,
+      "a_pct": 0.4348,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 14
+    },
+    "WIF": {
+      "hybrid": 0.4457,
+      "a_pct": 0.3913,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 15
+    },
+    "ARB": {
+      "hybrid": 0.4239,
+      "a_pct": 0.3478,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 16
+    },
+    "JPM": {
+      "hybrid": 0.4022,
+      "a_pct": 0.3043,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 17
+    },
+    "MELANIA": {
+      "hybrid": 0.3804,
+      "a_pct": 0.2609,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 18
+    },
+    "BULLA": {
+      "hybrid": 0.3587,
+      "a_pct": 0.2174,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 19
+    },
+    "BRKB": {
+      "hybrid": 0.337,
+      "a_pct": 0.1739,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 20
+    },
+    "FLOCK": {
+      "hybrid": 0.3152,
+      "a_pct": 0.1304,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 21
+    },
+    "BLUAI": {
+      "hybrid": 0.2935,
+      "a_pct": 0.087,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 22
+    },
+    "IWM": {
+      "hybrid": 0.2717,
+      "a_pct": 0.0435,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 23
+    },
+    "COLLECT": {
+      "hybrid": 0.25,
+      "a_pct": 0.0,
+      "b_pct": null,
+      "a1": null,
+      "thesis_pct": null,
+      "w_a": 0.5,
+      "w_b": 0.5,
+      "lambda": 1.0,
+      "regime": "unknown",
+      "n_ic_days": 0,
+      "arm": "A0",
+      "backend": "ic_weight",
+      "rank": 24
+    }
+  },
+  "elapsed_sec": 8.74
+}

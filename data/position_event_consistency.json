@@ -1,63 +1,63 @@
 {
-  "n": 194,
-  "mismatch_n": 90,
-  "mismatch_rate": 0.464,
-  "over_max_n": 16,
+  "n": 25,
+  "mismatch_n": 2,
+  "mismatch_rate": 0.08,
+  "over_max_n": 0,
   "max_reduce_max": 3,
   "missing_final_n": 0,
-  "dup_final_n": 4,
+  "dup_final_n": 0,
   "worst": [
     {
-      "id": 4600,
-      "symbol": "ETH",
-      "tier": "long",
-      "n_partial": 9,
-      "reduce_count": 0,
-      "closed_at": "2026-09-04 20:32:16.509947"
+      "id": 4884,
+      "symbol": "AVAX",
+      "tier": "mid",
+      "n_partial": 2,
+      "reduce_count": 2,
+      "closed_at": "2026-10-08 23:23:32.391127"
     },
     {
-      "id": 4596,
-      "symbol": "ETH",
+      "id": 4879,
+      "symbol": "AVAX",
       "tier": "long",
-      "n_partial": 7,
+      "n_partial": 0,
       "reduce_count": 0,
-      "closed_at": "2026-09-03 22:38:42.848277"
+      "closed_at": "2026-10-08 02:49:41.305690"
     },
     {
-      "id": 4340,
-      "symbol": "BTC",
+      "id": 4883,
+      "symbol": "AVAX",
       "tier": "long",
-      "n_partial": 6,
+      "n_partial": 0,
       "reduce_count": 0,
-      "closed_at": "2026-09-01 08:33:26.028191"
+      "closed_at": "2026-10-08 18:58:44.583624"
     },
     {
-      "id": 4598,
-      "symbol": "BNB",
-      "tier": "long",
-      "n_partial": 6,
-      "reduce_count": 0,
-      "closed_at": "2026-09-04 00:00:12.533815"
-    },
-    {
-      "id": 4599,
+      "id": 4891,
       "symbol": "LINK",
       "tier": "long",
-      "n_partial": 6,
+      "n_partial": 0,
       "reduce_count": 0,
-      "closed_at": "2026-09-03 22:40:04.070430"
+      "closed_at": ""
+    },
+    {
+      "id": 4871,
+      "symbol": "ETH",
+      "tier": "long",
+      "n_partial": 0,
+      "reduce_count": 1,
+      "closed_at": "2026-10-07 10:18:22.146264"
     }
   ],
   "verdicts": [
     {
       "name": "reduce_count 与减仓事件数一致率 ≥95%",
       "ok": false,
-      "detail": "不一致 90/194"
+      "detail": "不一致 2/25"
     },
     {
       "name": "无仓位超过单仓减仓上限",
-      "ok": false,
-      "detail": "> 3 次的仓位 16 笔"
+      "ok": true,
+      "detail": "> 3 次的仓位 0 笔"
     },
     {
       "name": "已平仓仓位均有终局事件",
@@ -65,6 +65,6 @@
       "detail": "缺终局事件 0 笔"
     }
   ],
-  "generated_at": "2026-09-15T01:06:59.339943+00:00",
+  "generated_at": "2026-10-09T01:07:54.952207+00:00",
   "days": 30
 }

@@ -52,11 +52,27 @@ class TestTailGates:
         assert trend_move_bp([100.0], 20) == 0.0
 
     def test_trend_blocked_side_direction(self):
+        """[h324 2026-09-26] 期望值随**符号翻回"禁逆势侧"**更新。
+
+        ⚠️ 本测试已随闸门符号被翻转过两次（F204 翻向"禁顺势侧"、h324 翻回），
+        每次都以当时的实测为准 —— 改动本函数**必须同时改这里**，否则测试会
+        长期失败而无人发现（F254 就是这么发生的）。
+
+        h324 翻回的依据（见 `core.trend_blocked_side` docstring 全文）：
+          · 逐笔 markout（24h / 2,664 笔 / 移动库存法区分加仓减仓）：
+            加仓腿里顺势侧 mk30 **+4.3~+9.8bp**、逆势侧 **−0.5~−3.1bp**，
+            **4 个独立日窗 4/4 一致**（5 个回看期 × 多个阈值共 60 行无一例外）；
+          · h284 带闸门实现盈亏（168h / 48h、ETH+BNB、真实成交模型）：
+            封逆势 −0.842/−0.868、封顺势 −0.885/−1.073、无闸门 −0.897/−1.004
+            ⇒ 封逆势侧在两个窗口都最优，封顺势侧在近 48h 最差。
+
+        ⇒ 现在禁止的是**逆势侧**：下跌禁买（别逆势接刀）、上涨禁卖（别逆势做空）。
+        """
         down = [100.0] * 19 + [99.5]
         up = [100.0] * 19 + [100.5]
         flat = [100.0] * 19 + [100.05]
-        assert trend_blocked_side(down, 30.0, 20) == "buy"     # 下跌禁买
-        assert trend_blocked_side(up, 30.0, 20) == "sell"      # 上涨禁卖
+        assert trend_blocked_side(down, 30.0, 20) == "buy"     # 下跌禁"买"（逆势接刀 ✗）
+        assert trend_blocked_side(up, 30.0, 20) == "sell"      # 上涨禁"卖"（逆势做空 ✗）
         assert trend_blocked_side(flat, 30.0, 20) == ""
 
     def test_trend_gate_disabled_when_zero(self):

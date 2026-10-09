@@ -1,0 +1,37 @@
+轮134: K线深度产物落库并接上消费（kline_deep 域从"恒 missing"变为已交付）
+
+按序继续（轮133 之后）。用户指令：先不要考虑 LLM 预算 ⇒ 产物必须落库并被消费，
+不能因为"反正没人看"就把 LLM 产物丢掉。
+
+## 缺陷（实测）
+`KlineAnalyst` 每 24h 被调用 ~222 次（`full_auto_trading_service._warmup_analyst_reports`
+→ `KlineAnalyst.analyze()`），但**返回值被直接丢弃** ⇒ `alpha_analytics.kline_ai_analysis_logs`
+**0 行** ⇒ 六分析师里 `kline_deep` 域恒报 `missing`（契约里"永远缺一个域"）。
+
+## 本轮实现
+- 新增 `backend/services/analysts/kline_deep_store.py`：
+  · `persist_report(report, …)` 把 `AnalystReport.signals` 逐币结构化落库
+    （`analysis_result` = JSON：direction/signal/score/summary/recommendation/detail/producer）；
+  · `_resolve_ids()`：该表 `user_id/account_id/model_used` 三列**均 NOT NULL**（实测无外键），
+    缺失时从 core 库 `accounts.user_id` 解析（账户 14 → user_id=326），再退化为 0——
+    **绝不让非业务原因导致产物写失败**；
+  · `latest_for_symbol()` 供复核/画布读取。
+- `_warmup_analyst_reports`：接住 `analyze()` 的返回值并落库，日志改为
+  `KlineAnalyst 缓存预热完成 symbols=… 耗时=… 落库=N`（可观测）。
+- `analysts/scorers.score_kline_deep`：**优先解析结构化 JSON**（evidence.parsed="structured"，
+  质量 ok）；仅旧纯文本行退回关键词近似（parsed="keywords"，质量 weak，且显式标注为近似）。
+- env：`KLINE_DEEP_PERSIST_ENABLED`（默认 true，回滚即恢复"只预热不落库"）。
+
+## 实测（本机）
+- 单测 `test_kline_deep_persist_20260920.py` **5 项全过**（落库字段齐全 / 开关 / scorer 走结构化 /
+  接线 ratchet（必须接住返回值且日志带落库计数）/ 契约域已可交付）；
+- 契约复跑：`run_once()` 的 `undelivered_domains = []`，`kline_deep ok=2`（
+  六域**全部**有产物，此前恒为 missing）。
+
+## 待补的实时验证（如实）
+落库点挂在 `_warmup_analyst_reports`（会话恢复时触发）。重启后若该路径未再触发，
+真实 KlineAnalyst 产物不会新增（测试行的 ZZTEST 已在库）。下一步把它挂到
+`analyst_signals_daily` 周期任务上（同一份 universe，与六域信号一起刷新），
+这样 kline_deep 不再依赖"会话是否恢复"。
+
+回滚：KLINE_DEEP_PERSIST_ENABLED=false。

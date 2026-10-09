@@ -1,0 +1,243 @@
+{
+ "ts": "2026-10-10T00:53:11.554055",
+ "ts_epoch": 1791564791.554056,
+ "applied_via": "worker_radar",
+ "before": [
+  "BTC",
+  "ETH",
+  "PUMP",
+  "PLAY"
+ ],
+ "after": [
+  "BTC",
+  "ETH",
+  "PENGU",
+  "COIN"
+ ],
+ "added": [
+  "PENGU",
+  "COIN"
+ ],
+ "removed": [
+  "PUMP",
+  "PLAY"
+ ],
+ "held": [],
+ "decaying_out": [
+  "PLAY",
+  "PUMP"
+ ],
+ "tenure_kept": [],
+ "dropped_reasons": [
+  [
+   "1000SHIB",
+   "flow=4"
+  ],
+  [
+   "2Z",
+   "flow=7"
+  ],
+  [
+   "AAPL",
+   "flow=5"
+  ],
+  [
+   "AAVE",
+   "bleed_24h=-5.1bp"
+  ],
+  [
+   "ADA",
+   "persistent_loser"
+  ],
+  [
+   "ARB",
+   "mild_loser"
+  ],
+  [
+   "BCH",
+   "bleed_72h=-24.0bp"
+  ],
+  [
+   "CASHCAT",
+   "weak_trend=3.6"
+  ],
+  [
+   "CBRS",
+   "flow=4"
+  ],
+  [
+   "ENJ",
+   "flow=1"
+  ],
+  [
+   "EVAA",
+   "flow=2"
+  ],
+  [
+   "FIL",
+   "flow=7"
+  ],
+  [
+   "GTC",
+   "gap_excluded"
+  ],
+  [
+   "INJ",
+   "disaster"
+  ],
+  [
+   "LYN",
+   "gap_excluded"
+  ],
+  [
+   "MANA",
+   "flow=1"
+  ],
+  [
+   "MARSCOIN",
+   "mild_loser"
+  ],
+  [
+   "MOVR",
+   "flow=6"
+  ],
+  [
+   "NEAR",
+   "mild_loser"
+  ],
+  [
+   "NIGHT",
+   "flow=5"
+  ],
+  [
+   "ONE",
+   "flow=5"
+  ],
+  [
+   "PAXG",
+   "flow=5"
+  ],
+  [
+   "PENDLE",
+   "flow=6"
+  ],
+  [
+   "PLAY",
+   "gap_excluded"
+  ],
+  [
+   "PONS",
+   "bleed_72h=-21.7bp"
+  ],
+  [
+   "PUMP",
+   "mild_loser"
+  ],
+  [
+   "QNT",
+   "gap_excluded"
+  ],
+  [
+   "RESOLV",
+   "flow=0"
+  ],
+  [
+   "SI",
+   "spread=116.8"
+  ],
+  [
+   "TUT",
+   "flow=2"
+  ],
+  [
+   "USELESS",
+   "bleed_72h=-16.6bp"
+  ],
+  [
+   "US",
+   "tail_24h"
+  ],
+  [
+   "VELVET",
+   "flow=2"
+  ],
+  [
+   "牛来",
+   "disaster"
+  ]
+ ],
+ "selected_detail": [
+  {
+   "symbol": "BTC",
+   "score": 356.3,
+   "flow": 480,
+   "spread_bp": 0.01
+  },
+  {
+   "symbol": "ETH",
+   "score": 301.5,
+   "flow": 570,
+   "spread_bp": 0.04
+  },
+  {
+   "symbol": "PENGU",
+   "score": 209.3,
+   "flow": 10,
+   "spread_bp": 6.2
+  },
+  {
+   "symbol": "COIN",
+   "score": 198.5,
+   "flow": 22,
+   "spread_bp": 1.65
+  },
+  {
+   "symbol": "HBAR",
+   "score": 198.2,
+   "flow": 31,
+   "spread_bp": 4.39
+  },
+  {
+   "symbol": "BTW",
+   "score": 190.3,
+   "flow": 44,
+   "spread_bp": 6.82
+  },
+  {
+   "symbol": "GRASS",
+   "score": 176.3,
+   "flow": 33,
+   "spread_bp": 13.87
+  },
+  {
+   "symbol": "TRUMP",
+   "score": 170.2,
+   "flow": 17,
+   "spread_bp": 10.79
+  },
+  {
+   "symbol": "SKY",
+   "score": 163.5,
+   "flow": 10,
+   "spread_bp": 11.62
+  },
+  {
+   "symbol": "SEI",
+   "score": 146.7,
+   "flow": 15,
+   "spread_bp": 9.08
+  },
+  {
+   "symbol": "TQQQ",
+   "score": 50.4,
+   "flow": 11,
+   "spread_bp": 3.69
+  },
+  {
+   "symbol": "MAGMA",
+   "score": 41.8,
+   "flow": 37,
+   "spread_bp": 11.57
+  }
+ ]
+}

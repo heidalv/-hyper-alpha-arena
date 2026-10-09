@@ -1,0 +1,18 @@
+{
+  "flatten_n": 1089,
+  "maker_n": 22728,
+  "take_profit": {
+    "n": 378,
+    "usd": 94.83
+  },
+  "stop_loss": {
+    "n": 669,
+    "usd": -426.71
+  },
+  "neutral": {
+    "n": 42,
+    "usd": -1.62
+  },
+  "flatten_usd": -333.5,
+  "maker_usd": -62.43
+}

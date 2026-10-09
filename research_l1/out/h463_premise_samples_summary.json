@@ -1,0 +1,12 @@
+{
+  "samples": 60,
+  "points": 300,
+  "in_pos": 79,
+  "untagged": 32,
+  "untagged_gt45": 21,
+  "untagged_gt90": 16,
+  "tagged": 47,
+  "tagged_gt45": 36,
+  "tagged_gt90": 28,
+  "h463_exposed_share": 26.58
+}

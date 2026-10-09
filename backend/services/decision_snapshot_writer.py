@@ -1,4 +1,4 @@
-"""DecisionSnapshotWriter — 统一决策快照 v2 写入 + HMAC 链。"""
+﻿"""DecisionSnapshotWriter — 统一决策快照 v2 写入 + HMAC 链。"""
 
 from __future__ import annotations
 
@@ -125,6 +125,7 @@ class DecisionSnapshotWriter:
         mode: str = "paper",
         content_hash: Optional[str] = None,
         prev_hash: Optional[str] = None,
+        factor_votes: Optional[list] = None,
     ):
         from backend.database.models import DecisionSnapshot
         from backend.services.audit_chain_service import append_to_chain, sha256_content
@@ -132,9 +133,134 @@ class DecisionSnapshotWriter:
         mkt = dict(market_snapshot or {})
         if orchestrator:
             mkt.setdefault("orchestrator", orchestrator)
+        # [流B 2026-09-17] 因子票入快照（JSON列免迁移）——学习闭环补因子维度（断点5）
+        if factor_votes:
+            mkt.setdefault("factor_votes", list(factor_votes)[:8])
 
         proposal_json = proposal or {}
-        verdict_json = evaluate_verdict or {}
+        verdict_json = dict(evaluate_verdict or {})
+
+        # [2026-10-03 修复 · 决策拦截原因从未落库]
+        # 实测（近 30 天 12,219 条快照）：`gate_blocks_json` **全表为空**、
+        # `evaluate_verdict_json.reason`/`code_reason` 是空串 ⇒ 11,990 条"未执行"决策
+        # **无法归因是哪一层挡的**（block-pattern 学习因此无结构化输入，只能靠 ai_reasoning 自由文本分类）。
+        # 这里在**不伪造数据**的前提下补齐：
+        #   1) reason/code_reason 空 → 依次尝试调用方已有的
+        #      evaluate_verdict.{code_reason,reason,gate_reason} → proposal.{block_reason,reason,code_reason}
+        #      → 最后用 ai 自由文本前 120 字，并标 `reason_source="derived_from_reasoning"`；
+        #   2) gate_blocks 缺 → 仅在**未执行**时合成一条 `[{layer, rule, reason, auto_fill: true}]`，
+        #      显式标注 auto_fill，避免被误读成真实闸门回执。
+        if not str(verdict_json.get("reason") or "").strip() and not str(verdict_json.get("code_reason") or "").strip():
+            _derived = (
+                verdict_json.get("gate_reason")
+                or proposal_json.get("block_reason")
+                or proposal_json.get("code_reason")
+                or proposal_json.get("reason")
+                or ""
+            )
+            _src = "caller" if _derived else ""
+            # [2026-10-03 ②] 代码里强制 hold 的地方**本来就会给 reasoning 加前缀标签**
+            # （实测约定：`arb_conflict:` / `cycle_conflict:` / `data_gate:` / `midlong_choke:` …）。
+            # 这里把该标签提取成**结构化 key**（code_reason=<tag>），
+            # 使 `master 车道为什么只会 hold` 这类问题可按标签精确计数，而不是靠自由文本猜。
+            _tag = ""
+            if reasoning:
+                import re as _re
+
+                _m = _re.match(r"^\s*\[?([a-z][a-z0-9_]{2,30})\]?\s*[:：]", str(reasoning))
+                if _m:
+                    _tag = _m.group(1)
+            if not _derived and reasoning:
+                _derived = str(reasoning).strip()[:120]
+                _src = "derived_from_reasoning"
+            if _derived or _tag:
+                _final = _tag or str(_derived)[:200]
+                if not str(verdict_json.get("code_reason") or "").strip():
+                    verdict_json["code_reason"] = str(_final)[:200]
+                if not str(verdict_json.get("reason") or "").strip():
+                    verdict_json["reason"] = str(_derived or _tag)[:200]
+                verdict_json["reason_source"] = ("tag_from_reasoning" if _tag and _src == "derived_from_reasoning"
+                                                 else (_src or "derived_from_reasoning"))
+        # [2026-10-04 工作流⑤-a] hold 决策附带**方向倾向**（lean / lean_strength）——
+        # **只写快照、不参与任何判定**（零行为风险）。
+        # 依据：实测 master 车道 9,555 条决策 direction 全为 'hold' ⇒ 该车道**从不表达方向**
+        # ⇒ 前向标注无样本（12 天 0 条）⇒ 无法校准、无法评估、无法改进，形成死循环。
+        # 这里把**已在载荷里存在**的方向证据（如辩论净倾向 net_sentiment / bull-bear 差）
+        # 结构化记录下来；**没有证据就什么都不写**（绝不造数）。
+        try:
+            if str(action or "").strip().lower() in ("hold", ""):
+                _src_val = None
+                _src_name = ""
+                for _k in ("net_sentiment", "consensus_net_sentiment", "sentiment"):
+                    if isinstance(proposal_json.get(_k), (int, float)):
+                        _src_val, _src_name = float(proposal_json[_k]), _k
+                        break
+                if _src_val is None:
+                    for _k in ("net_sentiment", "sentiment"):
+                        if isinstance(verdict_json.get(_k), (int, float)):
+                            _src_val, _src_name = float(verdict_json[_k]), "verdict." + _k
+                            break
+                if _src_val is not None and abs(_src_val) > 1e-9:
+                    verdict_json["lean"] = "long" if _src_val > 0 else "short"
+                    verdict_json["lean_strength"] = round(min(1.0, abs(_src_val)), 4)
+                    verdict_json["lean_source"] = _src_name
+                    verdict_json["lean_effect"] = "observability_only"  # 明确标注不参与判定
+        except Exception as _lean_err:  # noqa: BLE001
+            logger.debug("[DecisionSnapshot] lean 标注跳过: %s", _lean_err)
+
+        if not verdict_json.get("gate_blocks") and executed is not True:
+            verdict_json["gate_blocks"] = [{
+                "layer": verdict_json.get("layer") or "unknown",
+                "rule": verdict_json.get("rule") or "",
+                "reason": verdict_json.get("code_reason") or verdict_json.get("reason") or "not_recorded",
+                "auto_fill": True,
+            }]
+        # [2026-10-03 用户指令「补齐」· 面板①"决策→血缘账本 停滞：真实交易决策未入账"]
+        # 只对**真正执行**的决策入账（`source=live_decision`），避免把每轮上千条 hold 灌进账本；
+        # fail-open：账本异常绝不影响决策写入。
+        if executed is True:
+            try:
+                from backend.services.trade_learning_ledger import record_decision
+
+                record_decision(
+                    symbol=symbol, action=str(action or ""),
+                    lane=str(verdict_json.get("lane") or proposal_json.get("lane") or ""),
+                    tier=str(tier or ""),
+                    confidence=proposal_json.get("confidence"),
+                    executed=True,
+                    trace_id=str(trace_id or content_hash or proposal_id or ""),
+                    code_reason=str(verdict_json.get("code_reason") or ""),
+                    account_id=account_id,
+                )
+            except Exception as _ledger_err:  # noqa: BLE001
+                logger.debug("[DecisionSnapshot] 决策入账跳过: %s", _ledger_err)
+
+        # [2026-10-04 工作流①-b] 持久化标注行（**独立于快照保留期**）。
+        # 实测阻断：快照只保留 ~8 天 < 7 天标注窗口 ⇒ 可标注样本从 335 掉到 30，永远无法累积。
+        # 这里在决策时固化一行（entry_price 可后补），只增不删 ⇒ 标注不再依赖快照存活。
+        # 开关 FWD_LABEL_TABLE=off|shadow|on（默认 off = 行为与今日一致）；fail-open。
+        try:
+            from backend.services.learning_core.decision_labels import record_decision_label
+
+            _lid_src = str(trace_id or content_hash or proposal_id or "")
+            if _lid_src:
+                import hashlib as _hl
+
+                _did = int(_hl.sha1(_lid_src.encode("utf-8")).hexdigest()[:15], 16)
+                record_decision_label(
+                    decision_id=_did,
+                    symbol=symbol,
+                    action=str(action or ""),
+                    direction=str(direction or ""),
+                    confidence=float(proposal_json.get("confidence") or 0.0),
+                    lane=str(verdict_json.get("lane") or proposal_json.get("lane") or ""),
+                    tier=str(tier or ""),
+                    trace_id=_lid_src,
+                    source="live_decision",
+                )
+        except Exception as _lbl_err:  # noqa: BLE001
+            logger.debug("[DecisionSnapshot] 标注行写入跳过: %s", _lbl_err)
+
         canonical = {
             "symbol": symbol,
             "tier": tier,

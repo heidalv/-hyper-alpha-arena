@@ -1,0 +1,90 @@
+{
+  "hours": 6.0,
+  "k": 60.0,
+  "m": 60.0,
+  "samples": 71773,
+  "bands": [
+    {
+      "band": "-60~-40",
+      "n": 274,
+      "fwd_mean": -4.7725,
+      "fwd_median": -0.489,
+      "win_pct": 46.72
+    },
+    {
+      "band": "-40~-20",
+      "n": 2103,
+      "fwd_mean": 0.5266,
+      "fwd_median": 0.9988,
+      "win_pct": 53.78
+    },
+    {
+      "band": "-20~-10",
+      "n": 8570,
+      "fwd_mean": 1.5492,
+      "fwd_median": 0.8513,
+      "win_pct": 51.94
+    },
+    {
+      "band": "-10~-5",
+      "n": 10641,
+      "fwd_mean": 1.1217,
+      "fwd_median": 0.0,
+      "win_pct": 48.95
+    },
+    {
+      "band": "-5~5",
+      "n": 29193,
+      "fwd_mean": -0.018,
+      "fwd_median": -0.8546,
+      "win_pct": 45.06
+    },
+    {
+      "band": "5~10",
+      "n": 9592,
+      "fwd_mean": -0.534,
+      "fwd_median": -0.7002,
+      "win_pct": 45.98
+    },
+    {
+      "band": "10~20",
+      "n": 8261,
+      "fwd_mean": -0.2683,
+      "fwd_median": -0.69,
+      "win_pct": 46.42
+    },
+    {
+      "band": "20~40",
+      "n": 2788,
+      "fwd_mean": -1.1322,
+      "fwd_median": -2.1509,
+      "win_pct": 44.8
+    },
+    {
+      "band": "40~60",
+      "n": 217,
+      "fwd_mean": -4.2905,
+      "fwd_median": 0.0,
+      "win_pct": 48.85
+    },
+    {
+      "band": "60~80",
+      "n": 91,
+      "fwd_mean": -1.5536,
+      "fwd_median": -2.7124,
+      "win_pct": 41.76
+    }
+  ],
+  "verdicts": [
+    {
+      "thr": 40,
+      "n": 286,
+      "fwd_mean": -4.9112,
+      "fwd_median": -1.3039,
+      "win_pct": 45.1,
+      "verdict": "继续（止损正确 ⇒ 可考虑收紧以减少单次亏损）"
+    }
+  ],
+  "pos_hours": 0,
+  "n_hours": 0
+}

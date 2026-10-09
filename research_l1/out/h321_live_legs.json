@@ -1,0 +1,21 @@
+{
+  "era": "2026-09-26 19:08:28.549563+08",
+  "channels": {
+    "passive_exit": {
+      "n": 49,
+      "usd": -1.2,
+      "fee_usd": 0.0,
+      "w_bp": -1.451
+    }
+  },
+  "by_symbol": {
+    "BNB": {
+      "realized": -1.159,
+      "fee": 0.0
+    },
+    "BTC": {
+      "realized": -0.041,
+      "fee": 0.0
+    }
+  }
+}

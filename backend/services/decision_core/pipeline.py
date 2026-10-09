@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -351,8 +352,29 @@ def evaluate_midlong_open(
         except Exception as err:
             logger.warning("[MidLongEvGate] 跳过(fail-open，EV 闸本次未生效): %s", err)
 
-    # ── [调研轮39 2026-09-17] **空头风险形状：空单规模按比例缩**（做空专项第 2 刀）──
-    # 依据（30 天实测，用户指令「做空要认真做」）：
+    # ── [P4 大轮回 2026-09-27] 后验否决（§11.2 三通路之一）──
+    # 样本 ≥30 且 (车道,方向,币种,regime) 后验期望 < −3×成本 → 否决：
+    # 防止系统反复给"已证亏钱的桶"送钱（学习从记事件变成改行为）。
+    # 回滚：P4_POSTERIOR_VETO_ENABLED=false。
+    if allowed and action in ("buy", "sell"):
+        try:
+            _pv_on = (os.getenv("P4_POSTERIOR_VETO_ENABLED", "true") or "true"
+                      ).strip().lower() in ("1", "true", "yes", "on")
+            if _pv_on and db is not None:
+                from backend.services.learning.bayes_posterior import lane_of as _pv_lane, posterior_veto
+                _pv_dir = "long" if action == "buy" else "short"
+                _pv_regime = str(dec.get("market_regime") or "unknown")
+                _blk, _why = posterior_veto(
+                    db, lane=_pv_lane(tier), direction=_pv_dir,
+                    symbol=symbol, regime=_pv_regime,
+                )
+                if _blk:
+                    logger.info("[PosteriorVeto] BLOCK %s %s %s", symbol, action, _why)
+                    return False, _why, adjustments
+        except Exception as _pv_err:
+            logger.warning("[PosteriorVeto] 跳过(fail-open): %s", _pv_err)
+
+    # ── [调研轮39 2026-09-17] **空头风险形状：空单规模按比例缩**（做空专项第 2 刀）──    # 依据（30 天实测，用户指令「做空要认真做」）：
     #   * mid 空单 n=38 净 −68.60、均 −1.81、胜率 26%（多单对照 −0.58 / 47%）；
     #   * 路径上**逆行 +0.98% vs 顺行 0.22%（4.5 倍）** ⇒ 同样规模下空单更吃亏；
     #   * 空头分位曲线（位置闸拦下的 420 行样本）显示**没有可调阈值解决的正区间**

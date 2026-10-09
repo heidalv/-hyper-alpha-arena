@@ -696,6 +696,52 @@ def _depth_targets() -> Dict[str, int]:
     return out
 
 
+def _analysis_board_symbols(limit: int = 60) -> List[str]:
+    """[2026-09-18 数据中心优化] **分析看板（AI 选币）**里的标的。
+
+    ## 为什么必须并进采集宇宙
+    `_depth_symbols()` 原先只取 `get_trade_universe_symbols()`（实测 ≈13–18 个），
+    而主脑还会分析**看板里的 AI 候选**（实测 SUI / PLAY / MU / USELESS / DOGE / 1000PEPE…）。
+    看板币不在采集宇宙 ⇒ 它们的 **4h/1d 永不回填** ⇒ 长期陈旧
+    ⇒ `get_aggregated_klines` fail-closed 返回空 ⇒ 主脑判 `K线:4h`/`K线:1d` **硬缺项**
+    ⇒ `consensus_is_tradeable` 第一行短路 `False` ⇒ 论题被自动拒（30 分钟退避）
+    ⇒ **这些标的永远没有可执行论题**（报告 §12 的第三层根因）。
+
+    ## 口径
+    - 只看 `mid/long/midlong` 视野（scalp 已停）；`listed=true`；未过期（`valid_until`）。
+    - ⚠️ `valid_until` 是 **UTC-naive**（写入方用 `datetime.now(timezone.utc).replace(tzinfo=None)`）
+      ⇒ 必须用 UTC-naive 边界比较，**不能**用 `now()`（否则按会话时区偏移 8 小时，
+      过期的看板会被当成有效——本会话已在这类时区口径上栽过一次）。
+    - 失败一律返回 `[]`（**不阻塞**采集主链路）。
+    """
+    try:
+        if str(os.getenv("KLINE_DEPTH_BACKFILL_INCLUDE_BOARD", "1")).strip().lower() in (
+            "0", "false", "no", "off",
+        ):
+            return []
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from datetime import datetime, timezone
+
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import SessionLocal
+        _now_naive_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        with SessionLocal() as db:
+            rows = db.execute(_sa_text(
+                "SELECT DISTINCT symbol FROM coin_select_candidates "
+                "WHERE listed IS TRUE "
+                "  AND horizon IN ('mid','long','midlong') "
+                "  AND (valid_until IS NULL OR valid_until > :now_utc) "
+                "ORDER BY symbol LIMIT :lim"
+            ), {"now_utc": _now_naive_utc, "lim": int(limit)}).fetchall()
+        return [str(r[0]).upper() for r in rows if r and r[0]]
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[DepthBackfill] 分析看板读取失败（不阻塞）: %s", e)
+        return []
+
+
 def _depth_symbols(max_symbols: int = 40) -> List[str]:
     """深度回填币种：热币优先（交易宇宙 + 核心币），可扩展至全 catalog。
 
@@ -743,6 +789,22 @@ def _depth_symbols(max_symbols: int = 40) -> List[str]:
                         len(hot), len(rest), len(symbols))
         except Exception as e:
             logger.warning("[DepthBackfill] catalog 扩展失败，退回热币: %s", e)
+
+    # [2026-09-18 数据中心优化] 并入**分析看板**标的：采集宇宙必须是分析宇宙的超集，
+    # 否则看板币（SUI/PLAY/MU…）的长周期永不回填 ⇒ 主脑判 `K线:*` 硬缺项 ⇒ 论题被自动拒。
+    if mode not in ("all", "catalog", "full"):
+        try:
+            _extra = _analysis_board_symbols()
+            _have = {s.upper() for s in symbols}
+            _add = [s for s in _extra if s and s.upper() not in _have]
+            if _add:
+                logger.info(
+                    "[DepthBackfill] 并入分析看板标的 %d 个（采集宇宙 ⊇ 分析宇宙）: %s",
+                    len(_add), _add[:12],
+                )
+                symbols = symbols + _add
+        except Exception as e:  # noqa: BLE001
+            logger.debug("[DepthBackfill] 看板并入失败（不阻塞）: %s", e)
 
     # [2026-08-16 根因修复] 核心币前置而非追加：回填一轮 4-6 小时，
     # 符号顺序先到先得；追加到末尾会让 BTC/ETH/SOL 排最后，一轮未跑完

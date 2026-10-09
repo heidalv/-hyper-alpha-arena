@@ -20,6 +20,83 @@ _lock = threading.Lock()
 _last_scan_ts: float = 0.0
 _running = False
 
+# ── 大盘 regime 快照（选方向先验）[2026-09-18] ─────────────────────────────
+# 选币是趋势筛选：上涨市天然选出多头。若震荡/下跌市仍批量放行多头 approve，
+# 等于逆势找死。扫描前先量化 BTC 大盘结构，注入 prompt 作方向先验，
+# 并在落库时对「逆 regime 的 approve」做硬降级（watch）。
+_regime_cache: Dict[str, Any] = {"ts": 0.0, "data": None}
+
+
+def _ema(vals: List[float], n: int) -> Optional[float]:
+    if len(vals) < n:
+        return None
+    k = 2.0 / (n + 1.0)
+    e = sum(vals[:n]) / n
+    for v in vals[n:]:
+        e = v * k + e * (1 - k)
+    return e
+
+
+def market_regime_snapshot(*, max_age_sec: int = 300) -> Dict[str, Any]:
+    """BTC 1d/4h 趋势结构 → {label_1d, label_4h, text, as_of}。
+
+    label ∈ uptrend / downtrend / range / unknown。数据源：market 库 BTC K线
+    （asterdex 优先，缺失回退任一所）。轻量（两次小查询），5min 缓存。
+    """
+    now = time.time()
+    if _regime_cache["data"] and now - float(_regime_cache["ts"]) < max_age_sec:
+        return _regime_cache["data"]
+    out: Dict[str, Any] = {"label_1d": "unknown", "label_4h": "unknown", "text": "大盘趋势数据不可用（快照失败）", "as_of": now}
+    try:
+        from backend.database.connection import MarketSessionLocal
+        from sqlalchemy import text as _sa_text
+
+        db = MarketSessionLocal()
+        try:
+            def _closes(period: str, n: int) -> List[float]:
+                rows = db.execute(
+                    _sa_text(
+                        "SELECT close_price FROM crypto_klines WHERE symbol='BTC' AND period=:p "
+                        "ORDER BY datetime_str DESC LIMIT :n"
+                    ),
+                    {"p": period, "n": n},
+                ).all()
+                return [float(r[0]) for r in rows if r[0] is not None][::-1]
+
+            d1 = _closes("1d", 80)
+            h4 = _closes("4h", 120)
+            px_d = d1[-1] if d1 else 0.0
+            e20d, e60d = _ema(d1, 20), _ema(d1, 60)
+            px_h = h4[-1] if h4 else 0.0
+            e20h, e60h = _ema(h4, 20), _ema(h4, 60)
+
+            def _label(px: float, fast: Optional[float], slow: Optional[float]) -> str:
+                if not px or fast is None or slow is None:
+                    return "unknown"
+                band = max(abs(slow) * 0.01, 1e-12)  # 1% 带宽内视为震荡
+                if fast > slow + band and px > fast:
+                    return "uptrend"
+                if fast < slow - band and px < fast:
+                    return "downtrend"
+                return "range"
+
+            out["label_1d"] = _label(px_d, e20d, e60d)
+            out["label_4h"] = _label(px_h, e20h, e60h)
+            chg24 = (d1[-1] / d1[-2] - 1.0) * 100 if len(d1) >= 2 else 0.0
+            d1_cn = {"uptrend": "上涨趋势", "downtrend": "下跌趋势", "range": "震荡", "unknown": "未知"}[out["label_1d"]]
+            h4_cn = {"uptrend": "多头结构", "downtrend": "空头结构", "range": "震荡", "unknown": "未知"}[out["label_4h"]]
+            out["text"] = (
+                f"BTC 日线={d1_cn}（收盘 {px_d:.0f}，EMA20 {e20d or 0:.0f} / EMA60 {e60d or 0:.0f}，"
+                f"24h {chg24:+.1f}%）；4小时线={h4_cn}"
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("[CoinSelectPlatform] regime snapshot fail: %s", e)
+    _regime_cache["ts"] = now
+    _regime_cache["data"] = out
+    return out
+
 
 def resolve_admin_tenant_id() -> Optional[int]:
     try:
@@ -112,6 +189,42 @@ def _norm_sym(sym: str) -> str:
     if not s or len(s) > 20 or "/" in s:
         return ""
     return s
+
+
+def _platform_fixed_symbols() -> set:
+    """运行中会话的固定币并集（mid∪long∪short）。
+
+    [2026-09-17] 看板是「固定池之外的新机会发现」：已经在固定池里的币
+    全天候被交易，再让 LLM 评审/推荐是浪费 token 且污染看板
+    （实测看板推 BTC/ETH，用户视角即「固定币还选什么」）。
+    """
+    out: set = set()
+    try:
+        from backend.database.connection import SessionLocal
+        from backend.database.models import FullAutoSession
+        from backend.services.auto_coin_selector import get_fixed_symbols_for_session
+
+        db = SessionLocal()
+        try:
+            sessions = (
+                db.query(FullAutoSession)
+                .filter(FullAutoSession.status.in_(["running", "defensive", "paused"]))
+                .all()
+            )
+            for s in sessions:
+                sid = str(getattr(s, "session_id", "") or "")
+                if not sid:
+                    continue
+                for tier in ("short", "mid", "long"):
+                    for sym in get_fixed_symbols_for_session(sid, tier=tier) or []:
+                        u = str(sym or "").strip().upper()
+                        if u:
+                            out.add(u)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("[CoinSelectPlatform] fixed symbols filter skip: %s", e)
+    return out
 
 
 def _scan_market_candidates(limit: int = 40) -> List[Dict[str, Any]]:
@@ -383,7 +496,7 @@ def _fail_closed_filter(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]
     return kept
 
 
-def _build_dual_horizon_prompt(batch: List[Dict[str, Any]]) -> str:
+def _build_dual_horizon_prompt(batch: List[Dict[str, Any]], regime: Optional[Dict[str, Any]] = None) -> str:
     lines = []
     for c in batch:
         lines.append(
@@ -394,21 +507,40 @@ def _build_dual_horizon_prompt(batch: List[Dict[str, Any]]) -> str:
             f"source={c.get('market_source')}"
         )
     body = "\n".join(lines)
-    return f"""你是加密货币选币研究官。下面候选全部来自平台数据中心已采集行情（非临时拉交易所）。请同时给出「短线 scalp」与「中长线 midlong」两套判断。
-
+    # [2026-09-18] 大盘 regime 方向先验：选币是趋势筛选，上涨市选出多头是本能；
+    # 但震荡/下跌市继续放行多头 approve 就是逆势找死。regime 由系统按 BTC
+    # 1d/4h EMA 结构客观计算（非 LLM 臆测），approve 的 direction 必须顺 regime。
+    regime_block = ""
+    if regime and str(regime.get("label_1d")) in ("uptrend", "downtrend", "range"):
+        rt = {
+            "uptrend": "上涨趋势：mid/long 的 approve 原则上 direction=long；做空候选除非有极强独立证据，否则 watch 并注明逆势。",
+            "downtrend": "下跌趋势：approve 只允许 direction=short；做多候选一律降为 watch/reject 并注明「逆大盘」。反弹失败结构反而是做空机会。",
+            "range": "震荡市：approve 从严（≤15%），只放行贴近区间边缘/有明确资金费或结构挤压的候选，direction 按区间位置给，并在 risk_notes 注明区间上下沿。",
+        }[str(regime.get("label_1d"))]
+        regime_block = f"""
+大盘环境（客观计算，作为方向先验，必须遵守）：
+{regime.get('text')}
+方向纪律：{rt}
+"""
+    # [2026-09-17] 中线/长线是两个完全不同的交易周期，拆成两套独立判定：
+    #   mid  = 中线波段（持仓 12h-48h，节奏 4h 级，重短期动量与结构）
+    #   long = 长线趋势（持仓 3-7 天，重趋势、叙事与日线结构）
+    # 同一币可同时出现在两套（若都适合）；短线 scalp 已停不再评审。
+    return f"""你是加密货币选币研究官。下面候选全部来自平台数据中心已采集行情（非临时拉交易所），且均已排除各会话固定池币种。请分别给出「中线 mid」与「长线 long」两套独立判断。
+{regime_block}
 要求：
-1. 不要被单一分数束缚；综合叙事、流动性、因子与风险。
+1. 不要被单一分数束缚；综合叙事、流动性、因子与风险。两套周期评判标准不同：
+   mid 看波段动量/结构/资金费挤压；long 看趋势延续/叙事/日线级别的证据链。
 2. 必须只输出一个 JSON 对象，格式严格为：
-   {{"items":[{{"symbol":"ETH","horizon":"scalp","verdict":"approve","confidence":0.7,"direction":"long","reason":"...","risk_notes":"...","invalidation":"...","tier":"strong"}}, ...]}}
-3. 每个元素字段：symbol, horizon(scalp|midlong), verdict(approve|watch|reject),
+   {{"items":[{{"symbol":"ETH","horizon":"mid","verdict":"approve","confidence":0.7,"direction":"long","reason":"...","risk_notes":"...","invalidation":"...","tier":"strong"}}, {{"symbol":"ETH","horizon":"long","verdict":"watch","confidence":0.4,"direction":"neutral","reason":"...","risk_notes":"...","invalidation":"...","tier":"watch"}}, ...]}}
+3. 每个元素字段：symbol, horizon(mid|long), verdict(approve|watch|reject),
    confidence(0-1), direction(long|short|neutral), reason(中文详细理由),
    risk_notes, invalidation(失效条件), tier(strong|watch|reject)
-4. 同一币可同时出现在 scalp 与 midlong（若适合）。
-5. 至少给出若干 approve/watch；reject 也要写清原因。
-6. 禁止 markdown、禁止 JSON 外任何文字。
-7. **通过率纪律（校准要求）**：approve 每批次控制在 20%-40%——宁可错过不可错杀，
-   只放行证据链最强的候选；多数候选给 watch/reject。
-8. approve 必须有明确证据链：叙事/流动性/因子/风险四要素中至少三项明确支持，
+4. 每个候选币都应给出 mid 与 long 两条判定（不适合的周期给 reject 并写明原因）。
+5. 禁止 markdown、禁止 JSON 外任何文字。
+6. **通过率纪律（校准要求）**：每套周期内 approve 控制在 20%-40%——宁可错过
+   不可错杀，只放行证据链最强的候选；多数候选给 watch/reject。
+7. approve 必须有明确证据链：叙事/流动性/因子/风险四要素中至少三项明确支持，
    且 confidence >= 0.6；证据不足一律降为 watch。
 
 候选：
@@ -538,28 +670,52 @@ def _persist_board(
     market_rows: List[Dict[str, Any]],
     ai_rows: List[Dict[str, Any]],
     ttl_hours: int,
+    regime: Optional[Dict[str, Any]] = None,
 ) -> Tuple[int, int]:
     from backend.database.models import CoinSelectCandidate
 
     by_sym = {r["symbol"]: r for r in market_rows}
     valid_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=ttl_hours)
-    n_s = n_m = 0
+    n_mid = n_long = 0
     seen = set()
 
     def _add(item: Dict[str, Any], default_horizon: str) -> None:
-        nonlocal n_s, n_m
+        nonlocal n_mid, n_long
         sym = str(item.get("symbol") or "").upper().strip()
         if not sym:
             return
         horizon = str(item.get("horizon") or default_horizon).lower()
-        if horizon not in ("scalp", "midlong"):
-            horizon = default_horizon
+        if horizon == "scalp":
+            # 短线车道已停（SCALP_OPEN_DISABLED=true），不再落 scalp 看板
+            return
+        if horizon not in ("mid", "long"):
+            # 旧口径 midlong 归入 mid（新扫描不会再产生；LLM 偶发旧值时的兜底）
+            horizon = "mid" if horizon == "midlong" else default_horizon
         key = (sym, horizon)
         if key in seen:
             return
         seen.add(key)
         m = by_sym.get(sym) or {}
         verdict = str(item.get("verdict") or item.get("ai_verdict") or "watch").lower()
+        direction = str(item.get("direction") or item.get("direction_bias") or "neutral").lower()
+        # [2026-09-18] regime 硬闸：逆大盘方向的 approve 一律降级 watch。
+        # 下跌 regime 放行多头 approve（或上涨 regime 放行空头）= 逆势找死；
+        # LLM 有方向纪律先验，这里是最后一道机器闸（可 env 关闭）。
+        try:
+            _guard_on = str(os.getenv("COIN_SELECT_REGIME_GUARD", "1")).strip().lower() not in ("0", "false", "no", "off")
+        except Exception:
+            _guard_on = True
+        _rl = str((regime or {}).get("label_1d") or "")
+        if _guard_on and _rl in ("uptrend", "downtrend") and verdict == "approve":
+            _want = "long" if _rl == "uptrend" else "short"
+            if direction not in (_want, "neutral"):
+                verdict = "watch"
+                item = dict(item)
+                item["reason"] = (
+                    f"[regime_guard: 大盘{_rl}，逆势{direction} approve 降级 watch] "
+                    + str(item.get("reason") or item.get("ai_reason") or "")
+                )[:4000]
+                item["risk_notes"] = (f"逆大盘方向（{_rl}）" + str(item.get("risk_notes") or ""))[:2000]
         # 门控：hard/soft reject 不得进强烈推荐
         gate = str(m.get("gate") or item.get("gate") or "pass")
         if gate == "hard_reject":
@@ -613,10 +769,10 @@ def _persist_board(
             raw_json=item,
         )
         db.add(row)
-        if horizon == "scalp":
-            n_s += 1
+        if horizon == "long":
+            n_long += 1
         else:
-            n_m += 1
+            n_mid += 1
 
     if not ai_rows:
         # AI 失败：仅当已有「非降质」在架看板时保留；垃圾板可被覆盖
@@ -650,43 +806,32 @@ def _persist_board(
         )
         deg = "no_llm_response" if "no_llm_response" in reason else "no_llm"
         for m in market_rows[:12]:
-            _add(
-                {
-                    "symbol": m["symbol"],
-                    "horizon": "scalp",
-                    "verdict": "watch",
-                    "confidence": m.get("score"),
-                    "reason": reason,
-                    "tier": "watch",
-                    "direction": "neutral",
-                    "degraded": deg,
-                },
-                "scalp",
-            )
-            _add(
-                {
-                    "symbol": m["symbol"],
-                    "horizon": "midlong",
-                    "verdict": "watch",
-                    "confidence": m.get("score"),
-                    "reason": reason,
-                    "tier": "watch",
-                    "direction": "neutral",
-                    "degraded": deg,
-                },
-                "midlong",
-            )
+            # 双周期各写一张降级卡（mid/long）
+            for _hz in ("mid", "long"):
+                _add(
+                    {
+                        "symbol": m["symbol"],
+                        "horizon": _hz,
+                        "verdict": "watch",
+                        "confidence": m.get("score"),
+                        "reason": reason,
+                        "tier": "watch",
+                        "direction": "neutral",
+                        "degraded": deg,
+                    },
+                    _hz,
+                )
         db.commit()
-        return n_s, n_m
+        return n_mid, n_long
 
     # 有 AI 结果：下架旧 listed，写入新看板
     db.query(CoinSelectCandidate).filter(CoinSelectCandidate.listed.is_(True)).update(
         {"listed": False}, synchronize_session=False
     )
     for it in ai_rows:
-        _add(it, "scalp")
+        _add(it, "mid")
     db.commit()
-    return n_s, n_m
+    return n_mid, n_long
 
 
 async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
@@ -736,10 +881,51 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
         db.commit()
 
         market_rows = _scan_market_candidates(limit=max(20, int(COIN_SELECT_AI_MAX_CANDIDATES) + 10))
+        # [2026-09-17] 过滤运行会话固定币：看板只推固定池外的新机会
+        _fixed_syms = _platform_fixed_symbols()
+        if _fixed_syms and market_rows:
+            _before = len(market_rows)
+            market_rows = [r for r in market_rows if str(r.get("symbol") or "").upper() not in _fixed_syms]
+            logger.info(
+                "[CoinSelectPlatform] 固定币过滤: %d→%d（剔除 %s）",
+                _before,
+                len(market_rows),
+                sorted(_fixed_syms)[:20],
+            )
+        # [2026-09-17] 过滤股票/ETF/传统资产永续（rank 宇宙可能混入，注入层挡不如源头挡，
+        # 省 LLM token 且看板不再出现 MSTR/SOXL 类标的）
+        try:
+            from backend.services.ai_coin_unified import is_hard_deny_symbol
+            _before2 = len(market_rows)
+            market_rows = [r for r in market_rows if not is_hard_deny_symbol(str(r.get("symbol") or ""))]
+            if len(market_rows) != _before2:
+                logger.info(
+                    "[CoinSelectPlatform] 非加密硬拒过滤: %d→%d", _before2, len(market_rows),
+                )
+        except Exception:
+            pass
+        # [2026-09-18] 可交易过滤（与注入/池同一套门槛）：未上活跃所 / 无成交额的
+        # 候选不上看板。require_fresh=False：1m 新鲜度不在此否决（该靠采集恢复，
+        # 否则「淘汰→停采→过期→进不来」自锁）。池写入路径仍做全量过滤。
+        try:
+            from backend.services.ai_coin_unified import filter_tradeable_ai_symbols
+            _syms_before = [str(r.get("symbol") or "").upper() for r in market_rows]
+            _ok = set(filter_tradeable_ai_symbols(_syms_before, require_fresh=False))
+            _dropped_tr = [s for s in _syms_before if s not in _ok]
+            if _dropped_tr:
+                market_rows = [r for r in market_rows if str(r.get("symbol") or "").upper() in _ok]
+                logger.info(
+                    "[CoinSelectPlatform] 可交易过滤: %d→%d（剔除 %s）",
+                    len(_syms_before), len(market_rows), _dropped_tr[:12],
+                )
+        except Exception as _tf_err:
+            logger.debug("[CoinSelectPlatform] 可交易过滤跳过: %s", _tf_err)
         scan.candidates_scanned = len(market_rows)
         db.commit()
 
         batch = market_rows[: int(COIN_SELECT_AI_MAX_CANDIDATES)]
+        # [2026-09-18] 大盘 regime：方向先验注入 prompt + 落库硬闸
+        regime = market_regime_snapshot()
         llm = get_admin_coin_select_llm()
         ai_rows: List[Dict[str, Any]] = []
         degraded = None
@@ -749,7 +935,7 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
             chunk_size = 8
             for i in range(0, len(batch), chunk_size):
                 chunk = batch[i : i + chunk_size]
-                prompt = _build_dual_horizon_prompt(chunk)
+                prompt = _build_dual_horizon_prompt(chunk, regime)
                 part = await _call_admin_ai(llm, prompt)
                 if part:
                     ai_rows.extend(part)
@@ -771,11 +957,13 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
                 m["degraded"] = degraded
 
         scan.candidates_ai = len(ai_rows)
-        n_s, n_m = _persist_board(db, scan_id, market_rows, ai_rows, int(COIN_SELECT_BOARD_TTL_HOURS))
-        if not ai_rows and n_s == 0 and n_m == 0:
+        n_mid, n_long = _persist_board(db, scan_id, market_rows, ai_rows, int(COIN_SELECT_BOARD_TTL_HOURS), regime)
+        if not ai_rows and n_mid == 0 and n_long == 0:
             board_kept = True
-        scan.board_scalp = n_s
-        scan.board_midlong = n_m
+        # [2026-09-17] 双周期拆分：board_scalp 恒 0（短线已停）；board_midlong 记总数，
+        # 明细 mid/long 计数入 meta_json（免 DB 迁移）
+        scan.board_scalp = 0
+        scan.board_midlong = n_mid + n_long
         scan.status = "done"
         scan.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         scan.duration_sec = round(time.time() - t0, 2)
@@ -785,19 +973,22 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
                 "board_kept": board_kept,
                 "rank_source": "coin_rank",
                 "llm_ready": bool(llm and getattr(llm, "api_key", None)),
+                "board_mid": n_mid,
+                "board_long": n_long,
+                "fixed_filtered": sorted(_fixed_syms)[:30] if _fixed_syms else [],
+                "regime": {
+                    "label_1d": regime.get("label_1d"),
+                    "label_4h": regime.get("label_4h"),
+                    "text": regime.get("text"),
+                },
             }
         except Exception:
             pass
         db.commit()
         _last_scan_ts = time.time()
-        # 自动跟投短线（仅 approve；长线永不自动；本轮无新板则跳过）
+        # [2026-09-17] 短线自动跟投已随短线车道停用移除（原 _auto_follow_scalp 注入的
+        # 短线 auto 池因 SCALP_OPEN_DISABLED=true 不再开仓，属喂死车道）。
         followed = 0
-        if ai_rows and not board_kept:
-            try:
-                followed = _auto_follow_scalp(db, scan_id)
-            except Exception as e:
-                logger.warning("[CoinSelectPlatform] auto_follow: %s", e)
-                followed = 0
         try:
             from backend.services.coin_rank.metrics import CycleMetrics, record_cycle_metrics
 
@@ -820,8 +1011,11 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
             "scan_id": scan_id,
             "scanned": len(market_rows),
             "ai": len(ai_rows),
-            "board_scalp": n_s,
-            "board_midlong": n_m,
+            "board_scalp": 0,
+            "board_mid": n_mid,
+            "board_long": n_long,
+            "board_midlong": n_mid + n_long,
+            "regime": {"label_1d": regime.get("label_1d"), "text": regime.get("text")},
             "duration_sec": scan.duration_sec,
             "admin_tenant_id": admin_tid,
             "llm_ready": bool(llm and getattr(llm, "api_key", None)),
@@ -845,84 +1039,6 @@ async def run_platform_scan(*, force: bool = False) -> Dict[str, Any]:
         db.close()
         with _lock:
             _running = False
-
-
-def _auto_follow_scalp(db, scan_id: str) -> int:
-    """对开启 auto_follow 的 VIP：把本轮强烈推荐短线同步到默认会话。"""
-    from backend.database.models import (
-        Account,
-        CoinSelectAdoption,
-        CoinSelectCandidate,
-        FullAutoSession,
-        User,
-    )
-    from backend.services.full_auto_trading_service import full_auto_service
-
-    strong = (
-        db.query(CoinSelectCandidate)
-        .filter(
-            CoinSelectCandidate.scan_id == scan_id,
-            CoinSelectCandidate.horizon == "scalp",
-            CoinSelectCandidate.listed.is_(True),
-            CoinSelectCandidate.ai_verdict == "approve",
-        )
-        .all()
-    )
-    if not strong:
-        return 0
-    users = (
-        db.query(User)
-        .filter(
-            User.coin_select_enabled == "true",
-            User.coin_select_auto_follow == "true",
-            User.coin_select_default_session.isnot(None),
-        )
-        .all()
-    )
-    n = 0
-    for u in users:
-        sid = (u.coin_select_default_session or "").strip()
-        if not sid:
-            continue
-        # 会话归属：必须是本用户账户下的会话
-        sess = db.query(FullAutoSession).filter(FullAutoSession.session_id == sid).first()
-        if not sess or not sess.account_id:
-            logger.debug("[CoinSelectPlatform] auto_follow skip bad session %s", sid)
-            continue
-        acc = db.query(Account).filter(Account.id == sess.account_id).first()
-        if not acc or int(acc.user_id) != int(u.id):
-            logger.warning(
-                "[CoinSelectPlatform] auto_follow 拒绝：session %s 不属于 user %s",
-                sid,
-                u.id,
-            )
-            continue
-        # 账户级开关（若显式关闭则跳过）
-        acc_flag = (getattr(acc, "ai_coin_select_enabled", None) or "true").lower()
-        if acc_flag in ("false", "0", "off", "no"):
-            continue
-        for c in strong:
-            try:
-                result = full_auto_service.add_symbols(
-                    db, sid, [c.symbol], is_auto_coin=True
-                )
-                if result.get("success"):
-                    c.adopt_count = int(c.adopt_count or 0) + 1
-                    db.add(
-                        CoinSelectAdoption(
-                            user_id=u.id,
-                            session_id=sid,
-                            symbol=c.symbol,
-                            horizon="scalp",
-                            candidate_id=c.id,
-                        )
-                    )
-                    n += 1
-            except Exception as e:
-                logger.debug("[CoinSelectPlatform] auto_follow %s→%s: %s", c.symbol, sid, e)
-    if n:
-        db.commit()
-    return n
 
 
 def list_board(
@@ -952,11 +1068,23 @@ def list_board(
             q = q.filter(CoinSelectCandidate.ai_verdict.in_(["approve", "watch"]))
         elif include_rejected and not admin:
             pass
-        if horizon in ("scalp", "midlong"):
+        if horizon in ("scalp", "midlong", "mid", "long"):
             q = q.filter(CoinSelectCandidate.horizon == horizon)
         if verdict in ("approve", "watch", "reject"):
             q = q.filter(CoinSelectCandidate.ai_verdict == verdict)
         rows = q.order_by(CoinSelectCandidate.confidence.desc().nullslast()).limit(200).all()
+
+        # [2026-09-17] 看板展示层过滤运行会话固定币（与扫描层同口径，双保险）：
+        # 固定池币全天候在交易，不占 AI 推荐位。
+        _fixed = _platform_fixed_symbols()
+        if _fixed:
+            rows = [r for r in rows if str(r.symbol or "").upper() not in _fixed]
+        # 非加密硬拒（股票/ETF/传统资产永续）展示层同样过滤
+        try:
+            from backend.services.ai_coin_unified import is_hard_deny_symbol
+            rows = [r for r in rows if not is_hard_deny_symbol(str(r.symbol or ""))]
+        except Exception:
+            pass
 
         items = []
         try:
@@ -1050,11 +1178,19 @@ def list_board(
         if degraded == "no_llm_response" and llm_now:
             degraded = "no_llm_response"
 
+        # [2026-09-18] 看板响应带 regime（前端展示方向先验；老扫描无此字段则现算）
+        _rg = None
+        if isinstance(meta, dict) and isinstance(meta.get("regime"), dict):
+            _rg = meta.get("regime")
+        else:
+            _rg = market_regime_snapshot()
+            _rg = {"label_1d": _rg.get("label_1d"), "label_4h": _rg.get("label_4h"), "text": _rg.get("text")}
         return {
             "items": items,
             "degraded": degraded,
             "llm_ready": bool(llm_now),
             "board_kept": bool(meta.get("board_kept")),
+            "regime": _rg,
             "last_scan": {
                 "scan_id": last.scan_id if last else None,
                 "finished_at": str(last.finished_at) if last and last.finished_at else None,

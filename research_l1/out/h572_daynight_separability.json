@@ -1,0 +1,366 @@
+{
+  "windows": {
+    "N0_夜_0.15_10币(纪元前,长)": {
+      "local": [
+        "2026-09-27T22:00:00+08:00",
+        "2026-09-28T09:00:00+08:00"
+      ],
+      "regime_ofi": "0.15",
+      "universe": "10币",
+      "legs": 762,
+      "exit_legs": 126,
+      "legs_per_trip": 6.0476,
+      "covered_h": 11.02,
+      "trips_per_covered_h": 11.44
+    },
+    "N1_夜_0.15_10币(纪元前)": {
+      "local": [
+        "2026-09-28T01:00:00+08:00",
+        "2026-09-28T09:00:00+08:00"
+      ],
+      "regime_ofi": "0.15",
+      "universe": "10币",
+      "legs": 554,
+      "exit_legs": 93,
+      "legs_per_trip": 5.957,
+      "covered_h": 8.02,
+      "trips_per_covered_h": 11.6
+    },
+    "N2_夜_0.15→0.5_5币": {
+      "local": [
+        "2026-09-28T22:00:00+08:00",
+        "2026-09-29T09:00:00+08:00"
+      ],
+      "regime_ofi": "0.15→0.5",
+      "universe": "5币",
+      "legs": 417,
+      "exit_legs": 119,
+      "legs_per_trip": 3.5042,
+      "covered_h": 6.55,
+      "trips_per_covered_h": 18.17
+    },
+    "N3_夜_0.5_5币(纯)": {
+      "local": [
+        "2026-09-28T23:17:00+08:00",
+        "2026-09-29T09:00:00+08:00"
+      ],
+      "regime_ofi": "0.5",
+      "universe": "5币",
+      "legs": 359,
+      "exit_legs": 99,
+      "legs_per_trip": 3.6263,
+      "covered_h": 5.27,
+      "trips_per_covered_h": 18.8
+    },
+    "D1_昼_0.15_5币": {
+      "local": [
+        "2026-09-28T13:00:00+08:00",
+        "2026-09-28T21:48:00+08:00"
+      ],
+      "regime_ofi": "0.15",
+      "universe": "5币",
+      "legs": 590,
+      "exit_legs": 89,
+      "legs_per_trip": 6.6292,
+      "covered_h": 8.82,
+      "trips_per_covered_h": 10.09
+    },
+    "D2_昼_0.15_10币(纪元前)": {
+      "local": [
+        "2026-09-27T10:00:00+08:00",
+        "2026-09-27T20:00:00+08:00"
+      ],
+      "regime_ofi": "0.15",
+      "universe": "10币",
+      "legs": 567,
+      "exit_legs": 22,
+      "legs_per_trip": 25.7727,
+      "covered_h": 9.38,
+      "trips_per_covered_h": 2.34
+    }
+  },
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "exit_path_coverage_by_hour": [
+    {
+      "hour": "09-27 00",
+      "legs": 23,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 01",
+      "legs": 25,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 02",
+      "legs": 11,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 03",
+      "legs": 20,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 04",
+      "legs": 18,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 05",
+      "legs": 17,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 06",
+      "legs": 17,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 07",
+      "legs": 19,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 08",
+      "legs": 22,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 09",
+      "legs": 20,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 10",
+      "legs": 25,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 11",
+      "legs": 15,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 12",
+      "legs": 21,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 13",
+      "legs": 56,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 14",
+      "legs": 24,
+      "with_exit": 0
+    },
+    {
+      "hour": "09-27 15",
+      "legs": 97,
+      "with_exit": 3
+    },
+    {
+      "hour": "09-27 16",
+      "legs": 110,
+      "with_exit": 5
+    },
+    {
+      "hour": "09-27 17",
+      "legs": 81,
+      "with_exit": 6
+    },
+    {
+      "hour": "09-27 18",
+      "legs": 67,
+      "with_exit": 3
+    },
+    {
+      "hour": "09-27 19",
+      "legs": 71,
+      "with_exit": 7
+    },
+    {
+      "hour": "09-27 20",
+      "legs": 57,
+      "with_exit": 7
+    },
+    {
+      "hour": "09-27 21",
+      "legs": 72,
+      "with_exit": 11
+    },
+    {
+      "hour": "09-27 22",
+      "legs": 67,
+      "with_exit": 15
+    },
+    {
+      "hour": "09-27 23",
+      "legs": 74,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 00",
+      "legs": 67,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 01",
+      "legs": 70,
+      "with_exit": 10
+    },
+    {
+      "hour": "09-28 02",
+      "legs": 63,
+      "with_exit": 15
+    },
+    {
+      "hour": "09-28 03",
+      "legs": 105,
+      "with_exit": 21
+    },
+    {
+      "hour": "09-28 04",
+      "legs": 74,
+      "with_exit": 7
+    },
+    {
+      "hour": "09-28 05",
+      "legs": 69,
+      "with_exit": 16
+    },
+    {
+      "hour": "09-28 06",
+      "legs": 68,
+      "with_exit": 14
+    },
+    {
+      "hour": "09-28 07",
+      "legs": 78,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 08",
+      "legs": 27,
+      "with_exit": 5
+    },
+    {
+      "hour": "09-28 09",
+      "legs": 39,
+      "with_exit": 7
+    },
+    {
+      "hour": "09-28 10",
+      "legs": 46,
+      "with_exit": 6
+    },
+    {
+      "hour": "09-28 11",
+      "legs": 38,
+      "with_exit": 6
+    },
+    {
+      "hour": "09-28 12",
+      "legs": 72,
+      "with_exit": 10
+    },
+    {
+      "hour": "09-28 13",
+      "legs": 61,
+      "with_exit": 12
+    },
+    {
+      "hour": "09-28 14",
+      "legs": 61,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 15",
+      "legs": 64,
+      "with_exit": 8
+    },
+    {
+      "hour": "09-28 16",
+      "legs": 56,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 17",
+      "legs": 76,
+      "with_exit": 9
+    },
+    {
+      "hour": "09-28 18",
+      "legs": 60,
+      "with_exit": 12
+    },
+    {
+      "hour": "09-28 19",
+      "legs": 89,
+      "with_exit": 10
+    },
+    {
+      "hour": "09-28 20",
+      "legs": 72,
+      "with_exit": 11
+    },
+    {
+      "hour": "09-28 21",
+      "legs": 58,
+      "with_exit": 20
+    },
+    {
+      "hour": "09-28 22",
+      "legs": 42,
+      "with_exit": 18
+    },
+    {
+      "hour": "09-28 23",
+      "legs": 50,
+      "with_exit": 19
+    },
+    {
+      "hour": "09-29 00",
+      "legs": 83,
+      "with_exit": 30
+    },
+    {
+      "hour": "09-29 01",
+      "legs": 71,
+      "with_exit": 24
+    },
+    {
+      "hour": "09-29 02",
+      "legs": 95,
+      "with_exit": 28
+    },
+    {
+      "hour": "09-29 03",
+      "legs": 51,
+      "with_exit": 14
+    },
+    {
+      "hour": "09-29 04",
+      "legs": 25,
+      "with_exit": 5
+    },
+    {
+      "hour": "09-29 09",
+      "legs": 56,
+      "with_exit": 13
+    },
+    {
+      "hour": "09-29 10",
+      "legs": 42,
+      "with_exit": 5
+    }
+  ]
+}

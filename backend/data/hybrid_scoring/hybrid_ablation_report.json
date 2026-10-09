@@ -1,0 +1,126 @@
+{
+  "ok": true,
+  "generated_at": "2026-10-05T00:10:00.520213+00:00",
+  "rows": [
+    {
+      "week": "2026-W38",
+      "regime": "unknown",
+      "arm": "A0",
+      "n": 56,
+      "rank_ic": -0.0145,
+      "hit_rate": 0.821,
+      "top20_mean_ret": 0.05889,
+      "bottom20_mean_ret": 0.06835
+    },
+    {
+      "week": "2026-W38",
+      "regime": "unknown",
+      "arm": "A2",
+      "n": 21,
+      "rank_ic": 0.0519,
+      "hit_rate": 0.857,
+      "top20_mean_ret": 0.03407,
+      "bottom20_mean_ret": 0.03765
+    },
+    {
+      "week": "2026-W38",
+      "regime": "unknown",
+      "arm": "A3",
+      "n": 56,
+      "rank_ic": -0.0673,
+      "hit_rate": 0.821,
+      "top20_mean_ret": 0.03832,
+      "bottom20_mean_ret": 0.05218
+    },
+    {
+      "week": "2026-W39",
+      "regime": "unknown",
+      "arm": "A0",
+      "n": 291,
+      "rank_ic": 0.0102,
+      "hit_rate": 0.361,
+      "top20_mean_ret": -0.00577,
+      "bottom20_mean_ret": -0.00337
+    },
+    {
+      "week": "2026-W39",
+      "regime": "unknown",
+      "arm": "A1",
+      "n": 44,
+      "rank_ic": 0.0637,
+      "hit_rate": 0.205,
+      "top20_mean_ret": -0.01722,
+      "bottom20_mean_ret": -0.01592
+    },
+    {
+      "week": "2026-W39",
+      "regime": "unknown",
+      "arm": "A2",
+      "n": 6,
+      "rank_ic": -0.7714,
+      "hit_rate": 1.0,
+      "top20_mean_ret": 0.00881,
+      "bottom20_mean_ret": 0.05549
+    },
+    {
+      "week": "2026-W39",
+      "regime": "unknown",
+      "arm": "A3",
+      "n": 291,
+      "rank_ic": -0.0033,
+      "hit_rate": 0.361,
+      "top20_mean_ret": -0.01575,
+      "bottom20_mean_ret": -0.00054
+    },
+    {
+      "week": "2026-W40",
+      "regime": "unknown",
+      "arm": "A0",
+      "n": 84,
+      "rank_ic": -0.2496,
+      "hit_rate": 0.321,
+      "top20_mean_ret": -0.01452,
+      "bottom20_mean_ret": -0.0139
+    },
+    {
+      "week": "2026-W40",
+      "regime": "unknown",
+      "arm": "A1",
+      "n": 10,
+      "rank_ic": -0.5636,
+      "hit_rate": 0.1,
+      "top20_mean_ret": -0.0448,
+      "bottom20_mean_ret": -0.01488
+    },
+    {
+      "week": "2026-W40",
+      "regime": "unknown",
+      "arm": "A3",
+      "n": 84,
+      "rank_ic": -0.2779,
+      "hit_rate": 0.321,
+      "top20_mean_ret": -0.01839,
+      "bottom20_mean_ret": -0.01088
+    }
+  ],
+  "ic_stats": {
+    "updated_at": "2026-09-18T00:05:00.090763+00:00",
+    "days": 0,
+    "ic_a": null,
+    "ic_b": null,
+    "ic_fused": null,
+    "ic_thesis_mixed": null,
+    "std_diff": 0.25,
+    "per_arm_days": {
+      "A0": 0,
+      "A1": 0,
+      "A2": 0,
+      "A3": 0
+    }
+  },
+  "promotion_hint": {
+    "fused_ic_recent": -0.0673,
+    "threshold": 0.05,
+    "note": "融合臂滚动 RankIC ≥ 阈值时【建议】提交 ROI 问责门复核 fusion 晋级；本报告不自动切换任何模式。"
+  }
+}

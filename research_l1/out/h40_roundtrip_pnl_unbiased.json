@@ -1,0 +1,90 @@
+{
+  "hours": 24.0,
+  "symbols": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "ASTER"
+  ],
+  "requote_s": 15.0,
+  "max_hold_s": 300.0,
+  "maker_fee_bp": 0.0,
+  "taker_fee_bp": 4.0,
+  "per_symbol": [
+    {
+      "symbol": "BTC",
+      "n_roundtrips": 1347,
+      "n_no_entry": 3933,
+      "net_bp_mean": -3.3935325095057394,
+      "net_bp_median": -2.6165318956915478,
+      "win_rate": 0.370452858203415,
+      "hold_ms_median": 300000.0,
+      "forced_rate": 0.6221232368225686,
+      "forced_net_mean": -5.791193334800172,
+      "passive_net_mean": 0.5538933678945234,
+      "usd_per_rt_30": -0.010180597528517217
+    },
+    {
+      "symbol": "ETH",
+      "n_roundtrips": 2147,
+      "n_no_entry": 3167,
+      "net_bp_mean": -2.364271771293144,
+      "net_bp_median": -0.6882682535750466,
+      "win_rate": 0.47228691197019096,
+      "hold_ms_median": 189292.0,
+      "forced_rate": 0.3786679087098277,
+      "forced_net_mean": -5.942249903074721,
+      "passive_net_mean": -0.18368989637678593,
+      "usd_per_rt_30": -0.007092815313879433
+    },
+    {
+      "symbol": "SOL",
+      "n_roundtrips": 2437,
+      "n_no_entry": 2879,
+      "net_bp_mean": -3.6686777425940726,
+      "net_bp_median": -0.8234532843824944,
+      "win_rate": 0.4788674599917932,
+      "hold_ms_median": 261233.0,
+      "forced_rate": 0.44809191629052114,
+      "forced_net_mean": -9.07320311938223,
+      "passive_net_mean": 0.719234310530588,
+      "usd_per_rt_30": -0.011006033227782219
+    },
+    {
+      "symbol": "XRP",
+      "n_roundtrips": 2615,
+      "n_no_entry": 2694,
+      "net_bp_mean": -2.475525213997174,
+      "net_bp_median": 0.2737889799414195,
+      "win_rate": 0.5074569789674952,
+      "hold_ms_median": 173011.0,
+      "forced_rate": 0.33422562141491396,
+      "forced_net_mean": -9.998039451707157,
+      "passive_net_mean": 1.3008547077481016,
+      "usd_per_rt_30": -0.007426575641991522
+    },
+    {
+      "symbol": "ASTER",
+      "n_roundtrips": 2673,
+      "n_no_entry": 2566,
+      "net_bp_mean": -3.664199265815679,
+      "net_bp_median": 0.3866037342610019,
+      "win_rate": 0.5110362888140666,
+      "hold_ms_median": 134016.0,
+      "forced_rate": 0.26374859708193044,
+      "forced_net_mean": -11.903302825255311,
+      "passive_net_mean": -0.712691130955444,
+      "usd_per_rt_30": -0.010992597797447035
+    }
+  ],
+  "summary": {
+    "n": 11219,
+    "net_bp_mean": -3.1068411190035015,
+    "net_bp_median_sym": -0.6882682535750466,
+    "win_rate": 0.4789196898119262,
+    "forced_rate": 0.38523932614315004,
+    "hold_ms_median": 201246.39254835548,
+    "usd_per_rt_30": -0.009320523357010503
+  }
+}

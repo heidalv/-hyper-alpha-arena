@@ -56,7 +56,9 @@ _DEFAULT_SCHEMA: Dict[str, Any] = {
     # 各策略页面独立配置、独立保存、独立生效；前端 PUT /daily-cap/{tier} 热改直达 unified_gate。
     # 默认：短线 60/天、长线 10/天（用户明确指定，仅作初始默认值，可在前端修改）。
     "scalp_daily_cap": {"value": 150, "min": 10, "max": 300},
-    "trend_daily_cap": {"value": 15, "min": 1, "max": 60},
+    # [P5 大轮回 2026-09-27] 分车道日开仓配额（§13.2）：日内(mid) 6/天、趋势(long) 2/天
+    "trend_daily_cap": {"value": 2, "min": 0, "max": 60},
+    "mid_daily_cap": {"value": 6, "min": 0, "max": 60},
     # [2026-09-03 v3 RiskEngine] 实盘全 tier 合计日开仓上限（旧 env LIVE_DAILY_OPEN_CAP 迁入，
     # 0=不限制）。唯一读取口 backend/services/risk/daily_quota.py::cap_for("live")。
     "live_daily_cap": {"value": 6, "min": 0, "max": 50},

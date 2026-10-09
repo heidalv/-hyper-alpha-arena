@@ -30,6 +30,8 @@ def _clean_env(monkeypatch):
     for k in list(os.environ):
         if k.startswith(("MIDLONG_MID_4H_REVERSAL_EXIT", "MIDLONG_LOCATION_", "REENTRY_", "EXIT_POLICY_")):
             monkeypatch.delenv(k, raising=False)
+    # [P3 2026-09-27] 本文件测冷却语义，不测当日止损上限：DB 兜底钉 0，防真实库数据干扰
+    monkeypatch.setattr(rc, "_daily_sl_db_count", lambda *a, **k: 0)
     yield
 
 
@@ -51,18 +53,35 @@ def test_mid_exit_policy_round6_env_override(monkeypatch):
 
 
 def test_mid_min_roi_decay_closes_dead_hold():
-    """12h 内 roi<0.5% 强平、24h 内 roi<0 强平——探针仓不再死扛 7 天。"""
+    """[2026-09-27 P2 弱化契约更新] 仅盈利后生效（EXIT_POLICY_MIN_ROI_PROFIT_ONLY 默认 true）。
+
+    §96 反事实：min_roi_decay 的 55% 是市场 beta——浮亏仓不再按时间砍，
+    由 4h 反转/SL/§9.2⑤时间止损（P3）接管。盈利保护档保留：
+    """
     p = xp.ExitPolicy.for_lane("mid")
     p = xp.ExitPolicy(**{**p.to_dict(), "sl_pct": None})
     snap = lambda cur, el, peak=None: xp.ExitSnapshot(  # noqa: E731
         side="long", entry=100.0, current=cur, elapsed_sec=el,
         peak_roi_pct=(peak if peak is not None else (cur - 100.0) / 100.0 * 100.0),
     )
-    assert xp.evaluate(p, snap(100.2, 43200)).is_close  # 12h, roi=+0.2% < 0.5%
+    assert xp.evaluate(p, snap(100.2, 43200)).is_close  # 12h, roi=+0.2% < 0.5%（盈利保护档）
     assert xp.evaluate(p, snap(100.6, 43200)).action == "hold"  # 12h, roi=+0.6%
-    assert xp.evaluate(p, snap(99.5, 86400)).is_close  # 24h, roi=-0.5% < 0
+    # [P2 弱化] 24h roi=-0.5%：浮亏不再按时间砍（旧口径会 close）
+    assert not xp.evaluate(p, snap(99.5, 86400)).is_close
     # 24h, roi=+1% → 不被 min_roi 强平（trailing 激活会 tighten_sl，但不是 close）
     assert not xp.evaluate(p, snap(101.0, 86400)).is_close
+
+
+def test_mid_min_roi_profit_only_rollback(monkeypatch):
+    """回滚开关 false → 恢复旧口径：24h 浮亏仓按时间强平。"""
+    monkeypatch.setenv("EXIT_POLICY_MIN_ROI_PROFIT_ONLY", "false")
+    p = xp.ExitPolicy.for_lane("mid")
+    p = xp.ExitPolicy(**{**p.to_dict(), "sl_pct": None})
+    snap = lambda cur, el: xp.ExitSnapshot(  # noqa: E731
+        side="long", entry=100.0, current=cur, elapsed_sec=el,
+        peak_roi_pct=(cur - 100.0) / 100.0 * 100.0,
+    )
+    assert xp.evaluate(p, snap(99.5, 86400)).is_close  # 旧口径：24h roi<0 → close
 
 
 # ─────────────────────────── B: 4h 单周期反转离场 ───────────────────────────
@@ -195,6 +214,9 @@ def test_location_live_still_veto_and_defer_preserved(monkeypatch):
 
 def test_sl_cooldown_blocks_same_direction_reopen(monkeypatch):
     monkeypatch.setenv("REENTRY_SL_COOLDOWN_SEC_MID", "7200")
+    # [P3 2026-09-27] TIER_PROTECTION_PARAMS 在 settings 导入期读 .env（现 14400），
+    # 运行时 setenv 不生效；本用例要验证 SL 延长语义，钉住 base=7200。
+    monkeypatch.setattr(rc, "_get_cooldown_sec", lambda tier: 7200)
     monkeypatch.setenv("REENTRY_LOSS_COOLDOWN_SEC_MID", "3600")
     rc.clear_state(14, "ASTER", "mid")
     rc.record_full_close(14, "ASTER", "long", tier="mid", close_pnl=-5.0, close_reason="sl")
@@ -203,13 +225,27 @@ def test_sl_cooldown_blocks_same_direction_reopen(monkeypatch):
 
 
 def test_loss_cooldown_applies_to_soft_close(monkeypatch):
+    """软平仓（thesis_should_close）同样触发同向再开冷却。
+
+    [2026-09-24 R2 用例口径更新] 旧断言写 `"60分钟"`（依赖本用例自己设的
+    `REENTRY_LOSS_COOLDOWN_SEC_MID=3600`），那是 2026-09-16 时的冷却基准。
+    **轮114（2026-09-19）把同向冷却基准改为 `TIER_MID_COOLDOWN_SEC`，默认 7200s = 120min**
+    （依据：158 笔中线已平仓，"距上次同币平仓 0–2h"档 n=40 均值 −0.389%、胜率 0.375，
+    去掉该档后 n=118 均值 −0.027%、胜率 0.500 ⇒ 刚平完就重开＝无新信息下重复下注；
+    见 `backend/config/settings.py:605-611`）。
+    因此本用例改为显式钉住现行基准 `TIER_MID_COOLDOWN_SEC=7200` 并断言 120 分钟；
+    断言**语义未放宽**：仍然要求"软平仓后同向再开被拦"。
+    """
+    monkeypatch.setenv("TIER_MID_COOLDOWN_SEC", "7200")
+    # [P3 2026-09-27] 运行时 setenv 对 settings 导入期常量无效，钉 base=7200。
+    monkeypatch.setattr(rc, "_get_cooldown_sec", lambda tier: 7200)
     monkeypatch.setenv("REENTRY_SL_COOLDOWN_SEC_MID", "7200")
     monkeypatch.setenv("REENTRY_LOSS_COOLDOWN_SEC_MID", "3600")
     rc.clear_state(14, "VIRTUAL", "mid")
     rc.record_full_close(14, "VIRTUAL", "long", tier="mid", close_pnl=-5.0,
                          close_reason="thesis_should_close")
     blocked, reason = rc.reopen_blocked(14, "VIRTUAL", "buy", new_tier="mid")
-    assert blocked and "60分钟" in reason  # 亏损冷却 3600s = 60min
+    assert blocked and "120分钟" in reason  # 轮114 基准 TIER_MID_COOLDOWN_SEC=7200s = 120min
 
 
 def test_cooldown_tier_isolation(monkeypatch):

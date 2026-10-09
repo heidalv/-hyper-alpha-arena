@@ -1,6 +1,7 @@
 """AI 中线候选：看板 midlong approve 主源 + 兜底。"""
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -90,6 +91,14 @@ def test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky(tmp_path, monkeypa
         m, "count_open_ai_mid_positions",
         lambda db=None, account_id=None, exclude_symbols=None, include_symbols=None: 0,
     )
+    # [2026-09-27 R4 修测试桩②] 09-18 起落盘前多了一道 `filter_tradeable_ai_symbols`
+    # （单一事实源：以"写过滤后实际落盘的集合"为准返回）。单测环境没有目录/DB，
+    # 该过滤器会把整池清空（sticky 里留下 `kept=0 evicted=[...] added=[...]`），
+    # 于是断言恒空。这里把它替换成恒等函数 —— 本测试要验的是**看板主源胜出**，
+    # 不是目录过滤（目录过滤另有专测）。
+    import backend.services.ai_coin_unified as _acu
+
+    monkeypatch.setattr(_acu, "filter_tradeable_ai_symbols", lambda syms: list(syms))
 
     class _FakeResult:
         def __init__(self, rows=None, scalar=None, first=None):
@@ -108,6 +117,12 @@ def test_get_ai_mid_prefers_board_over_stale_auto_coin_sticky(tmp_path, monkeypa
 
     def _execute(sql, params=None):
         q = str(sql)
+        # [2026-09-27 R4 修测试桩] 轮123（2026-09-20 提交 19ff62c）起，代码用候选表
+        # `MAX(created_at)` 判「看板换代」。本桩写于 09-16，未给该查询标量 ⇒
+        # `float(None)` → TypeError → 被外层 except 吞掉 → 候选恒空、本测试自 09-20 起**假红**。
+        # 这里补上标量：看板时间晚于 sticky ⇒ 触发"换代即重采"，正是本测试要断言的路径。
+        if "EXTRACT(EPOCH" in q:
+            return _FakeResult(scalar=time.time() + 60)
         if "paper_account_id" in q:
             return _FakeResult(first=(14,))
         if "timeframe_tier = 'mid'" in q and "DISTINCT" in q:

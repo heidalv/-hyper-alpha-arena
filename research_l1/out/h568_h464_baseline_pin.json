@@ -1,0 +1,44 @@
+{
+  "trial": "h464",
+  "meta_started_at": "2026-09-29T01:23:36.583418+00:00",
+  "planned_start_used": "2026-09-29T13:58:00+00:00",
+  "trial_started_at": "2026-09-29T13:58:00+00:00",
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "baseline": {
+    "which": "aligned",
+    "window": [
+      "2026-09-28T13:58:00+00:00",
+      "2026-09-29T01:58:00+00:00"
+    ],
+    "local": [
+      "2026-09-28T21:58:00+08:00",
+      "2026-09-29T09:58:00+08:00"
+    ],
+    "aligned_probe_legs": 471,
+    "legs": 471,
+    "covered_hours": 7.4,
+    "coverage": 0.6167,
+    "legs_per_hour_covered": 63.65,
+    "legs_per_hour_wall": 39.25
+  },
+  "daynight_alignment": {
+    "trial_window_local_hours": [
+      "21:58",
+      "09:58"
+    ],
+    "aligned_ok": true,
+    "warning": ""
+  },
+  "gate": {
+    "abs_floor": 60.0,
+    "relative_requirement": 50.92,
+    "trial_must_be_at_least": 60.0,
+    "binding": "absolute_floor"
+  }
+}

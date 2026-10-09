@@ -642,12 +642,31 @@ class StrategyHypothesisEngine:
         regime = ctx.get("regime", "unknown")
         factor_snap = ctx.get("factor_snapshot", {})
         recent_perf = ctx.get("recent_performance", {})
+        # [F324 2026-09-18 复查修复] 原为 `json.dumps(factor_snap, indent=2)[:800]` —— 字符硬截断
+        # 会把 JSON 切成**无效片段**（实测 payload 2075 字符 ⇒ 只剩 BTC + 半个 ETH，LLM 拿到
+        # 的是解析不了的东西 ⇒ "策略假设生成见到真实 factor_snapshot"这一声明在运行时失效）。
+        # 改法：紧凑序列化（无缩进）+ 超限时**按币裁剪**，保证交给 LLM 的始终是**合法 JSON**。
+        _snap_txt = json.dumps(factor_snap, separators=(",", ":"), default=str, ensure_ascii=False)
+        if len(_snap_txt) > 1600 and isinstance(factor_snap, dict):
+            _kept: Dict[str, Any] = {}
+            _omitted = 0
+            for _k, _v in factor_snap.items():
+                _trial = dict(_kept)
+                _trial[_k] = _v
+                if len(json.dumps(_trial, separators=(",", ":"), default=str,
+                                  ensure_ascii=False)) <= 1500:
+                    _kept[_k] = _v
+                else:
+                    _omitted += 1
+            if _omitted:
+                _kept["_omitted_symbols"] = _omitted
+            _snap_txt = json.dumps(_kept, separators=(",", ":"), default=str, ensure_ascii=False)
 
         prompt = f"""Current market regime: {regime}
 Symbols: {', '.join(symbols)}
 
 Factor snapshot (key factors):
-{json.dumps(factor_snap, indent=2, default=str)[:800]}
+{_snap_txt}
 
 Recent strategy performance:
 {json.dumps(recent_perf, indent=2, default=str)[:400]}

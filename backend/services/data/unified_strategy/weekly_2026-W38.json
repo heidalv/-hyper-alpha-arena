@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "generated_at": "2026-09-17T15:01:34.893872+00:00",
+  "week": 38,
+  "thesis_channel": {
+    "available": true,
+    "n_outcomed": 0,
+    "hit_rate": null,
+    "by_tier": {},
+    "ic_thesis_mixed": null,
+    "ic_fused": null,
+    "ic_days": null
+  },
+  "factor_contribution": {
+    "available": true,
+    "n_factors": 351,
+    "top3": [
+      [
+        "ai_gen_vol_price_div_20",
+        0.013912
+      ],
+      [
+        "ai_gen_pin_reversal_skew",
+        0.013912
+      ],
+      [
+        "ai_gen_pin_bar_asym_rev_20",
+        0.013912
+      ]
+    ],
+    "bottom3": [
+      [
+        "ai_gen_pinbar_reversal_5",
+        -0.004001
+      ],
+      [
+        "ai_gen_pinbar_skew_rev",
+        -0.004001
+      ],
+      [
+        "ai_gen_mom_accel_ratio",
+        -0.004001
+      ]
+    ]
+  },
+  "paper_live_divergence": {
+    "available": false
+  },
+  "factors_lab": {
+    "available": true,
+    "recent_rounds": [
+      {
+        "round_ts": 1789651025.4110274,
+        "ok": true,
+        "elapsed_sec": 31.5,
+        "stats": {
+          "pass": 0,
+          "reject": 2,
+          "fail": 6
+        }
+      },
+      {
+        "round_ts": 1789651178.2922695,
+        "ok": true,
+        "elapsed_sec": 56.3,
+        "stats": {
+          "pass": 1,
+          "reject": 4,
+          "fail": 3
+        }
+      },
+      {
+        "round_ts": 1789651641.5734823,
+        "ok": true,
+        "elapsed_sec": 109.1,
+        "stats": {
+          "pass": 0,
+          "reject": 5,
+          "fail": 1
+        }
+      }
+    ],
+    "hypotheses_total": 12,
+    "hypotheses_outcomed": 7,
+    "candidates_passed": 1
+  },
+  "guidance": "正贡献因子：ai_gen_vol_price_div_20(+1.4%)、ai_gen_pin_reversal_skew(+1.4%)、ai_gen_pin_bar_asym_rev_20(+1.4%)。 拖累因子：ai_gen_pinbar_reversal_5(-0.4%)、ai_gen_pinbar_skew_rev(-0.4%)、ai_gen_mom_accel_ratio(-0.4%)。"
+}

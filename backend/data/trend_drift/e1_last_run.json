@@ -1,145 +1,207 @@
 {
-  "started_at": "2026-09-15T00:20:00.117535+00:00",
-  "as_of_bar": "2026-09-13",
+  "started_at": "2026-10-09T00:20:01.036424+00:00",
+  "as_of_bar": "2026-10-07",
   "exec_lag_days": 1,
-  "n_target_positions": 4,
-  "gross_weight": 0.5882878812408038,
+  "n_target_positions": 7,
+  "gross_weight": 0.8386690361777384,
   "targets": {
     "BTC": {
       "target": 1,
       "weight": 0.16537913531323725,
-      "stop": 74660.195,
-      "close": 76701.0,
+      "stop": 79403.905,
+      "close": 83283.7,
       "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "ETH": {
       "target": 1,
       "weight": 0.14535946242303255,
-      "stop": 2248.0299999999997,
-      "close": 2474.85,
+      "stop": 2502.075,
+      "close": 2572.88,
       "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "SOL": {
       "target": 1,
       "weight": 0.10340372721354159,
-      "stop": 94.149,
-      "close": 99.62,
+      "stop": 106.373,
+      "close": 116.23,
       "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "BNB": {
       "target": 1,
       "weight": 0.17414555629099235,
-      "stop": 693.1925,
-      "close": 717.19,
+      "stop": 729.0070000000001,
+      "close": 772.95,
       "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "XRP": {
-      "target": 0,
-      "weight": 0.0,
-      "stop": null,
-      "close": 1.3422,
-      "reason": "空仓：入场规则不成立"
+      "target": 1,
+      "weight": 0.07548250448464418,
+      "stop": 1.322825,
+      "close": 1.4155,
+      "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "DOGE": {
       "target": 0,
       "weight": 0.0,
       "stop": null,
-      "close": 0.08251,
+      "close": 0.08872,
       "reason": "空仓：入场规则不成立"
     },
     "LINK": {
-      "target": 0,
-      "weight": 0.0,
-      "stop": null,
-      "close": 11.196,
-      "reason": "空仓：本 bar 刚出场/等待下一 bar 确认"
+      "target": 1,
+      "weight": 0.07782199611607993,
+      "stop": 12.2429,
+      "close": 13.419,
+      "reason": "持有：入场规则成立且未破 Chandelier"
     },
     "AVAX": {
-      "target": 0,
-      "weight": 0.0,
-      "stop": null,
-      "close": 7.465,
-      "reason": "空仓：入场规则不成立"
+      "target": 1,
+      "weight": 0.09707665433621047,
+      "stop": 9.3761,
+      "close": 11.3,
+      "reason": "持有：入场规则成立且未破 Chandelier"
     }
   },
   "execute": true,
   "accounts": {
     "14": {
-      "equity": 4733.914851298154,
-      "sleeve_equity": 2840.35,
+      "equity": 486.93643132672355,
+      "sleeve_equity": 292.16,
       "bucket_fraction": 0.6,
       "adopted": [],
-      "e1_positions": {
-        "SOL": [
-          4664
-        ],
-        "BNB": [
-          4660
-        ],
-        "BTC": [
-          4659
-        ]
-      },
+      "e1_positions": {},
       "other_long_positions": {},
       "actions": [
-        {
-          "action": "tighten_sl",
-          "symbol": "BTC",
-          "position_id": 4659,
-          "old_sl": 72279.047335,
-          "new_sl": 74660.195
-        },
-        {
-          "action": "tighten_sl",
-          "symbol": "BNB",
-          "position_id": 4660,
-          "old_sl": 681.605644,
-          "new_sl": 693.1925
-        },
-        {
-          "action": "flat_ok",
-          "symbol": "XRP"
-        },
         {
           "action": "flat_ok",
           "symbol": "DOGE"
         },
         {
-          "action": "flat_ok",
-          "symbol": "LINK"
-        },
-        {
-          "action": "flat_ok",
-          "symbol": "AVAX"
-        },
-        {
           "action": "open",
-          "symbol": "ETH",
-          "notional": 387.39,
-          "quantity": 0.15449405178315812,
+          "symbol": "BTC",
+          "notional": 47.04,
+          "quantity": 0.0005759215844337241,
           "leverage": 5.0,
-          "sl": 2248.0299999999997,
-          "weight": 0.1364,
+          "sl": 79403.905,
+          "weight": 0.161,
           "caps": [
-            "risk_per_trade(0.0125/0.0916)"
+            "risk_per_trade(0.0075/0.0466)"
           ],
           "result": {
             "ok": true,
             "reason": null,
-            "order_id": "paper_23633"
+            "order_id": "paper_24700"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "ETH",
+          "notional": 42.47,
+          "quantity": 0.017158154245089315,
+          "leverage": 5.0,
+          "sl": 2502.075,
+          "weight": 0.1454,
+          "caps": [],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24701"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "SOL",
+          "notional": 25.84,
+          "quantity": 0.23684996332974761,
+          "leverage": 4.0,
+          "sl": 106.373,
+          "weight": 0.0884,
+          "caps": [
+            "risk_per_trade(0.0075/0.0848)"
+          ],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24702"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "BNB",
+          "notional": 38.54,
+          "quantity": 0.05239038958970004,
+          "leverage": 4.0,
+          "sl": 729.0070000000001,
+          "weight": 0.1319,
+          "caps": [
+            "risk_per_trade(0.0075/0.0569)"
+          ],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24704"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "XRP",
+          "notional": 22.05,
+          "quantity": 15.95969663975512,
+          "leverage": 4.0,
+          "sl": 1.322825,
+          "weight": 0.0755,
+          "caps": [],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24705"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "LINK",
+          "notional": 22.74,
+          "quantity": 1.7867677045573012,
+          "leverage": 4.0,
+          "sl": 12.2429,
+          "weight": 0.0778,
+          "caps": [],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24710"
+          }
+        },
+        {
+          "action": "open",
+          "symbol": "AVAX",
+          "notional": 12.87,
+          "quantity": 1.2807308915749842,
+          "leverage": 4.0,
+          "sl": 9.3761,
+          "weight": 0.0441,
+          "caps": [
+            "risk_per_trade(0.0075/0.1703)"
+          ],
+          "result": {
+            "ok": true,
+            "reason": null,
+            "order_id": "paper_24711"
           }
         }
       ],
       "drift": {
-        "trend_drift": 0,
-        "weight_drift": 2,
+        "trend_drift": 1,
+        "weight_drift": 0,
         "leverage_violations": 0,
-        "missing": [],
-        "as_of_bar": "2026-09-13",
+        "missing": [
+          "ETH"
+        ],
+        "as_of_bar": "2026-10-07",
         "extra": [],
         "wrong_side": []
       }
     }
   },
-  "elapsed_sec": 31.49
+  "elapsed_sec": 91.26
 }

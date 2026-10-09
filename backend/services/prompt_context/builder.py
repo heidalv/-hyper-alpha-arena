@@ -23,6 +23,35 @@ from .strategy_context import _build_strategy_context
 logger = logging.getLogger(__name__)
 
 
+def _display_name(meta_value: Any, symbol: str) -> str:
+    """[F371 2026-09-18] 从 symbol 元数据里取展示名，**兼容三种真实形状**。
+
+    起因（运行时实证）：`ai_decision_service.py:2279` 是
+        `active_symbol_metadata = symbol_metadata or SUPPORTED_SYMBOLS`
+    而三个实盘调用方传的分别是 `{}`（`trading_commands.py:840/1043`）、
+    `None`（`:2683`、`ai_decisions.py:234`）、或不传 ⇒ 全都落到
+    `SUPPORTED_SYMBOLS = {"BTC": "Bitcoin", …}`（**值是字符串**）。
+    旧实现写的是 `normalized_symbol_metadata.get(s, {}).get("name")` ⇒
+    对字符串调 `.get` ⇒ **AttributeError**，即 `build()` 在实盘传参下**必然抛异常**，
+    被 `call_ai_for_decision_with_fallback` 捕获后降级规则引擎
+    ⇒ 「策略主脑从不调用 LLM」这条症状在修好 P0（导入）之后**依然成立**。
+
+    现在：dict → 取 `name`；str → 直接当展示名；其它/缺失 → 回退 `SUPPORTED_SYMBOLS`。
+    这是**纯崩溃修复**（把必然异常变成原本意图），不改变任何数值/决策口径。
+    """
+    if isinstance(meta_value, dict):
+        name = meta_value.get("name")
+        if name:
+            return str(name)
+    elif isinstance(meta_value, str) and meta_value:
+        return meta_value
+    try:
+        from backend.services.ai_decision_service import SUPPORTED_SYMBOLS
+        return str(SUPPORTED_SYMBOLS.get(symbol, symbol))
+    except Exception:
+        return str(symbol)
+
+
 class PromptContextBuilder:
     """Master coordinator that assembles the final prompt context dict
     by delegating to five focused sub-builders.
@@ -92,8 +121,7 @@ class PromptContextBuilder:
         inp.ordered_symbols = ordered
         inp.normalized_symbol_metadata = self._normalize_meta(src, ordered)
         inp.symbol_display_map = {
-            s: inp.normalized_symbol_metadata.get(s, {}).get("name") or SUPPORTED_SYMBOLS.get(s, s)
-            for s in ordered
+            s: _display_name(inp.normalized_symbol_metadata.get(s), s) for s in ordered
         }
 
     @staticmethod

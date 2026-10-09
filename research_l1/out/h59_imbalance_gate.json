@@ -1,0 +1,662 @@
+{
+  "hours": 24.0,
+  "spread_mult": 0.9,
+  "maker_fee_bp": 0.0,
+  "hold_s": 30.0,
+  "summary": {
+    "买腿|G0 无条件": {
+      "n_symbols": 6,
+      "mean": -0.5953,
+      "median": -0.5211,
+      "p5": -7.0816,
+      "win": 0.44,
+      "decisions": 34548,
+      "fills": 27659,
+      "positive_symbols": 0
+    },
+    "买腿|G1 imb<=0": {
+      "n_symbols": 6,
+      "mean": -0.7283,
+      "median": -0.5813,
+      "p5": -7.1632,
+      "win": 0.4154,
+      "decisions": 19263,
+      "fills": 15879,
+      "positive_symbols": 0
+    },
+    "买腿|G2 ask_q<p50": {
+      "n_symbols": 6,
+      "mean": -0.4914,
+      "median": -0.1395,
+      "p5": -7.1258,
+      "win": 0.4569,
+      "decisions": 19893,
+      "fills": 15267,
+      "positive_symbols": 0
+    },
+    "买腿|G3 ask<p40 & bid>p40": {
+      "n_symbols": 6,
+      "mean": -0.3931,
+      "median": -0.1314,
+      "p5": -6.8823,
+      "win": 0.4748,
+      "decisions": 11845,
+      "fills": 8997,
+      "positive_symbols": 2
+    },
+    "买腿|G4 ask<p40 & bid<p50": {
+      "n_symbols": 6,
+      "mean": -0.6709,
+      "median": -0.3547,
+      "p5": -7.6275,
+      "win": 0.4436,
+      "decisions": 6637,
+      "fills": 5030,
+      "positive_symbols": 0
+    },
+    "卖腿|G0 无条件": {
+      "n_symbols": 6,
+      "mean": -0.9496,
+      "median": -0.7224,
+      "p5": -7.5563,
+      "win": 0.4023,
+      "decisions": 34548,
+      "fills": 24988,
+      "positive_symbols": 0
+    },
+    "卖腿|G1 imb>=0": {
+      "n_symbols": 6,
+      "mean": -1.0432,
+      "median": -0.8035,
+      "p5": -7.5303,
+      "win": 0.3789,
+      "decisions": 15492,
+      "fills": 11777,
+      "positive_symbols": 0
+    },
+    "卖腿|G2 bid_q<p50": {
+      "n_symbols": 6,
+      "mean": -0.8539,
+      "median": -0.5019,
+      "p5": -7.4994,
+      "win": 0.4195,
+      "decisions": 19182,
+      "fills": 13207,
+      "positive_symbols": 0
+    },
+    "卖腿|G3 bid<p40 & ask>p40": {
+      "n_symbols": 6,
+      "mean": -0.8313,
+      "median": -0.4824,
+      "p5": -7.4258,
+      "win": 0.4282,
+      "decisions": 10622,
+      "fills": 7232,
+      "positive_symbols": 0
+    },
+    "卖腿|G4 bid<p40 & ask<p50": {
+      "n_symbols": 6,
+      "mean": -0.8343,
+      "median": -0.5135,
+      "p5": -7.7011,
+      "win": 0.4163,
+      "decisions": 6002,
+      "fills": 3952,
+      "positive_symbols": 0
+    }
+  },
+  "per_symbol": {
+    "BTCUSDT": {
+      "买腿|G0 无条件": {
+        "n": 4934,
+        "mean": -0.3164,
+        "median": -0.1614,
+        "p5": -4.0406,
+        "win": 0.4668,
+        "decisions": 5758,
+        "fill_rate": 0.8569
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2959,
+        "mean": -0.5001,
+        "median": -0.3181,
+        "p5": -4.154,
+        "win": 0.4285,
+        "decisions": 3371,
+        "fill_rate": 0.8778
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2285,
+        "mean": -0.1329,
+        "median": 0.0055,
+        "p5": -3.874,
+        "win": 0.5024,
+        "decisions": 2746,
+        "fill_rate": 0.8321
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1490,
+        "mean": 0.003,
+        "median": 0.0055,
+        "p5": -3.6063,
+        "win": 0.5369,
+        "decisions": 1818,
+        "fill_rate": 0.8196
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 472,
+        "mean": -0.2552,
+        "median": -0.0378,
+        "p5": -4.1113,
+        "win": 0.4873,
+        "decisions": 560,
+        "fill_rate": 0.8429
+      },
+      "卖腿|G0 无条件": {
+        "n": 5156,
+        "mean": -0.2131,
+        "median": 0.0055,
+        "p5": -4.0113,
+        "win": 0.5219,
+        "decisions": 5758,
+        "fill_rate": 0.8954
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 2217,
+        "mean": -0.45,
+        "median": -0.1936,
+        "p5": -4.2469,
+        "win": 0.4574,
+        "decisions": 2394,
+        "fill_rate": 0.9261
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 2946,
+        "mean": -0.0812,
+        "median": 0.0055,
+        "p5": -3.8557,
+        "win": 0.5536,
+        "decisions": 3361,
+        "fill_rate": 0.8765
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 1949,
+        "mean": -0.0298,
+        "median": 0.0056,
+        "p5": -3.9015,
+        "win": 0.5752,
+        "decisions": 2241,
+        "fill_rate": 0.8697
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 445,
+        "mean": -0.242,
+        "median": 0.0055,
+        "p5": -4.1501,
+        "win": 0.5011,
+        "decisions": 520,
+        "fill_rate": 0.8558
+      }
+    },
+    "ETHUSDT": {
+      "买腿|G0 无条件": {
+        "n": 4844,
+        "mean": -0.5803,
+        "median": -0.4478,
+        "p5": -6.0313,
+        "win": 0.4232,
+        "decisions": 5758,
+        "fill_rate": 0.8413
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2899,
+        "mean": -0.6383,
+        "median": -0.5531,
+        "p5": -6.1308,
+        "win": 0.407,
+        "decisions": 3342,
+        "fill_rate": 0.8674
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2625,
+        "mean": -0.53,
+        "median": -0.4028,
+        "p5": -5.8795,
+        "win": 0.4267,
+        "decisions": 3206,
+        "fill_rate": 0.8188
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1385,
+        "mean": -0.4756,
+        "median": -0.3107,
+        "p5": -5.6034,
+        "win": 0.444,
+        "decisions": 1727,
+        "fill_rate": 0.802
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 638,
+        "mean": -0.7669,
+        "median": -0.5102,
+        "p5": -6.391,
+        "win": 0.406,
+        "decisions": 762,
+        "fill_rate": 0.8373
+      },
+      "卖腿|G0 无条件": {
+        "n": 5195,
+        "mean": -0.3565,
+        "median": -0.1771,
+        "p5": -6.0265,
+        "win": 0.4676,
+        "decisions": 5758,
+        "fill_rate": 0.9022
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 2253,
+        "mean": -0.4595,
+        "median": -0.3315,
+        "p5": -6.1154,
+        "win": 0.4443,
+        "decisions": 2417,
+        "fill_rate": 0.9321
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 2184,
+        "mean": -0.2637,
+        "median": -0.0469,
+        "p5": -6.1454,
+        "win": 0.4899,
+        "decisions": 2500,
+        "fill_rate": 0.8736
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 1144,
+        "mean": -0.1833,
+        "median": 0.0171,
+        "p5": -6.2633,
+        "win": 0.5052,
+        "decisions": 1347,
+        "fill_rate": 0.8493
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 709,
+        "mean": -0.4351,
+        "median": -0.0602,
+        "p5": -7.355,
+        "win": 0.4795,
+        "decisions": 810,
+        "fill_rate": 0.8753
+      }
+    },
+    "SOLUSDT": {
+      "买腿|G0 无条件": {
+        "n": 5050,
+        "mean": -0.2794,
+        "median": -0.4949,
+        "p5": -6.9788,
+        "win": 0.4865,
+        "decisions": 5758,
+        "fill_rate": 0.877
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2640,
+        "mean": -0.4418,
+        "median": -0.5046,
+        "p5": -7.0454,
+        "win": 0.4511,
+        "decisions": 2923,
+        "fill_rate": 0.9032
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2526,
+        "mean": -0.1654,
+        "median": 0.4035,
+        "p5": -6.9476,
+        "win": 0.5087,
+        "decisions": 2945,
+        "fill_rate": 0.8577
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1722,
+        "mean": -0.0097,
+        "median": 0.4053,
+        "p5": -6.7654,
+        "win": 0.5279,
+        "decisions": 2029,
+        "fill_rate": 0.8487
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 650,
+        "mean": -0.3244,
+        "median": 0.4072,
+        "p5": -7.727,
+        "win": 0.5185,
+        "decisions": 752,
+        "fill_rate": 0.8644
+      },
+      "卖腿|G0 无条件": {
+        "n": 3807,
+        "mean": -1.2002,
+        "median": -0.5092,
+        "p5": -8.6312,
+        "win": 0.373,
+        "decisions": 5758,
+        "fill_rate": 0.6612
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 2074,
+        "mean": -1.1672,
+        "median": -0.5091,
+        "p5": -7.9085,
+        "win": 0.3655,
+        "decisions": 2835,
+        "fill_rate": 0.7316
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 2149,
+        "mean": -1.2053,
+        "median": -0.509,
+        "p5": -8.7906,
+        "win": 0.3844,
+        "decisions": 3461,
+        "fill_rate": 0.6209
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 1366,
+        "mean": -1.2732,
+        "median": -0.524,
+        "p5": -8.8053,
+        "win": 0.3799,
+        "decisions": 2350,
+        "fill_rate": 0.5813
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 357,
+        "mean": -0.8035,
+        "median": -0.5068,
+        "p5": -8.8153,
+        "win": 0.437,
+        "decisions": 576,
+        "fill_rate": 0.6198
+      }
+    },
+    "XRPUSDT": {
+      "买腿|G0 无条件": {
+        "n": 4060,
+        "mean": -1.1574,
+        "median": -0.7988,
+        "p5": -9.4764,
+        "win": 0.3793,
+        "decisions": 5758,
+        "fill_rate": 0.7051
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2223,
+        "mean": -1.2497,
+        "median": -0.799,
+        "p5": -9.5577,
+        "win": 0.3716,
+        "decisions": 3076,
+        "fill_rate": 0.7227
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2427,
+        "mean": -1.14,
+        "median": -0.798,
+        "p5": -10.014,
+        "win": 0.3795,
+        "decisions": 3458,
+        "fill_rate": 0.7019
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1298,
+        "mean": -1.0615,
+        "median": -0.7992,
+        "p5": -9.4402,
+        "win": 0.3929,
+        "decisions": 1883,
+        "fill_rate": 0.6893
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 1015,
+        "mean": -1.1483,
+        "median": -0.7959,
+        "p5": -10.2386,
+        "win": 0.3813,
+        "decisions": 1423,
+        "fill_rate": 0.7133
+      },
+      "卖腿|G0 无条件": {
+        "n": 4083,
+        "mean": -0.9761,
+        "median": -0.7793,
+        "p5": -9.4409,
+        "win": 0.408,
+        "decisions": 5758,
+        "fill_rate": 0.7091
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 1976,
+        "mean": -1.0454,
+        "median": -0.7953,
+        "p5": -9.4911,
+        "win": 0.3922,
+        "decisions": 2686,
+        "fill_rate": 0.7357
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 2125,
+        "mean": -0.8539,
+        "median": -0.7752,
+        "p5": -9.1685,
+        "win": 0.4184,
+        "decisions": 3027,
+        "fill_rate": 0.702
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 889,
+        "mean": -0.8128,
+        "median": -0.7627,
+        "p5": -8.3756,
+        "win": 0.4229,
+        "decisions": 1286,
+        "fill_rate": 0.6913
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 924,
+        "mean": -0.6805,
+        "median": -0.735,
+        "p5": -9.096,
+        "win": 0.4307,
+        "decisions": 1285,
+        "fill_rate": 0.7191
+      }
+    },
+    "DOGEUSDT": {
+      "买腿|G0 无条件": {
+        "n": 4996,
+        "mean": -0.3954,
+        "median": -0.6147,
+        "p5": -9.833,
+        "win": 0.4866,
+        "decisions": 5758,
+        "fill_rate": 0.8677
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2743,
+        "mean": -0.6536,
+        "median": -0.6422,
+        "p5": -9.9926,
+        "win": 0.451,
+        "decisions": 3019,
+        "fill_rate": 0.9086
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2454,
+        "mean": -0.1764,
+        "median": 0.5052,
+        "p5": -10.0587,
+        "win": 0.5155,
+        "decisions": 2928,
+        "fill_rate": 0.8381
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1675,
+        "mean": 0.0685,
+        "median": 0.5156,
+        "p5": -9.5472,
+        "win": 0.5427,
+        "decisions": 2034,
+        "fill_rate": 0.8235
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 634,
+        "mean": -0.6909,
+        "median": -0.6284,
+        "p5": -11.3886,
+        "win": 0.4621,
+        "decisions": 734,
+        "fill_rate": 0.8638
+      },
+      "卖腿|G0 无条件": {
+        "n": 3666,
+        "mean": -1.6342,
+        "median": -1.7252,
+        "p5": -10.9449,
+        "win": 0.3582,
+        "decisions": 5758,
+        "fill_rate": 0.6367
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 1934,
+        "mean": -1.7883,
+        "median": -1.7711,
+        "p5": -10.8813,
+        "win": 0.3433,
+        "decisions": 2739,
+        "fill_rate": 0.7061
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 2117,
+        "mean": -1.5193,
+        "median": -0.6484,
+        "p5": -10.9608,
+        "win": 0.3751,
+        "decisions": 3596,
+        "fill_rate": 0.5887
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 1529,
+        "mean": -1.5031,
+        "median": -0.648,
+        "p5": -11.1386,
+        "win": 0.3676,
+        "decisions": 2674,
+        "fill_rate": 0.5718
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 420,
+        "mean": -1.5552,
+        "median": -0.6495,
+        "p5": -10.6568,
+        "win": 0.3714,
+        "decisions": 687,
+        "fill_rate": 0.6114
+      }
+    },
+    "BNBUSDT": {
+      "买腿|G0 无条件": {
+        "n": 3775,
+        "mean": -0.8431,
+        "median": -0.609,
+        "p5": -6.1295,
+        "win": 0.3976,
+        "decisions": 5758,
+        "fill_rate": 0.6556
+      },
+      "买腿|G1 imb<=0": {
+        "n": 2415,
+        "mean": -0.8862,
+        "median": -0.6708,
+        "p5": -6.0985,
+        "win": 0.3834,
+        "decisions": 3532,
+        "fill_rate": 0.6837
+      },
+      "买腿|G2 ask_q<p50": {
+        "n": 2950,
+        "mean": -0.8038,
+        "median": -0.5505,
+        "p5": -5.9808,
+        "win": 0.4085,
+        "decisions": 4610,
+        "fill_rate": 0.6399
+      },
+      "买腿|G3 ask<p40 & bid>p40": {
+        "n": 1427,
+        "mean": -0.8834,
+        "median": -0.6049,
+        "p5": -6.3315,
+        "win": 0.4043,
+        "decisions": 2354,
+        "fill_rate": 0.6062
+      },
+      "买腿|G4 ask<p40 & bid<p50": {
+        "n": 1621,
+        "mean": -0.8399,
+        "median": -0.563,
+        "p5": -5.9084,
+        "win": 0.4065,
+        "decisions": 2406,
+        "fill_rate": 0.6737
+      },
+      "卖腿|G0 无条件": {
+        "n": 3081,
+        "mean": -1.3176,
+        "median": -1.1491,
+        "p5": -6.283,
+        "win": 0.2853,
+        "decisions": 5758,
+        "fill_rate": 0.5351
+      },
+      "卖腿|G1 imb>=0": {
+        "n": 1323,
+        "mean": -1.3489,
+        "median": -1.2207,
+        "p5": -6.5384,
+        "win": 0.2706,
+        "decisions": 2421,
+        "fill_rate": 0.5465
+      },
+      "卖腿|G2 bid_q<p50": {
+        "n": 1686,
+        "mean": -1.2001,
+        "median": -1.0376,
+        "p5": -6.0752,
+        "win": 0.2954,
+        "decisions": 3237,
+        "fill_rate": 0.5209
+      },
+      "卖腿|G3 bid<p40 & ask>p40": {
+        "n": 355,
+        "mean": -1.1855,
+        "median": -0.9821,
+        "p5": -6.0706,
+        "win": 0.3183,
+        "decisions": 724,
+        "fill_rate": 0.4903
+      },
+      "卖腿|G4 bid<p40 & ask<p50": {
+        "n": 1097,
+        "mean": -1.2895,
+        "median": -1.1349,
+        "p5": -6.1336,
+        "win": 0.278,
+        "decisions": 2124,
+        "fill_rate": 0.5165
+      }
+    }
+  }
+}

@@ -24,7 +24,7 @@ import random
 import threading
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from backend.services.exchange.base_exchange_client import ExchangeTrade
 from backend.services.market_flow.base_collector import BaseMarketFlowCollector
@@ -34,6 +34,23 @@ from backend.services.symbol_normalizer import normalize_symbol
 logger = logging.getLogger(__name__)
 
 ASTERDEX_FUTURES_URL = "https://fapi.asterdex.com"
+
+
+def diff_new_symbols(current: Sequence[str], resolved: Sequence[str]) -> List[str]:
+    """[h653b] 新增订阅 = 解析结果 − 当前订阅(并集语义:只加不减,F332 教训)。
+
+    去掉的币不取消订阅——它们的轮询继续跑(其它消费者可能还需要,且
+    F332 已证:替换式刷新会在清单抖动时制造人为缺口)。
+    """
+    cur = {str(s).upper() for s in current if s}
+    seen = set()
+    out: List[str] = []
+    for s in resolved:
+        u = str(s or "").upper()
+        if u and u not in cur and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
 
 
 class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
@@ -157,11 +174,58 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
             tasks.append(asyncio.create_task(self._staggered(self._poll_trades_loop, sym, stagger)))
             tasks.append(asyncio.create_task(self._staggered(self._poll_orderbook_loop, sym, stagger + 1.0)))
             tasks.append(asyncio.create_task(self._staggered(self._poll_asset_metrics_loop, sym, stagger + 2.0)))
-        
+
+        # [h653b 2026-09-30 用户指令] 宇宙换币时数据管道必须**同时**接入新币的实时盘口，
+        # 不能"用旧的或根本没有"。本任务周期性重解析车道宇宙(lane_registry.meta.symbols),
+        # 为新币动态加订 trades/orderbook/asset_metrics 三条轮询(并集,不取消旧订阅)——
+        # 换币后无需重启 DC,新币快照在 1~2 分钟内到位。
+        self._dynamic_tasks: List[asyncio.Task] = []
+
+        async def _refresh_subscriptions() -> None:
+            # [h663 审计#4 修复] 必须有退出条件:stop() 置 running=False 后本协程
+            # 必须返回,否则 gather 永不返回 ⇒ finally 的 cancel/close 永不执行,
+            # 重启后旧任务复活(每次换币叠加一套轮询)。解析也必须在 try 内,
+            # 非数字 env 杀死协程会被 gather 静默吞掉(#7)。
+            while self.running:
+                try:
+                    _sec = float(os.getenv("MARKET_FLOW_SYMBOL_REFRESH_SEC", "60") or 60)
+                    _sec = max(15.0, _sec)     # 正数钳制:负值/0 会造成 DB 热循环
+                except (TypeError, ValueError):
+                    _sec = 60.0
+                await asyncio.sleep(_sec)
+                if not self.running:
+                    return
+                try:
+                    from backend.services.market_data_symbol_config import lane_symbols
+                    lane_syms, _srcs = lane_symbols(statuses=("active",))
+                    resolved = [s for s in lane_syms if s] or []
+                except Exception as e:
+                    logger.warning("[asterdex] 订阅符号刷新失败(下轮重试): %s", e)
+                    continue
+                new = diff_new_symbols(list(getattr(self, "subscribed_symbols", []) or []), resolved)
+                if not new:
+                    continue
+                for sym in new:
+                    self.subscribed_symbols.append(sym)
+                    self.trade_buffers.setdefault(sym, self._new_buffer())
+                    _idx = len(self.subscribed_symbols)
+                    _stagger = (_idx % 6) * 0.8 + random.random() * 0.6
+                    self._dynamic_tasks.append(asyncio.create_task(
+                        self._staggered(self._poll_trades_loop, sym, _stagger)))
+                    self._dynamic_tasks.append(asyncio.create_task(
+                        self._staggered(self._poll_orderbook_loop, sym, _stagger + 1.0)))
+                    self._dynamic_tasks.append(asyncio.create_task(
+                        self._staggered(self._poll_asset_metrics_loop, sym, _stagger + 2.0)))
+                logger.info("[asterdex] 订阅符号刷新 +%s(宇宙跟随,无需重启 DC)", new)
+
+        tasks.append(asyncio.create_task(_refresh_subscriptions()))
+
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
         finally:
             for t in tasks:
+                t.cancel()
+            for t in getattr(self, "_dynamic_tasks", []) or []:
                 t.cancel()
 
     @staticmethod
@@ -200,15 +264,60 @@ class AsterdexMarketFlowCollector(BaseMarketFlowCollector):
             logger.error("[asterdex] 轮询协程 %s 提前退出: %s", symbol, e)
 
     async def _wait_global_ban(self) -> None:
-        """[2026-08-04 修复] 接入 kline_collectors 进程级全局限流封禁。
+        """[F334 2026-09-22] 轮询前向**共享限流器申请额度**，并等待全局冷却。
 
-        Asterdex 2400 req/min 是整 IP 共享的。任一组件（P0/P1/P2/depth/
-        market_flow）命中 429/418 都会触发全局冷却（默认 180s）。market_flow
-        在冷却期内也必须停手，否则自己 120s 退避后恢复发包会继续撞窗口，
-        拖慢整 IP 的恢复。这里每轮轮询前检查全局冷却，未过则等待。
+        ══ 事故：market_flow 只"读"冷却状态，不"申请"额度 ══
+
+        实测（`market_data_gaps` + `logs/data-center.log`）：
+
+          `market_orderbook_snapshots`（**引擎 fetch_market 的输入**）出现多币
+          **同时**中断，例如
+              `04:19 → 04:54   LINK / ICP / AVAX / ONDO / AR   五个币同时缺 35 分钟`
+          同期日志里 Asterdex REST 大面积限流：
+              `[asterdex] BULLA/1m batch failed: binanceusdm GET fapi.asterdex.com/... 限流`
+              `[DepthBackfill] ICP/5m@asterdex 失败: [asterdex] 历史回填限流`
+
+        **多个币同时停 ⇒ 不是单币问题，是共享出口被限流。**
+
+        根因：Asterdex 的 REST 配额是**整 IP 共享**的，
+        `_AsterdexRateLimiter` 就是为此设的（其 docstring 明写
+        "供 market_flow 等独立组件检查"）。但 market_flow 此前**只调用
+        `banned_remaining()` 读冷却**、**从不调用 `wait()` 申请额度**
+        ⇒ 它的请求**不占窗口预算**，可以毫无约束地撞满配额，
+        把 kline / depth_backfill 一起拖进 429/418。
+
+        # 修法
+
+        每轮请求前 `_AsterdexRateLimiter.wait(bucket)` —— 与 kline 采集器
+        走同一把闸，从而**真正实现"全链路共享一个配额"**。
+        走 `live` 桶（与短线采集同级）；`wait()` 在冷却期内会抛
+        `ExchangeRateLimitError`，本函数接住并转为等待，语义与原先一致。
+
+        ⚠️ 代价：market_flow 会变慢（受 `KLINE_REQUEST_INTERVAL_SEC` 约束），
+        盘口快照的采样间隔会拉长。这是**有意的取舍** ——
+        宁可比现在稀一点、但不再把整条链路撞进封禁。
         """
         from backend.services.kline_collectors import _AsterdexRateLimiter
         while self.running:
+            # ① 先申请共享额度（离开冷却期后才会真正放行）
+            #
+            # ⚠️⚠️ 必须走 `asyncio.to_thread`！
+            # `_AsterdexRateLimiter.wait()` 是**同步阻塞**的：
+            #   · 取 `cls._lock`（threading.Lock）
+            #   · 额度耗尽时 `time.sleep(wait_s)`，最长 60 秒
+            # 而本方法是 **async**、运行在事件循环线程里。
+            # 直接在协程里调用 ⇒ **整个事件循环被冻住最多 60 秒** ⇒
+            # 该进程所有协程（本币与所有其它币的轮询、心跳、超时处理）
+            # 一起停摆 —— 比修复前的"撞限流"更糟。
+            #
+            # 用 `to_thread` 把阻塞调用挪到线程池：额度充足时几乎无开销
+            # （`time.sleep(0)` 不调用），额度耗尽时才真正让出事件循环。
+            try:
+                await asyncio.to_thread(_AsterdexRateLimiter.wait, "live")
+            except Exception:
+                # 冷却中：wait 会抛 ExchangeRateLimitError，转到下面的等待
+                pass
+            # ② 仍在冷却 ⇒ 等；否则放行
             rem = _AsterdexRateLimiter.banned_remaining()
             if rem <= 0:
                 return

@@ -13,8 +13,11 @@
      → 冷却到次日；
   3. 状态落盘 data/midlong_circuit_state.json（重启不丢，沿 short_tier 惯例）。
 
-P1.5：MIDLONG_OPEN_SHORT_ENABLED=false（默认）暂停 mid/long 新开空头
-（mid 空头 30 天 -601 是最差象限；多头 +276 唯一健康）。
+P1.5：MIDLONG_OPEN_SHORT_ENABLED 是 mid/long 新开空头的**总开关**：
+false=off（全停），true=按 MIDLONG_SHORT_MODE 的策略放行（默认 regime_gated）。
+[2026-09-27 用户指令] 撤销「不做空」封锁：用户明确「交易是周期性的，趋势转空还一直
+做多等于自杀」「之前就命令禁止这个行为、让解开，不许有这个限制」——空头必须重新可用，
+方向由 regime 决定（up 做多 / down 做空），而不是单边焊死。
 """
 from __future__ import annotations
 
@@ -27,6 +30,28 @@ from typing import Dict, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # ── 配置（env 直读，免 settings 循环依赖；settings 可后续透传）──
+def _short_regime_probe_allow() -> bool:
+    """用户授权开关：非下行 regime 时空头有界放行（.env 直读兜底）。"""
+    import os as _os_r
+
+    v = _os_r.getenv("MIDLONG_SHORT_REGIME_PROBE_ALLOW")
+    if v is None or str(v).strip() == "":
+        try:
+            from pathlib import Path as _P
+
+            for _cand in (_P(__file__).resolve().parents[3] / ".env", _P.cwd() / ".env"):
+                if not _cand.exists():
+                    continue
+                for _line in _cand.read_text(encoding="utf-8", errors="replace").splitlines():
+                    _s = _line.strip()
+                    if _s.startswith("MIDLONG_SHORT_REGIME_PROBE_ALLOW="):
+                        v = _s.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return str(v if v is not None else "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+
 def _env_f(name: str, default: float) -> float:
     try:
         return float(os.getenv(name, str(default)) or default)
@@ -46,11 +71,14 @@ SHORT_OPEN_ENABLED = _env_b("MIDLONG_OPEN_SHORT_ENABLED", False)
 
 
 def _short_mode() -> str:
-    """mid 空头模式（2026-09-09 二次修订）：
+    """mid 空头模式（2026-09-09 二次修订；2026-09-27 总开关语义修正）：
 
-      - **regime_gated（默认）**：只在**日线确认下行趋势**时允许开空
+      - **总开关**：`MIDLONG_OPEN_SHORT_ENABLED=false` → 返回 `off`（全停，历史
+        「禁止做空」封锁位，2026-09-27 用户指令已撤销该封锁）；`true` → 按
+        `MIDLONG_SHORT_MODE` 的策略放行。
+      - `regime_gated`（默认）：只在**日线确认下行趋势**时允许开空
         （收盘价 < EMA200 且 60 日动量 < -5%）；同时在该 regime 下**禁止做多**。
-      - `off`：全停（上一版的机械做法，已被实测否决）。
+      - `off`：全停（显式选择才用，不再是默认语义）。
       - `conditional`：旧口径（4h 偏空 或 24h 跌≥2%）——实测是追跌条件，净失血。
       - `on`：无条件放行（调试用）。
 
@@ -67,7 +95,9 @@ def _short_mode() -> str:
     | down | short-14d | 8899 | **+0.618** | 0.542 | **+4.09** |
 
     即"能不能做空"完全取决于 regime：**下行 regime 里做空是正边际（t=+4.09）**，
-    上行 regime 里做空是负边际（t=-4.11）。
+    上行 regime 里做空是负边际（t=-4.11）。单边禁止做空 = 把下行趋势里 t=+4.09
+    的正边际连同上行里的负边际一起扔了；交易是周期性的，趋势反转时只能做多的
+    系统会结构性裸奔。
 
     用真实成交验证（`_audit_ml/N4_gate.py` / `N5_variants.py`，281 笔 mid/long 平仓）：
 
@@ -81,16 +111,41 @@ def _short_mode() -> str:
     **down-regime 的 46 笔空头合计 +2.33（净正）**——全停等于把这部分正贡献也砍了。
     regime 门比全停再改善 +21.32，同时保留了趋势反转时的做空能力。
 
-    回滚：`MIDLONG_SHORT_MODE=off`（回到机械全停）或 `=conditional`（旧口径）。
+    回滚：`MIDLONG_SHORT_MODE=off`（机械全停）或 `=conditional`（旧口径）。
     """
-    if SHORT_OPEN_ENABLED:
-        return "on"
+    if not SHORT_OPEN_ENABLED:
+        return "off"
     return (os.getenv("MIDLONG_SHORT_MODE", "regime_gated") or "regime_gated").strip().lower()
 
 
 # ── 日线 regime（EMA200 + 60 日动量）缓存：symbol -> (ts, regime) ──
 _DAILY_REGIME_CACHE: Dict[str, tuple] = {}
-_DAILY_REGIME_TTL_S = 1800.0  # 日线 regime 半小时刷新一次足够
+
+
+def _regime_ttl_s() -> float:
+    """日线 regime 缓存 TTL（秒）。
+
+    [2026-09-24 R2] 从硬编码 1800 改为可配，默认仍 1800（不改默认行为）。
+
+    依据（`scripts/audit_regime_lag_quant_20260924.py` + 实测，2026-09-24）：
+      ① 日线表**包含正在形成的当日 bar，其 close = 最新价**——实测 8 个主流币的
+         1d(08:00) close 与当前 1h close 差异仅 **0.000%~0.235%** ⇒ **日线源不是滞后源**；
+      ② 让"实时价"参与 regime，比"只用已收盘日线"平均早 **中位 14 小时**给出同一标签
+         （28 币：BTC 24h / ETH 15h / SOL 20h / XRP 19h / AVAX 20h …），
+         而本函数读的正是含形成中 bar 的序列 ⇒ **这 14h 我们已经拿到了**；
+      ③ 因此剩下的**运行性滞后只有这个 TTL 本身**（最多 30 分钟），把它降到 600s
+         即最多再省 20 分钟，代价是每 10 分钟一次 260 根日线的聚合查询（10 币量级，可忽略）。
+      ④ 注意：结构性滞后（中位 **65 小时**）与本 TTL 无关，降 TTL 不会让 regime 更早翻向
+         ——真实转折后日线 regime 翻 down 的中位时延就是 65h（见脚本 [2]）。
+    回滚：`MIDLONG_REGIME_TTL_S=1800`（或删掉该键 = 恢复旧默认）。
+    """
+    try:
+        return max(60.0, float(os.getenv("MIDLONG_REGIME_TTL_S", "1800") or 1800))
+    except (TypeError, ValueError):
+        return 1800.0
+
+
+_DAILY_REGIME_TTL_S = 1800.0  # 兼容旧引用（实际以 _regime_ttl_s() 为准）
 
 
 def _daily_regime(symbol: str) -> str:
@@ -106,7 +161,7 @@ def _daily_regime(symbol: str) -> str:
         return ""
     now = time.time()
     row = _DAILY_REGIME_CACHE.get(sym)
-    if row and now - row[0] < _DAILY_REGIME_TTL_S:
+    if row and now - row[0] < _regime_ttl_s():
         return row[1]
     try:
         from backend.services.kline_data_service import kline_service
@@ -523,6 +578,10 @@ def check_midlong_entry(
     （收盘<EMA200 且 60 日动量<-5%）允许开空（down 空头按 `MIDLONG_DOWN_SHORT_MODE`
     三条件 learned 准入）。off/conditional/on 保留为回滚档。
 
+    [2026-09-27 用户指令] 撤销「禁止做空」封锁：空头总开关
+    `MIDLONG_OPEN_SHORT_ENABLED` 必须为 true（部署 .env 已改），方向由 regime 决定；
+    false 只作为显式回滚位（off）保留。
+
     [2026-09-09 第十六轮] 多头独立治理（`MIDLONG_LONG_MODE`，默认 learned）：
     down 拦 + up 需 chg24≥3% + chop 需 pos24≥60% 且 chg24≥2%（见 `_long_mode`）。
 
@@ -539,6 +598,30 @@ def check_midlong_entry(
         _load()
         side_l = (side or "").lower()
         _sym_u = (symbol or "").upper()
+        # ── [2026-09-29 全面执行] P2+P3 入场边际闸（edge_gate），仅 mid 层 ──
+        if str(tier or "").strip().lower() == "mid":
+            try:
+                from backend.services.full_auto.edge_gate import (
+                    check_edge_entry as _edge_check, check_book_guard as _book_check,
+                )
+                _epx = None
+                try:
+                    _ms = (market_summary or {}).get(_sym_u) or (market_summary or {}).get(symbol)
+                    if isinstance(_ms, dict):
+                        for _k in ("price", "mark_price", "last_price", "current_price", "close"):
+                            if _ms.get(_k):
+                                _epx = float(_ms[_k])
+                                break
+                except Exception:
+                    _epx = None
+                _ok_e, _why_e = _edge_check(account_id, _sym_u, side_l, tier, entry_price=_epx)
+                if not _ok_e:
+                    return False, _why_e
+                _ok_b, _why_b = _book_check(account_id, side_l, tier)
+                if not _ok_b:
+                    return False, _why_b
+            except Exception as _edge_err:
+                logger.warning("[MidCircuit] edge_gate 异常(fail-open): %s", _edge_err)
         # paper 探针开关：与亏损锁禁用同一判据（模拟账户）
         try:
             from backend.services.risk_management.loss_lock_policy import loss_locks_disabled as _lld
@@ -548,7 +631,10 @@ def check_midlong_entry(
         if side_l in ("sell", "short"):
             _mode = _short_mode()
             if _mode == "off":
-                return False, "midlong_short_off: mid空头全停(MIDLONG_SHORT_MODE=off)"
+                return False, (
+                    "midlong_short_off: mid/long 空头总开关关闭"
+                    "(MIDLONG_OPEN_SHORT_ENABLED=false 或 MIDLONG_SHORT_MODE=off)"
+                )
             # [2026-09-08] 日内波段(short 档)豁免下行证据闸：日内空是均值回归/超买摸顶，
             # 等 4h 趋势确认就错过了；主脑 accepted 空头论题本身就是证据。
             # 熔断闸（连亏3→12h+日亏帽）在下方照常生效托底。
@@ -560,10 +646,15 @@ def check_midlong_entry(
                         "midlong_short_regime_unknown: 日线 regime 不可判（数据不足），"
                         "mid/long 空头 fail-closed"
                     )
-                if _reg != "down":
+                if _reg != "down" and not _short_regime_probe_allow():
                     return False, (
                         f"midlong_short_regime_block: 日线 regime={_reg}（非下行），"
                         f"mid/long 空头仅在下行趋势放行"
+                    )
+                if _reg != "down":
+                    logger.info(
+                        "[RegimeShort] 用户授权有界放行: regime=%s 非下行空头继续（开关 MIDLONG_SHORT_REGIME_PROBE_ALLOW）",
+                        _reg,
                     )
                 # [第十五轮] down-regime 空头按模式准入：
                 #   learned（默认）：分位≥60% + RSI∈[55,80] + chg24≤-1%

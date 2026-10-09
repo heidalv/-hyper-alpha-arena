@@ -1321,6 +1321,26 @@ def _build_prompt_context(
                                  f"请重点评估该方向的入场机会，除非你有充分理由反对。")
             lines.append("")
 
+        # [2026-09-17 统一策略修复·断点6] 因子×AI融合判决此前塞进 trigger_context
+        # 但本函数从不读取（只作事后 veto）——LLM 与融合判断擦肩而过。现注入 prompt。
+        fusion_vs = trigger_context.get("fusion_verdicts") or {}
+        if fusion_vs:
+            lines.append("")
+            lines.append("=== FACTOR-AI FUSION VERDICTS (因子融合判决) ===")
+            lines.append("量化因子引擎与AI编排的融合判决（参考依据；与你方向一致可增强信心，"
+                         "相反时请在理由中明确回应）：")
+            for _fsym, _fv in list(fusion_vs.items())[:6]:
+                if not isinstance(_fv, dict):
+                    continue
+                lines.append(
+                    f"  {_fsym}: action={_fv.get('action', 'N/A')} "
+                    f"direction={_fv.get('signal_direction', 'N/A')} "
+                    f"strength={_fv.get('signal_strength', 0)} "
+                    f"confidence={_fv.get('confidence', 0):.2f} "
+                    f"regime={_fv.get('regime', 'N/A')}"
+                )
+            lines.append("")
+
         # 情报系统数据（来自 strategy_coordinator 注入）
         intelligence = trigger_context.get("intelligence")
         if intelligence:

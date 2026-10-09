@@ -232,6 +232,8 @@ def _read_exit_state_flags(db, position: Dict[str, Any]) -> Dict[str, bool]:
     $9 尘埃仓，随后 401 次被 min_notional 拒绝）。
     """
     out = {"dd_halve_done": False, "target_halve_done": False, "early_np_done": False}
+    # [2026-09-24 用户指令] 分档止盈幂等标记（list，不是 bool）：[1,2,3] 表示 8/15/25% 档已触发
+    out["staged_tp_done"] = []
     raw = None
     try:
         _pid = int(position.get("id") or 0)
@@ -253,8 +255,14 @@ def _read_exit_state_flags(db, position: Dict[str, Any]) -> Dict[str, bool]:
         import json as _json
         d = _json.loads(raw) if isinstance(raw, str) and raw else (raw if isinstance(raw, dict) else {})
         if isinstance(d, dict):
-            for k in out:
+            for k in ("dd_halve_done", "target_halve_done", "early_np_done"):
                 out[k] = bool(d.get(k))
+            try:
+                _st = d.get("staged_tp_done")
+                if isinstance(_st, (list, tuple)):
+                    out["staged_tp_done"] = [int(x) for x in _st if str(x).strip().isdigit()]
+            except Exception:
+                out["staged_tp_done"] = []
     except Exception:
         pass
     return out
@@ -376,6 +384,21 @@ def entry_signal(symbol: str, market_summary: Optional[dict] = None) -> Dict[str
     }
 
 
+def _manage_always_enabled() -> bool:
+    """[2026-09-24 用户指令] **存量仓管理不受入场闸影响**（`LONG_V2_MANAGE_ALWAYS`，默认 true）。
+
+    根因：`manage_long_position` 首行 `if not long_v2_enabled(): return hold`，而
+    `long_v2_enabled()` 读的是**入场闸** `LONG_TREND_V2`（.env=0，且 MIDLONG_BRAIN_MODE
+    下再被静默否决）⇒ 该函数对任何长线仓永远返回 "v2 未启用"，
+    配合 paper 引擎对趋势车道跳过全部中短线保护（轮99）⇒ 长线仓实际**无人管理**
+    （无 Chandelier 上移 / 无保本 / 无锁利 / 无分档止盈 / 无极端回撤），只剩硬止损。
+    这正是用户反馈的"长线从来没有止盈、从没生效"。
+    本开关把"**管理存量仓**"与"**是否允许新开仓**"解耦：入场闸只管入场。
+    回滚：.env 置 LONG_V2_MANAGE_ALWAYS=false。
+    """
+    return str(os.getenv("LONG_V2_MANAGE_ALWAYS", "true")).strip().lower() in ("1", "true", "yes", "on")
+
+
 def manage_long_position(
     db, *, account_id: int, position: Dict[str, Any],
     market_summary: Optional[dict] = None,
@@ -387,7 +410,7 @@ def manage_long_position(
 
     返回 {"action": hold/tighten_sl/add/close, "reason": ..., "new_sl": ...}。
     """
-    if not long_v2_enabled():
+    if not long_v2_enabled() and not _manage_always_enabled():
         return {"action": "hold", "reason": "v2 未启用"}
 
     sym = str(position.get("symbol") or "").upper()
@@ -511,4 +534,5 @@ def manage_long_position(
         entry_price=entry, peak_pnl_pct=_peak_pct,
         dd_halve_done=_dd_halve_done, target_halve_done=_target_halve_done,
         early_np_done=_early_np_done,
+        staged_tp_done=_flags.get("staged_tp_done") or [],
     )

@@ -1,0 +1,9 @@
+{
+  "hours": 6.0,
+  "w": 60.0,
+  "thr": 30.0,
+  "min_gap": 300.0,
+  "n_events_dedup": 36,
+  "n_events_raw_h242": 9522,
+  "n_baseline": 15998
+}

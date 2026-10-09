@@ -1,0 +1,123 @@
+{
+  "samples": 20,
+  "events": {
+    "无标记": [
+      {
+        "sym": "XRP",
+        "d": 4,
+        "prev_age": 124.6,
+        "cur_age": 184.6,
+        "prev_teb": 1432,
+        "iso": "2026-09-29T02:34:03"
+      },
+      {
+        "sym": "XRP",
+        "d": 4,
+        "prev_age": 184.6,
+        "cur_age": 244.6,
+        "prev_teb": 1436,
+        "iso": "2026-09-29T02:35:03"
+      },
+      {
+        "sym": "XRP",
+        "d": 4,
+        "prev_age": 244.6,
+        "cur_age": 304.6,
+        "prev_teb": 1440,
+        "iso": "2026-09-29T02:36:03"
+      },
+      {
+        "sym": "BNB",
+        "d": 1,
+        "prev_age": 46.9,
+        "cur_age": 106.9,
+        "prev_teb": 14549,
+        "iso": "2026-09-29T02:46:03"
+      }
+    ],
+    "P1": [
+      {
+        "sym": "ARB",
+        "d": 1,
+        "prev_age": 11.5,
+        "cur_age": 71.4,
+        "prev_teb": 865,
+        "iso": "2026-09-29T02:36:03"
+      },
+      {
+        "sym": "ARB",
+        "d": 4,
+        "prev_age": 71.4,
+        "cur_age": 131.4,
+        "prev_teb": 866,
+        "iso": "2026-09-29T02:37:03"
+      },
+      {
+        "sym": "ARB",
+        "d": 3,
+        "prev_age": 33.6,
+        "cur_age": 93.6,
+        "prev_teb": 870,
+        "iso": "2026-09-29T02:44:03"
+      },
+      {
+        "sym": "ARB",
+        "d": 4,
+        "prev_age": 93.6,
+        "cur_age": 153.6,
+        "prev_teb": 873,
+        "iso": "2026-09-29T02:45:03"
+      },
+      {
+        "sym": "ARB",
+        "d": 3,
+        "prev_age": 153.6,
+        "cur_age": 213.6,
+        "prev_teb": 877,
+        "iso": "2026-09-29T02:46:03"
+      },
+      {
+        "sym": "ARB",
+        "d": 4,
+        "prev_age": 213.6,
+        "cur_age": 273.6,
+        "prev_teb": 880,
+        "iso": "2026-09-29T02:47:03"
+      },
+      {
+        "sym": "ENA",
+        "d": 2,
+        "prev_age": 25.9,
+        "cur_age": 85.9,
+        "prev_teb": 774,
+        "iso": "2026-09-29T02:51:03"
+      },
+      {
+        "sym": "ENA",
+        "d": 4,
+        "prev_age": 85.9,
+        "cur_age": 145.9,
+        "prev_teb": 776,
+        "iso": "2026-09-29T02:52:03"
+      }
+    ],
+    "P45": []
+  },
+  "summary": {
+    "无标记": {
+      "n": 4,
+      "prev_age_min": 46.9,
+      "prev_age_med": 154.6,
+      "cur_age_min": 106.9,
+      "cur_age_med": 214.6
+    },
+    "P1": {
+      "n": 8,
+      "prev_age_min": 11.5,
+      "prev_age_med": 78.65,
+      "cur_age_min": 71.4,
+      "cur_age_med": 138.65
+    }
+  },
+  "verdict": "⇒ **夹逼不紧**：阈值 ∈ (47, 107] s，下界 47s 无法排除 90、上界 107s 无法确认 45 ⇒ 60s 采样 + 15s tick 的分辨率不足。改用 scripts/h480_side_block_probe.py（15s 采样 + 直接看加仓侧是否被撤）"
+}

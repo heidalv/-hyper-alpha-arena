@@ -84,8 +84,21 @@ def ai_governed_weight() -> float:
     """当前灰度权重档位（0.40 / 0.60 / 1.0）。"""
     return _AI_GOVERNED_WEIGHT
 
-WEIGHTS_MID: Dict[str, float] = {
-    "orch_mid_bias": 0.12,        # was 0.22（规则权威降级）
+def _factor_anchor_weight() -> float:
+    """[F367] 因子锚的权重（名字带周期后缀，无法在权重表里穷举）。
+
+    默认 0.08：与 `quant_alignment`(0.12~0.18) / `feedback_loop`(0.03~0.08) 同量级，
+    体现"它是 quant 来源、置信度 0.5 的辅助锚，不是主方向来源"。
+    **这是建模选择**，故给 env 旋钮 `MLTO_FACTOR_ANCHOR_WEIGHT`，置 0 即等于关闭该锚。
+    仅在 `FEATURE_MIDLONG_FACTOR_ANCHOR_ENABLED=1` 时才可能有该信号 ⇒ 默认无影响。
+    """
+    try:
+        return max(0.0, float(os.getenv("MLTO_FACTOR_ANCHOR_WEIGHT", "0.08") or 0.08))
+    except Exception:
+        return 0.08
+
+
+WEIGHTS_MID: Dict[str, float] = {    "orch_mid_bias": 0.12,        # was 0.22（规则权威降级）
     "quant_alignment": 0.18,
     "entry_timing": 0.20,
     "thesis_health": 0.15,
@@ -180,6 +193,23 @@ def _open_thresholds(tier: str, mode: Optional[str] = None) -> Dict[str, float]:
     return OPEN_THRESHOLDS.get(tier, OPEN_THRESHOLDS["mid"])
 
 
+def _base_weight_for(name: str, weights: Dict[str, float]) -> float:
+    """[F367] 单个信号的**基础权重**解析（抽出来是为了可单测）。
+
+    三条规则：
+      1. 在 `WEIGHTS_MID/WEIGHTS_LONG` 里登记过的 → 用登记值；
+      2. **因子锚**（`factor_anchor_<period>`）名字带周期后缀、无法穷举登记 → 前缀识别，
+         用 `_factor_anchor_weight()`（env 可调）。此前没有这条 ⇒ 落到规则 3 的 0.01 兜底，
+         于是"打开锚点开关也几乎不影响 composite"（算了没人读）。
+      3. 其余未登记信号 → 0.01 兜底（保持既有语义，不扩大改动面）。
+    """
+    if name in weights:
+        return float(weights[name])
+    if str(name).startswith("factor_anchor_"):
+        return float(_factor_anchor_weight())
+    return 0.01
+
+
 def fuse_signals(
     signals: List[Signal],
     tier: str,
@@ -207,7 +237,7 @@ def fuse_signals(
     total_w = 0.0
     weighted_sum = 0.0
     for s in signals:
-        base_w = weights.get(s.name, 0.01)
+        base_w = _base_weight_for(s.name, weights)
         if ai_g and s.source == "framework":
             base_w = base_w * _FW_REFERENCE_SCALE  # 参照偏移，不改变方向
         owm_mult = float(owm.get(s.source, owm.get(s.name, 1.0)))

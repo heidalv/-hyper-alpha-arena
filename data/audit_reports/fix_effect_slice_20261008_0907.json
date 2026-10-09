@@ -1,0 +1,83 @@
+{
+  "boundary": "2026-09-11 10:19",
+  "days": 30,
+  "totals": {
+    "before": {
+      "n": 0,
+      "net": 0.0,
+      "avg": 0.0,
+      "wr": 0.0,
+      "hold": 0.0
+    },
+    "after": {
+      "n": 5,
+      "net": -2.0055571233918577,
+      "avg": -0.4011114246783715,
+      "wr": 0.0,
+      "hold": 22.655563033222222
+    }
+  },
+  "channels": {
+    "long_trend_v2": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 3,
+        "net": -0.9398928565263991,
+        "avg": -0.31329761884213303,
+        "wr": 0.0,
+        "hold": 0.03825796148148148
+      }
+    },
+    "thesis_should_close": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 1,
+        "net": -1.0152079919354466,
+        "avg": -1.0152079919354466,
+        "wr": 0.0,
+        "hold": 73.96395821583333
+      }
+    },
+    "sl": {
+      "before": {
+        "n": 0,
+        "net": 0.0,
+        "avg": 0.0,
+        "wr": 0.0,
+        "hold": 0.0
+      },
+      "after": {
+        "n": 1,
+        "net": -0.050456274930012,
+        "avg": -0.050456274930012,
+        "wr": 0.0,
+        "hold": 39.199083065833335
+      }
+    }
+  },
+  "suppressed_exit_events": 0,
+  "suppressed_session_events": 0,
+  "shadow_channels": [
+    "mid|exit_policy",
+    "mid|midlong",
+    "mid|sl",
+    "mid|trend_broken",
+    "short|lifecycle_time_decay",
+    "short|max_hold_timeout",
+    "short|scalp_review_time_decay",
+    "short|sl",
+    "short|symbol_removed"
+  ]
+}

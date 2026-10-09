@@ -25,6 +25,128 @@ def build_v3_factor_host(svc) -> V3FactorHost:
     )
 
 
+# ── [2026-09-24 新目标 R7] 因子批量计算的**公平轮转**游标 ──
+_ROTATE_STATE: Dict[str, int] = {"cursor": 0}
+
+
+# [新目标·调度 R2] **游标持久化**：`_ROTATE_STATE` 是模块级内存态，
+# 每次后端重启清零 ⇒ 轮转从头开始、尾部标的重新挨饿（实测本轮会话内多次重启，
+# 健康检查 8~11 分钟的规律节奏被打断成 26/62 分钟，且每次重启都重付首触注入费）。
+# 这里把游标落盘，重启后接着转。
+def _rotate_persist_enabled() -> bool:
+    return (os.getenv("V3_FACTOR_ROTATE_PERSIST", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _rotate_state_path() -> str:
+    return os.getenv("V3_FACTOR_ROTATE_STATE_PATH") or "data/v3_factor_rotate_state.json"
+
+
+def _load_rotate_cursor() -> None:
+    if not _rotate_persist_enabled():
+        return
+    try:
+        import json as _json
+        _p = _rotate_state_path()
+        if os.path.exists(_p):
+            with open(_p, "r", encoding="utf-8") as _f:
+                _d = _json.load(_f)
+            _ROTATE_STATE["cursor"] = int(_d.get("cursor", 0) or 0)
+    except Exception:
+        pass
+
+
+def _save_rotate_cursor() -> None:
+    if not _rotate_persist_enabled():
+        return
+    try:
+        import json as _json
+        _p = _rotate_state_path()
+        _dir = os.path.dirname(_p)
+        if _dir:
+            os.makedirs(_dir, exist_ok=True)
+        _tmp = _p + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as _f:
+            _json.dump({"cursor": int(_ROTATE_STATE.get("cursor", 0))}, _f)
+        os.replace(_tmp, _p)
+    except Exception:
+        pass
+
+
+_load_rotate_cursor()
+
+
+def _rotate_enabled() -> bool:
+    return os.getenv("V3_FACTOR_ROTATE_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+
+
+# [新目标 R2] 每标的"外部注入"的 TTL 缓存：
+# 实测（probe_v3_per_symbol_cost_20260925.py）：onchain_collector.collect_all 每标的
+# **11~14s**（BTC 20.4s 合计）⇒ 45s 预算 ÷ ~15s = 每轮 3~5 个标的就超时。
+# 这些是慢变外部数据（fear_greed/tvl/active_addresses/期权偏斜），逐轮逐标的实拉纯属浪费。
+# 只缓存"注入新增的键"（基础 market_summary 数据仍每轮新取）。
+_V3_INJECT_CACHE = {}
+
+
+def _v3_inject_cache_enabled() -> bool:
+    import os
+    return (os.getenv("V3_FACTOR_INJECT_CACHE_ENABLED", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _v3_inject_ttl_sec() -> int:
+    import os
+    # [新目标·调度 R7] 600→3600→7200→**14400（4h）**：时间 TTL 在任意低吞吐下都无法保证
+    # "第二圈必命中"（几何属性测试证伪过 7200：每轮 5 标的 ⇒ 一圈 22 轮×10min=13200s）。
+    # 14400 覆盖修复后的吞吐下限（每轮 ≥12 ⇒ 一圈 ≤9 轮×10min=5400s）并留 2× 余量。
+    # 残留限制（如实）：若吞吐跌破 ~5 标的/轮（网络重度异常），仍需自适应 TTL（已登记，未实现）。
+    # 代价：orderflow/OI 类注入键可能旧至 4h（因子输入慢变上下文，不影响行情/决策新鲜度）。
+    try:
+        return int(os.getenv("V3_FACTOR_INJECT_CACHE_TTL_SEC", "14400") or 14400)
+    except (TypeError, ValueError):
+        return 14400
+
+
+def _reset_inject_cache_for_test() -> None:
+    _V3_INJECT_CACHE.clear()
+
+
+def _rotate_symbols(symbols):
+    """按游标轮转起点，避免"超时 break ⇒ 尾部永久饿死"。
+
+    原实现每轮都从 `symbols[0]` 开始、超预算就 break ⇒ 列表尾部的币**永远**拿不到因子
+    （实测 LINK 的 15m 复合因子已 5 天未重算、XRP 9 小时）。
+    轮转保证每个币在若干轮内必被算到。开关 V3_FACTOR_ROTATE_ENABLED，回滚=false。
+    """
+    try:
+        _lst = list(symbols or [])
+    except TypeError:
+        return symbols
+    if not _rotate_enabled() or len(_lst) <= 1:
+        return _lst
+    _k = int(_ROTATE_STATE.get("cursor", 0)) % len(_lst)
+    return _lst[_k:] + _lst[:_k]
+
+
+def _advance_rotate_cursor(total: int, computed: int) -> None:
+    """本轮算了 `computed` 个（其余的因超时被跳过）⇒ 起点前移 `computed`（至少 1）。"""
+    try:
+        if total <= 1 or not _rotate_enabled():
+            _ROTATE_STATE["cursor"] = 0
+            return
+        _step = max(1, int(computed))
+        _ROTATE_STATE["cursor"] = (int(_ROTATE_STATE.get("cursor", 0)) + _step) % int(total)
+        _save_rotate_cursor()
+    except Exception:
+        _ROTATE_STATE["cursor"] = 0
+
+
+def _reset_rotate_cursor_for_test() -> None:
+    _ROTATE_STATE["cursor"] = 0
+
+
 def run_v3_factor_pipeline(
     *,
     host: V3FactorHost,
@@ -83,7 +205,17 @@ def run_v3_factor_pipeline(
                 logger.debug(f"[FullAuto][V3] DB K线回退失败: {_kerr}")
 
         _v3_start = time.time()
-        _MAX_V3_SECONDS = 45
+        # [2026-09-24 新目标 R7] 预算改为可配（默认 45s = 旧行为）。
+        # 实测：最近 13 个周期里 **11 个超时**，每轮只算完 2~5 个币就被掐断。
+        try:
+            _MAX_V3_SECONDS = float(os.getenv("V3_FACTOR_MAX_SECONDS", "45") or 45)
+        except (TypeError, ValueError):
+            _MAX_V3_SECONDS = 45.0
+        # [2026-09-24 新目标 R7] **轮转起点**：原实现按 `symbols` 固定顺序跑、超时即 break
+        # ⇒ 列表**尾部永远被饿死**（实测 LINK 的因子已 5 天没重算、XRP 9 小时）。
+        # 现每轮从上次停下的位置接着跑（round-robin），保证每个币最终都能被算到。
+        # 开关 V3_FACTOR_ROTATE_ENABLED（默认 true）；回滚=false 即恢复固定顺序。
+        symbols = _rotate_symbols(symbols)
         _now_aware = _dt.now(_tz.utc)
         _now_dt = _now_aware.replace(tzinfo=None)
         _expire_dt = _now_dt + _td(minutes=15)
@@ -163,44 +295,62 @@ def run_v3_factor_pipeline(
                 # （真实 OI 绝对值对 + 真实吃单流 + 落库 funding），与 scalp 路径
                 # 同源同口径——消除此前两条路径 funding 来源不一致、cvd/taker
                 # 合成伪值的分叉。
-                try:
-                    from backend.services.factor_engine.factor_bridge import inject_orderflow_for_factors
-                    inject_orderflow_for_factors(_sym, _factor_market_data, "5m")
-                except Exception as _md_err:
-                    logger.debug(f"[FullAuto][V3] {_sym} 衍生品指标注入跳过: {_md_err}")
+                # [新目标 R2] 三个外部注入（订单流/链上/期权）**每标的合计 11~20s**（实测），
+                # 是"4-5 个标的就吃光 45s 预算"的真凶。现加 TTL 缓存（默认 600s）：
+                # 命中则只合并上次"注入新增键"，网络调用整段跳过。
+                # 回滚：V3_FACTOR_INJECT_CACHE_ENABLED=false。
+                _inj_cache = _V3_INJECT_CACHE if _v3_inject_cache_enabled() else None
+                _inj_added = None
+                if _inj_cache is not None:
+                    _hit = _inj_cache.get(_sym.upper())
+                    if _hit and (time.time() - _hit[0]) < _v3_inject_ttl_sec():
+                        _inj_added = _hit[1]
+                if _inj_added is not None:
+                    _factor_market_data.update(_inj_added)
+                else:
+                    _before_keys = set(_factor_market_data.keys())
+                    try:
+                        from backend.services.factor_engine.factor_bridge import inject_orderflow_for_factors
+                        inject_orderflow_for_factors(_sym, _factor_market_data, "5m")
+                    except Exception as _md_err:
+                        logger.debug(f"[FullAuto][V3] {_sym} 衍生品指标注入跳过: {_md_err}")
 
-                # Fix 15a: 链上/宏观/情绪数据注入（因子策略需要 active_addresses/btc_dominance/fear_greed 等）
-                # OnchainDataCollector 已有完整采集器(CoinGecko/Blockchain.info/Mempool/Etherscan)，
-                # 但原从未接入 V3 因子管道 → 链上/宏观因子全返回默认值
-                try:
-                    # [2026-08-15 修复] 原 `from services.onchain_data_collector` 缺
-                    # backend. 前缀：生产以仓库根启动 uvicorn 时 `services.*` 不可导入，
-                    # 必 ImportError 被 except 吞掉 → 链上/宏观注入从未生效
-                    #（审查 4.5 #24 同类问题残留）。现改为 backend. 前缀。
-                    from backend.services.onchain_data_collector import onchain_collector as _oc_col
-                    _oc_data = _oc_col.collect_all([_sym]) if _sym else {}
-                    _oc_sym = _oc_data.get(_sym, {}) if isinstance(_oc_data, dict) else {}
-                    if isinstance(_oc_sym, dict):
-                        for _oc_key in ('active_addresses', 'exchange_net_flow', 'whale_tx_count',
-                                        'whale_tx_volume', 'tvl', 'btc_dominance', 'fear_greed'):
-                            _oc_val = _oc_sym.get(_oc_key)
-                            if _oc_val is not None and _oc_val != 0:
-                                _factor_market_data[_oc_key] = float(_oc_val)
-                except Exception as _oc_err:
-                    logger.debug(f"[FullAuto][V3] {_sym} 链上/宏观数据注入跳过: {_oc_err}")
+                    # Fix 15a: 链上/宏观/情绪数据注入（因子策略需要 active_addresses/btc_dominance/fear_greed 等）
+                    # OnchainDataCollector 已有完整采集器(CoinGecko/Blockchain.info/Mempool/Etherscan)，
+                    # 但原从未接入 V3 因子管道 → 链上/宏观因子全返回默认值
+                    try:
+                        # [2026-08-15 修复] 原 `from services.onchain_data_collector` 缺
+                        # backend. 前缀：生产以仓库根启动 uvicorn 时 `services.*` 不可导入，
+                        # 必 ImportError 被 except 吞掉 → 链上/宏观注入从未生效
+                        #（审查 4.5 #24 同类问题残留）。现改为 backend. 前缀。
+                        from backend.services.onchain_data_collector import onchain_collector as _oc_col
+                        _oc_data = _oc_col.collect_all([_sym]) if _sym else {}
+                        _oc_sym = _oc_data.get(_sym, {}) if isinstance(_oc_data, dict) else {}
+                        if isinstance(_oc_sym, dict):
+                            for _oc_key in ('active_addresses', 'exchange_net_flow', 'whale_tx_count',
+                                            'whale_tx_volume', 'tvl', 'btc_dominance', 'fear_greed'):
+                                _oc_val = _oc_sym.get(_oc_key)
+                                if _oc_val is not None and _oc_val != 0:
+                                    _factor_market_data[_oc_key] = float(_oc_val)
+                    except Exception as _oc_err:
+                        logger.debug(f"[FullAuto][V3] {_sym} 链上/宏观数据注入跳过: {_oc_err}")
 
-                # Fix 15b: 期权数据注入（Deribit API: options_skew/iv_term_structure/put_call_ratio）
-                # 只有 BTC/ETH 有 Deribit 期权，其他币种自动跳过
-                try:
-                    from backend.services.options_data_collector import get_options_for_symbol as _gof
-                    _opt_data = _gof(_sym)
-                    if _opt_data:
-                        for _opt_key in ('options_skew', 'iv_term_structure', 'put_call_ratio'):
-                            _opt_val = _opt_data.get(_opt_key)
-                            if _opt_val is not None:
-                                _factor_market_data[_opt_key] = float(_opt_val)
-                except Exception as _opt_err:
-                    logger.debug(f"[FullAuto][V3] {_sym} 期权数据注入跳过: {_opt_err}")
+                    # Fix 15b: 期权数据注入（Deribit API: options_skew/iv_term_structure/put_call_ratio）
+                    # 只有 BTC/ETH 有 Deribit 期权，其他币种自动跳过
+                    try:
+                        from backend.services.options_data_collector import get_options_for_symbol as _gof
+                        _opt_data = _gof(_sym)
+                        if _opt_data:
+                            for _opt_key in ('options_skew', 'iv_term_structure', 'put_call_ratio'):
+                                _opt_val = _opt_data.get(_opt_key)
+                                if _opt_val is not None:
+                                    _factor_market_data[_opt_key] = float(_opt_val)
+                    except Exception as _opt_err:
+                        logger.debug(f"[FullAuto][V3] {_sym} 期权数据注入跳过: {_opt_err}")
+
+                    if _inj_cache is not None:
+                        _added = {k: v for k, v in _factor_market_data.items() if k not in _before_keys}
+                        _inj_cache[_sym.upper()] = (time.time(), _added)
 
                 # 没有衍生品数据时传 None（向后兼容，技术因子不受影响）
                 _md = _factor_market_data if _factor_market_data else None
@@ -325,6 +475,17 @@ def run_v3_factor_pipeline(
                         _fvals, weights=_ic_weights,
                         regime=str(_regime_tag), symbol=_sym, timeframe="15m",
                     )
+                    # [2026-09-24 新目标 R17] **被归零因子的前向影子**：只记录、不改变信号。
+                    # 由来：IC 学习把 82/226 个因子打成 w=0，其中 48% 的 |t|<1（与 0 无法区分），
+                    # 而被归零因子的投票**从未落盘**（快照只存入选因子）⇒ 事后无法做反事实。
+                    # 影子攒够样本后才能可证伪地回答"给地板权会更好还是更差"。
+                    # 开关 FACTOR_ZERO_SHADOW_ENABLED（默认 false）。
+                    try:
+                        from backend.services.factor_zero_shadow import record as _zero_shadow
+                        _zero_shadow(_sym, _ic_weights, getattr(_sig, "signals", None),
+                                     regime=str(_regime_tag))
+                    except Exception as _zs_err:
+                        logger.debug(f"[FullAuto][V3] 归零因子影子跳过: {_zs_err}")
                     # Fix 11: 应用数据不足惩罚（降低 confidence，让 gate 门槛更严）
                     if _data_penalty > 0 and hasattr(_sig, 'confidence'):
                         try:
@@ -405,8 +566,10 @@ def run_v3_factor_pipeline(
                     f"[FullAuto][V3] {_sym} 因子计算失败: {type(_fsym_err).__name__}: {_fsym_err}"
                 )
 
+        # [2026-09-24 新目标 R7] 本轮结束后把起点前移，下一轮从没算到的币接着来。
+        _advance_rotate_cursor(len(symbols), len(_persist_rows))
+
         # 批量落库（主 db 会话，单次 commit）
-        # MarketAnalysisSnapshot 属于 AnalyticsBase，需通过 AnalyticsSessionLocal 写入
         if _persist_rows:
             _ana_db = None
             try:

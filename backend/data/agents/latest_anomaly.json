@@ -1,6 +1,6 @@
 {
   "agent": "anomaly",
-  "ts_ms": 1789445562882,
+  "ts_ms": 1791564571636,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "anomaly",
     "days": 60,
-    "n": 1086,
-    "n_scored": 919,
-    "avg_score": 0.984766050054407,
-    "avg_brier": 0.12641743960826998,
+    "n": 3600,
+    "n_scored": 3502,
+    "avg_score": 0.9811536264991434,
+    "avg_brier": 0.12021071530553942,
     "by_kind": [
       {
         "kind": "trading_state",
-        "n": 1086,
-        "n_scored": 919,
-        "avg_score": 0.984766050054407,
-        "avg_brier": 0.12641743960826998,
-        "last_ms": 1789444887091
+        "n": 3600,
+        "n_scored": 3502,
+        "avg_score": 0.9811536264991434,
+        "avg_brier": 0.12021071530553942,
+        "last_ms": 1791563682555
       }
     ],
     "verdict": {
@@ -47,32 +47,32 @@
     "lookback_h": 168,
     "channels": {
       "price": {
-        "score": 0.1669,
-        "ret_1h_pct": 0.007,
-        "ret_4h_pct": -0.396,
-        "ret_24h_pct": 0.106,
-        "drawdown_24h_pct": 2.003,
-        "ret_zscore": 0.04,
+        "score": 0.0614,
+        "ret_1h_pct": -0.117,
+        "ret_4h_pct": -0.669,
+        "ret_24h_pct": 2.239,
+        "drawdown_24h_pct": 0.737,
+        "ret_zscore": -0.317,
         "n_bars": 168
       },
       "volume": {
         "score": 0.0,
-        "peak_abs_z": 1.144,
+        "peak_abs_z": 0.446,
         "n_symbols": 8,
         "by_symbol": {
-          "BTC": -0.802,
-          "ETH": -0.785,
-          "SOL": -1.064,
-          "BNB": -1.144,
-          "XRP": -0.86,
-          "DOGE": -0.837,
-          "LINK": -0.439,
-          "AVAX": -0.596
+          "BTC": -0.414,
+          "ETH": -0.36,
+          "SOL": -0.283,
+          "BNB": -0.446,
+          "XRP": -0.305,
+          "DOGE": -0.348,
+          "LINK": -0.247,
+          "AVAX": -0.308
         }
       },
       "funding": {
         "score": 0.6,
-        "peak_abs_z": 2.393,
+        "peak_abs_z": 1.806,
         "cusum_drifting": [
           "AVAX",
           "BNB",
@@ -85,63 +85,63 @@
         ],
         "by_symbol": {
           "AVAX": {
-            "z": -2.393,
-            "latest_8h_pct": -0.0116,
+            "z": -0.557,
+            "latest_8h_pct": -0.0001,
             "cusum": {
               "detected": true,
-              "direction": 1
+              "direction": -1
             }
           },
           "BNB": {
-            "z": 0.756,
-            "latest_8h_pct": 0.01,
+            "z": -0.576,
+            "latest_8h_pct": -0.0025,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "BTC": {
-            "z": 0.953,
-            "latest_8h_pct": 0.01,
+            "z": -1.806,
+            "latest_8h_pct": -0.003,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "DOGE": {
-            "z": 0.019,
-            "latest_8h_pct": 0.0065,
+            "z": -0.149,
+            "latest_8h_pct": 0.0037,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "ETH": {
-            "z": -1.82,
-            "latest_8h_pct": -0.0037,
+            "z": -0.13,
+            "latest_8h_pct": 0.0034,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
           "LINK": {
-            "z": -0.644,
-            "latest_8h_pct": -0.0007,
-            "cusum": {
-              "detected": true,
-              "direction": -1
-            }
-          },
-          "SOL": {
-            "z": 1.274,
+            "z": 0.729,
             "latest_8h_pct": 0.01,
             "cusum": {
               "detected": true,
               "direction": -1
             }
           },
+          "SOL": {
+            "z": 0.645,
+            "latest_8h_pct": 0.0078,
+            "cusum": {
+              "detected": true,
+              "direction": 1
+            }
+          },
           "XRP": {
-            "z": 0.894,
+            "z": 0.783,
             "latest_8h_pct": 0.01,
             "cusum": {
               "detected": true,
@@ -152,52 +152,52 @@
       },
       "open_interest": {
         "score": 0.0,
-        "peak_abs_z": 1.094,
+        "peak_abs_z": 0.447,
         "by_symbol": {
           "AVAX": {
-            "z": -0.988,
-            "n": 167
+            "z": 0.012,
+            "n": 166
           },
           "BNB": {
-            "z": 0.112,
-            "n": 167
+            "z": -0.057,
+            "n": 166
           },
           "BTC": {
-            "z": -0.042,
-            "n": 167
+            "z": -0.109,
+            "n": 166
           },
           "DOGE": {
-            "z": -0.031,
-            "n": 167
+            "z": 0.39,
+            "n": 166
           },
           "ETH": {
-            "z": -0.551,
-            "n": 167
+            "z": -0.016,
+            "n": 166
           },
           "LINK": {
-            "z": -0.882,
-            "n": 167
+            "z": 0.416,
+            "n": 166
           },
           "SOL": {
-            "z": -1.094,
-            "n": 167
+            "z": -0.447,
+            "n": 166
           },
           "XRP": {
-            "z": -0.577,
-            "n": 167
+            "z": 0.154,
+            "n": 166
           }
         }
       },
       "liquidation": {
         "score": 0.6,
-        "latest_hour_usd": 1911186.93,
-        "median_hour_usd": 1136499.14,
-        "zscore": -0.178,
+        "latest_hour_usd": 775148.18,
+        "median_hour_usd": 956503.89,
+        "zscore": -0.264,
         "cusum": {
           "detected": true,
           "direction": 1,
-          "s_pos": 14.063,
-          "s_neg": 0.129,
+          "s_pos": 13.527,
+          "s_neg": 0.0,
           "h": 5.0,
           "k": 0.5,
           "n": 168
@@ -205,52 +205,48 @@
         "n_hours": 168
       },
       "freshness": {
-        "score": 1.0,
+        "score": 0.5385,
         "stale_sources": [
           {
-            "source": "asterdex_ws",
-            "age_h": 6.61
-          },
-          {
             "source": "binance_ann",
-            "age_h": 18.71
+            "age_h": 8.83
           },
           {
             "source": "bybit_ann",
-            "age_h": 17.96
-          },
-          {
-            "source": "bybit_ws",
-            "age_h": 7.18
+            "age_h": 7.15
           },
           {
             "source": "liq_ws",
-            "age_h": 48.71
+            "age_h": 23.41
           },
           {
-            "source": "news_events",
-            "age_h": 70.38
+            "source": "macro_events",
+            "age_h": 550.83
           },
           {
-            "source": "okx_ws",
-            "age_h": 7.18
+            "source": "okx_ann",
+            "age_h": 14.08
+          },
+          {
+            "source": "smart_money",
+            "age_h": 11.99
           },
           {
             "source": "whale_activities",
-            "age_h": 23.9
+            "age_h": 21.69
           }
         ],
         "n_sources": 13,
-        "failing_jobs": 7,
-        "n_jobs": 44,
+        "failing_jobs": 0,
+        "n_jobs": 42,
         "stale_threshold_h": 6.0
       }
     },
-    "stress_score": 0.3601,
+    "stress_score": 0.2823,
     "channel_coverage": 1.0,
     "hard_triggers": [],
     "suggested_state": "active",
-    "suggest_reason": "stress=0.36 低于减仓线 0.55",
+    "suggest_reason": "stress=0.28 低于减仓线 0.55",
     "current_state": "active",
     "thresholds": {
       "reduce": 0.55,
@@ -259,95 +255,17 @@
       "crash_4h_pct": 12.0
     },
     "llm": {
-      "accepted": true,
-      "consensus_score": 0.821,
-      "run_id": "3c2a342a868044a18ae71bdee820013a",
-      "final": {
-        "direction": "bearish",
-        "strength": 3.5,
-        "confidence": 0.585,
-        "root_causes": [
-          {
-            "channel": "funding",
-            "cause": "跨标的资金费率结构分化但CUSUM全面触发漂移，AVAX极负费率(z=-2.393)叠加ETH负费率(z=-1.82)，而BTC/BNB/SOL/XRP为正费率，形成明显short AVAX/ETH、long主流币的拥挤结构；正负费率对冲加剧了杠杆不稳定性",
-            "evidence": "funding.score=0.6, peak_abs_z=2.393; cusum_drifting覆盖全部8个标的; AVAX latest_8h_pct=-0.0116, ETH latest_8h_pct=-0.0037"
-          },
-          {
-            "channel": "liquidation",
-            "cause": "清算流量持续高于中位数并触发上行CUSUM漂移(s_pos=14.063 vs s_neg=0.129)，说明存在单向连环强平压力，最新小时清算额191万美元/中位数114万美元",
-            "evidence": "liquidation.score=0.6, latest_hour_usd=1911186.93 > median 1136499.14, cusum.direction=1"
-          },
-          {
-            "channel": "volume",
-            "cause": "成交量全面低于基准（8个标的z均为负值），意味着当前价格波动缺乏真实成交确认，流动性稀薄环境下小单即可放大波动",
-            "evidence": "volume.score=0.0, peak_abs_z=1.144, by_symbol全部为负z (BTC -0.802, ETH -0.785, SOL -1.064, BNB -1.144等)"
-          },
-          {
-            "channel": "funding",
-            "cause": "全市场资金费率自+0.01%上限普遍向下漂移，多头拥挤度/杠杆溢价正在降温，是最主要的异常模式",
-            "evidence": "cusum_drifting 覆盖全部8个币种，其中7个 direction=-1：BTC(z=0.953)、SOL(1.274)、XRP(0.894)、BNB(0.756) 最新8h费率均停在0.01%上限但已检出向下漂移，ETH(z=-1.82)、DOGE、LINK 亦为-1方向；该通道 score=0.6，是 stress=0.360 的主要贡献项"
-          },
-          {
-            "channel": "funding",
-            "cause": "AVAX 资金费率深度负值且自低位回升，属结构性空头拥挤，构成局部逆向（轧空）风险，与整体偏空方向形成背离",
-            "evidence": "AVAX z=-2.393（全表峰值，latest_8h=-0.0116%），cusum detected 且 direction=+1，即空头付费压力极大但正在缓解"
-          },
-          {
-            "channel": "liquidation",
-            "cause": "清算流处于持续高于常态的累积漂移状态（持续去杠杆），但单小时冲击并不极端，支持'有序降温'而非'恐慌抛售'的归因",
-            "evidence": "cusum detected direction=+1，s_pos=14.063 远超阈值 h=5.0（n=168h）；latest_hour_usd=1,911,186.93 约为中位数 1,136,499.14 的1.68倍，但即时 zscore 仅 -0.178"
-          },
-          {
-            "channel": "volume",
-            "cause": "成交量全面低于常态但均未触发异常阈值，表明参与度普遍收缩、市场处于低活跃去杠杆阶段",
-            "evidence": "8个币种 volume z 全为负（BNB -1.144、SOL -1.064、XRP -0.86、DOGE -0.837、BTC -0.802、ETH -0.785、AVAX -0.596、LINK -0.439），peak_abs_z=1.144 未越界，score=0.0"
-          },
-          {
-            "channel": "open_interest",
-            "cause": "持仓量同步温和收缩，与量能萎缩一致，印证杠杆头寸整体回落而非单边迁移",
-            "evidence": "peak_abs_z=1.094（SOL），其余 SOL/AVAX/LINK/ETH/XRP 等均为 -0.04 至 -1.09 区间，score=0.0，n=167"
-          },
-          {
-            "channel": "freshness",
-            "cause": "数据管道明显退化，削弱清算与事件类信号的归因可靠性，是本次结论置信度受限的元原因",
-            "evidence": "8/13 源超龄（阈值6h）：liq_ws 48.71h、news_events 70.38h、whale_activities 23.9h、binance_ann 18.71h、bybit_ann 17.96h、bybit_ws/okx_ws 7.18h、asterdex_ws 6.61h；failing_jobs 7/44"
-          }
-        ],
-        "counter_scenarios": [
-          "若AVAX/ETH负费率反映的是套利者主动收funding而非方向性做空，拥挤空头反而可能在费率回归时轧空反转",
-          "若CUSUM漂移仅是低基数下的统计假阳性（成交量score=0说明基数很低），则清算放大效应会被高估",
-          "数据新鲜度差（liq_ws 48.7h、news_events 70.4h、whale_activities 23.9h 均超阈值），真实清算与新闻催化信号可能未被捕获，方向判断可能滞后",
-          "4h收益-0.396%但1h已反弹+0.007%、24h为+0.106%，价格已开始修复，若持续修复则当前bearish判断失效",
-          "liq_ws 已陈旧 48.71h 且 7/44 任务失败，清算 cusum 的持续正漂移可能来自补传/管道延迟的统计伪影；若剔除该噪音，清算归因失效，偏空强度显著下降",
-          "多数币种资金费率本就停在 0.01% 基准上限且 z 仅 0.76–1.27，向下漂移可能只是向基线的均值回归而非多头拥挤瓦解；若费率随即企稳，市场可恢复上行",
-          "AVAX 费率深度为负（-0.0116%/8h）且 cusum direction=+1，若触发空头轧空并外溢至 SOL/BNB 等高beta币种，短线方向可能反转为 bullish",
-          "量能与持仓双收缩而价格平稳（24h +0.106%、回撤仅 2.003%），也可能是波动压缩期，随后向任一方向爆发，而非温和下行",
-          "news_events(70.38h)、whale_activities(23.9h) 等源陈旧，若存在未被捕获的突发宏观或链上事件，当前归因可能整体系统性偏差"
-        ],
-        "key_factors": [
-          "AVAX资金费率极端负值(z=-2.393)且CUSUM向上漂移",
-          "清算CUSUM强不对称(s_pos=14.063 >> s_neg=0.129)",
-          "成交量全标的负z缺乏真实买盘承接",
-          "数据源大面积过期(8个stale, 7个failing_jobs)削弱信号可靠性",
-          "资金费率 7/8 币种 cusum 向下漂移、多头溢价降温，是当前最强的横截面共同信号",
-          "AVAX 资金费率 z=-2.393 深度负值且 direction=+1，与整体方向背离，隐含局部轧空风险",
-          "清算 cusum s_pos=14.063 远超 h=5.0，最近一小时清算约为中位数1.68倍，但即时 zscore 仅 -0.178，属累积漂移而非瞬时冲击",
-          "量能（peak |z|=1.144 全负）与持仓（peak |z|=1.094 全负）同步低于常态但未越异常阈值，指向普遍性去杠杆降温",
-          "价格端无明显方向确认（1h +0.007%、4h -0.396%、24h +0.106%）",
-          "数据质量约束：8/13 源超龄、7/44 任务失败，liq_ws 陈旧 48.71h，清算类证据可靠性打折",
-          "合成 stress=0.360、建议=active，属中等偏低压力，支持温和而非剧烈的方向判断"
-        ],
-        "summary": "综合判断偏空但置信度中等。核心证据是资金费率全面CUSUM漂移叠加AVAX/ETH深度负费率，提示杠杆结构扭曲；同时清算侧持续上行漂移(s_pos=14.063)表明存在被压缩的强制平仓压力，方向性下行风险上升。但成交量全标的下z、无真实买盘确认，加之多源数据陈旧(liq_ws 48.7h、news 70.4h)，信号可靠性打折，存在被低基数CUSUM放大的统计噪声；此外价格已开始从4h低点修复(1h +0.007%)，若修复延续当前偏空判断可能反转。"
-      }
+      "skipped": true,
+      "reason": "stress=0.28 < 0.35（无异常苗头，不调用模型）"
     }
   },
   "predictions": [
-    "3aed6cb728b14e8c9a657b62d54640ae"
+    "f0a1a088d47544a5a39d1a4c397d7b95"
   ],
   "advice": [],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 164.847,
+  "elapsed_sec": 8.463,
   "latest_path": null,
   "dry_run": false
 }

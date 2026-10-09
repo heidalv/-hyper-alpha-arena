@@ -363,7 +363,8 @@ class TestTailGatesInTick:
                            seg_taker_sell=0.0, seg_taker_buy=0.0, now_ts=1014.0,
                            half_spread=0.05,
                            limits=LaneRiskLimits(stop_loss_bp=25.0,
-                                                 max_one_side_seconds=3600.0))
+                                                 max_one_side_seconds=3600.0,
+                                                 min_hold_seconds=0.0))
         fl = [f for f in dec.fills if f.is_flatten]
         assert len(fl) == 1 and fl[0].side == "sell"
         assert st.qty == pytest.approx(0.0, abs=1e-9)

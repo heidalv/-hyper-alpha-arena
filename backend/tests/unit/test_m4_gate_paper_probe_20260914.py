@@ -26,6 +26,9 @@ CG_MOD = "backend.services.full_auto.midlong_circuit_gate"
 # ── 位置闸 paper 缩仓 ──
 
 def _lg_fresh(monkeypatch, **env):
+    # ⚠️ 本函数**只应用下面白名单里的键** —— 传进来的其它 kwarg 会被静默忽略。
+    # （2026-09-18 我就在这里踩过一次：以为 `_lg_fresh(..., CEILING="70")` 生效了，
+    #   实际没 setenv，用例断言的是 `.env` 的取值 ⇒ 假失败。凡新增受控 env 必须加进白名单。）
     for k, v in {
         "MIDLONG_LOCATION_GATE_ENABLED": "true",
         "MIDLONG_LOCATION_MAX_PCT_LONG": "60",
@@ -35,6 +38,9 @@ def _lg_fresh(monkeypatch, **env):
         "MIDLONG_LOCATION_TIERS": "mid,long",
         "MIDLONG_LOCATION_PAPER_SHRINK_ENABLED": "true",
         "MIDLONG_LOCATION_PAPER_SHRINK_MULT": "0.25",
+        # [2026-09-18 选项A] 显式纳入白名单：此前不在白名单 ⇒ 本文件隐式依赖 `.env` 的取值，
+        # `.env` 一改就红。默认给 70（09-16 行为），需要 0（关闭）的用例显式传入。
+        "MIDLONG_LOCATION_PAPER_SHRINK_CEILING": "70",
     }.items():
         monkeypatch.setenv(k, str(env.get(k, v)))
     mod = importlib.import_module(LG_MOD)
@@ -49,27 +55,33 @@ def _ms(price, highs, lows, chg24=None):
 
 
 def test_location_paper_shrink_allows_high_long(monkeypatch):
-    """[调研轮16 2026-09-16 更新] 追高天花板（≥70 分位）**paper 也硬否决**。
+    """[2026-09-18 更新·解冻选项A] 追高天花板现在是**显式可配**的两档，本用例分别锁住。
 
-    本用例原用 80 分位（108/区间[100,110]）断言"paper 缩仓放行"，但验收轮6 已加
-    天花板 `MIDLONG_LOCATION_PAPER_SHRINK_CEILING=70`：分位 ≥70% 属"追顶"，
-    连样本价值都没有（gate-edge 审计：被拦 −84 vs 放行 +23.5 USD）；
-    60–70% 之间仍缩仓 ×0.25 收样本 —— 下面两条分别锁这两档。
+    沿革（取证报告 `docs/中线开仓冻结根因取证_20260918.md`）：
+    - 2026-09-14 M4：paper 命中高位追多 → 缩仓 ×0.25 放行（本用例原始形态）。
+    - 2026-09-16 验收轮6：加 `..._CEILING=70` —— ≥70 分位 paper 也硬否决（追顶无样本价值）。
+    - **2026-09-18（本次）**：`.env` 置 `..._CEILING=0`。原因：日线 up ⇒ 空头被
+      `midlong_short_regime_block` 全拒；盘中 ranging ⇒ 位置闸生效，而**全市场 24h 分位
+      80.6–98.4% ≥ 70** ⇒ 多头也被硬否决 ⇒ **两方向同时无解、mid 实际无单可开**
+      （当日仅 2 笔且全是拿到 chop 豁免的 XRP）。置 0 后回到"缩仓 ×0.25 放行、恢复采样"。
+
+    ⚠️ 本用例此前**隐式依赖 `.env` 的取值**（`_lg_fresh` 的白名单里没有天花板这一项）
+    ⇒ `.env` 一改测试就红。现改为**两种模式都显式注入**，与 `.env` 解耦。
     """
-    mod = _lg_fresh(monkeypatch)
-
-    # ① 80 分位 ≥ 天花板 70 ⇒ paper 也硬拒
-    ok_hi, reason_hi, detail_hi = mod.location_gate_check(
+    # ① 天花板=70（09-16 行为，保留为**显式 opt-in**）：80 分位 ⇒ paper 也硬拒
+    mod70 = _lg_fresh(monkeypatch, MIDLONG_LOCATION_PAPER_SHRINK_CEILING="70")
+    ok_hi, reason_hi, detail_hi = mod70.location_gate_check(
         "BTC", "buy", tier="mid", regime="ranging",
         market_summary=_ms(108.0, [110.0] * 24, [100.0] * 24),
         paper_mode=True,
     )
-    assert ok_hi is False, "≥70 分位属追顶，paper 也不该放行"
+    assert ok_hi is False, "天花板=70 时 ≥70 分位属追顶，paper 也不该放行"
     assert "追高天花板70%" in reason_hi, reason_hi
     assert detail_hi.get("paper_shrink_ceiling") == pytest.approx(70.0)
     assert "paper_shrink_mult" not in detail_hi, "硬拒时不应走缩仓放行路径"
 
-    # ② 65 分位（> max_long 60 但 < 天花板 70）⇒ paper 缩仓放行收样本
+    # ② 65 分位（> max_long 60 但 < 天花板 70）⇒ paper 缩仓放行收样本（两模式同）
+    mod = _lg_fresh(monkeypatch, MIDLONG_LOCATION_PAPER_SHRINK_CEILING="70")
     ok, reason, detail = mod.location_gate_check(
         "BTC", "buy", tier="mid", regime="ranging",
         market_summary=_ms(106.5, [110.0] * 24, [100.0] * 24),
@@ -79,6 +91,17 @@ def test_location_paper_shrink_allows_high_long(monkeypatch):
     assert "paper 缩仓" in reason
     assert detail["paper_shrink_mult"] == pytest.approx(0.25)
     assert "location_gate_veto" in detail["paper_shrink_veto_reason"]
+
+    # ③ 天花板=0（2026-09-18 起的默认，即"关闭"）⇒ 80 分位也回到缩仓放行
+    mod0 = _lg_fresh(monkeypatch, MIDLONG_LOCATION_PAPER_SHRINK_CEILING="0")
+    ok0, reason0, detail0 = mod0.location_gate_check(
+        "BTC", "buy", tier="mid", regime="ranging",
+        market_summary=_ms(108.0, [110.0] * 24, [100.0] * 24),
+        paper_mode=True,
+    )
+    assert ok0 is True, f"天花板=0 应回滚为缩仓放行，实际: {reason0}"
+    assert "paper 缩仓" in reason0 and detail0["paper_shrink_mult"] == pytest.approx(0.25)
+    assert detail0.get("paper_shrink_ceiling") is None
 
 
 def test_location_live_still_vetoes(monkeypatch):
@@ -107,6 +130,8 @@ def test_location_paper_shrink_rollback_flag(monkeypatch):
 def _cg_fresh(monkeypatch, **env):
     for k, v in {
         "MIDLONG_CIRCUIT_ENABLED": "true",
+        # [2026-09-27] 总开关 true（撤销「不做空」封锁后的部署口径），显式钉住防环境漂移。
+        "MIDLONG_OPEN_SHORT_ENABLED": "true",
         "MIDLONG_SHORT_MODE": "regime_gated",
         "MIDLONG_DOWN_SHORT_MODE": "learned",
         "MIDLONG_LONG_MODE": "learned",

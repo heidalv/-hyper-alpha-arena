@@ -41,6 +41,79 @@ MIN_SAMPLES_FOR_DIVERGENCE = 10
 ADAPT_LOSS_STREAK = 7
 
 
+def _thesis_fallback_enabled() -> bool:
+    """[新目标 R4] `thesis_id` 兜底解析开关（默认 **true**）。
+
+    根因经生产数据**修正**（§100 实测，账户 14，09-15→09-27，158 笔平仓）：
+      · 原判据（§98/§99）"活路径信封永远没有 thesis_id ⇒ skip=no_thesis"**不成立**：
+        mid 车道 138 笔里 138 笔带 session_id、137 笔带 thesis_id；而 `mlto_block_skip=no_thesis`
+        这行埋点在全部日志里 **0 次命中**（所有 `no_thesis` 命中都是 brain 扫描/F40 补仓的
+        channel 标签）。真正缺 thesis_id 的是**长线车道**（20 笔里 19 笔，open_metadata 只有
+        `e1/entry_source/structural_stop_price`）。
+      · 逐笔 join 后未产生 postmortem 的 93 笔的归因：24 笔被 `learning_enabled=false`
+        （golden_frozen 毕业奖励）整段挡住（有日志证据）、20 笔长线无 thesis_id、
+        49 笔落在日志空洞期（不可观测）。
+    所以本兜底真正服务的是**长线车道**：其 open_metadata 连 session_id 都没有 ⇒ 必须
+    跨会话按 (symbol, tier) 解析（`thesis_store.find_latest`，默认 6h 时效）。
+    回滚：`MLTO_LEARNING_THESIS_FALLBACK=false`（非法值 fail-closed = 不兜底）；
+    跨会话路径可单独用 `MLTO_THESIS_FALLBACK_MAX_AGE_H=0` 关掉。
+    """
+    return (os.getenv("MLTO_LEARNING_THESIS_FALLBACK", "true") or "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _outcome_account_id(outcome) -> "Optional[int]":
+    """[P4 大轮回 2026-09-27] 从 outcome.metadata 提取账户 ID（熔断记账用，账户级隔离）。"""
+    _m = getattr(outcome, "metadata", None) or {}
+    if not isinstance(_m, dict):
+        return None
+    for _k in ("account_id", "paper_account_id", "trading_account_id"):
+        try:
+            if _m.get(_k) is not None:
+                return int(_m[_k])
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _resolve_fallback_thesis(meta: dict, outcome) -> tuple:
+    """[新目标 R4] 只读解析兜底 thesis_id → `(thesis_id, via, session_id, tier)`。
+
+    抽成独立函数是为了**可被单测和只读预演直接调用**：解析逻辑写在 `process_outcome`
+    里时，验证只能靠"等下一笔真实平仓"，无法在改完立刻证明它对长线车道有效。
+    `via` ∈ {`session`, `cross_session`, ``}（空=未解析到）。
+
+    第 3 项 = **用于归因的 session_id**：会话内解析时就是 meta 里的那个；
+    跨会话解析时返回**该论题所属的 session**（长线车道 meta 里根本没有 session_id，
+    若返回空串，下游 `record_outcome` 的 OWM 权重更新会落到"无会话"桶里 ⇒ 学不到东西）。
+    """
+    sid = str((meta or {}).get("session_id") or "")
+    sym = str(
+        getattr(outcome, "symbol", None) or (meta or {}).get("symbol") or ""
+    ).upper()
+    tier = str(
+        (meta or {}).get("timeframe_tier") or (meta or {}).get("tier")
+        or getattr(outcome, "tier", None) or "mid"
+    )
+    if not sym:
+        return "", "", sid, tier
+    from backend.services.mlto import thesis_store as _ts
+    dto = None
+    via = ""
+    if sid:
+        dto = _ts.get(sid, sym, tier)
+        via = "session"
+    if not (dto and getattr(dto, "thesis_id", None)) and tier:
+        dto = _ts.find_latest(sym, tier)
+        via = "cross_session"
+    tid = str(getattr(dto, "thesis_id", "") or "") if dto else ""
+    if not tid:
+        return "", "", sid, tier
+    sid_used = sid or str(getattr(dto, "session_id", "") or "")
+    return tid, via, sid_used, tier
+
+
 @dataclass
 class TradeOutcome:
     """统一的交易结果结构（内存对象，非数据库表）"""
@@ -194,6 +267,83 @@ class UnifiedLearningService:
         _raw = (_pnl_score + _exit_score + _dir_score) * _conf_mult * _dur_mult
         return round(min(1.0, max(0.0, _raw)), 4)
 
+    def _process_global_feedback(self, db: Session, outcome: TradeOutcome) -> None:
+        """[P4 大轮回 2026-09-27 §11.3] 全局回灌（与策略自身参数更新解耦）。
+
+        冻结（learning_enabled=false）策略的平仓结果也必须进入这里：
+        MLTO 论题学习（thesis_id 解析 + record_outcome + postmortem 入队）、
+        复盘官、短线/中长线熔断记账。全部 fail-soft，不影响主流程。
+        """
+        meta = outcome.metadata if isinstance(outcome.metadata, dict) else {}
+        try:
+            if not meta.get("thesis_id"):
+                _pid_fb = meta.get("paper_position_id")
+                if _pid_fb:
+                    try:
+                        from backend.services.source_attribution import attribution as _attr_fb
+                        _t_fb = _attr_fb.tag_meta(int(_pid_fb))
+                        if _t_fb and _t_fb.get("thesis_id"):
+                            meta["thesis_id"] = str(_t_fb["thesis_id"])
+                    except Exception:
+                        pass
+            if not meta.get("thesis_id") and _thesis_fallback_enabled():
+                try:
+                    _tid_fb, _via_fb, _sid_fb, _tier_fb = _resolve_fallback_thesis(meta, outcome)
+                    if _tid_fb:
+                        meta["thesis_id"] = _tid_fb
+                        if _sid_fb and not meta.get("session_id"):
+                            meta["session_id"] = _sid_fb
+                except Exception:
+                    pass
+            if meta.get("thesis_id"):
+                from backend.database.connection import AnalyticsSessionLocal
+                from backend.services.mlto.learning_bridge import record_outcome as mlto_record
+                _adb = AnalyticsSessionLocal()
+                try:
+                    mlto_record(_adb, outcome, analytics_db=_adb)
+                finally:
+                    _adb.close()
+                try:
+                    from backend.services.learning_bus import get_learning_bus
+                    get_learning_bus().enqueue_thesis_postmortem(outcome)
+                except Exception as _lb_err:
+                    logger.warning(
+                        "[UnifiedLearning][trace] learning_bus 入队失败(全局回灌): %s",
+                        _lb_err)
+        except Exception as _g_err:
+            logger.debug("[UnifiedLearning] 全局回灌·论题块失败: %s", _g_err)
+
+        try:
+            from backend.services.mlto.trade_review_officer import review_close
+            review_close(db, outcome)
+        except Exception as _ro_err:
+            logger.debug("[UnifiedLearning] 全局回灌·复盘官失败: %s", _ro_err)
+
+        # 熔断记账：账户级风险状态，不属于策略参数（冻结也必须记账）
+        try:
+            from backend.services.short_tier_entry_gate import record_short_tier_outcome
+            _is_short = (outcome.tier in ("short",)) or (
+                (outcome.trade_nature or "") in ("scalp", "intraday")
+            )
+            if _is_short and outcome.symbol:
+                record_short_tier_outcome(
+                    outcome.symbol,
+                    float(outcome.pnl or 0) - float(meta.get("close_fee") or 0),
+                    account_id=_outcome_account_id(outcome),
+                )
+        except Exception:
+            pass
+        try:
+            from backend.services.full_auto.midlong_circuit_gate import record_midlong_outcome
+            _ml_nature = (outcome.trade_nature or outcome.tier or "").lower()
+            if _ml_nature in ("swing", "trend_follow", "position", "mid", "long") and outcome.symbol:
+                record_midlong_outcome(
+                    _outcome_account_id(outcome), outcome.symbol,
+                    float(outcome.pnl or 0) - float(meta.get("close_fee") or 0),
+                )
+        except Exception:
+            pass
+
     def process_outcome(self, db: Session, outcome: TradeOutcome):
         """统一处理所有来源的交易结果"""
         try:
@@ -202,13 +352,25 @@ class UnifiedLearningService:
             # 2026-06-11: 让 AIStrategy.learning_enabled 真正生效。
             # 关闭学习的策略仍持久化交易记录（Kelly/统计需要事实数据），
             # 但跳过记忆/绩效矩阵/提示词进化等学习环节。
+            # [P4 大轮回 2026-09-27 §11.3 解耦] 冻结只锁**本策略参数更新**；
+            # 平仓结果仍回灌 因子层/源归因层/全局后验（论题学习、复盘官、熔断记账）。
             if not self._is_learning_enabled(outcome.strategy_id):
                 if getattr(outcome, "persist_trade", True):
                     self._persist_strategy_trade(db, outcome)
+                # [P4 大轮回 2026-09-27 §11.3 解耦] 冻结只锁**本策略参数更新**；
+                # 平仓结果仍回灌 因子层/源归因层/全局后验（论题学习、复盘官、熔断记账）。
+                # 回滚：P4_FROZEN_GLOBAL_FEEDBACK=false（回到"冻结即全停"旧行为）。
+                try:
+                    _gfb = (os.getenv("P4_FROZEN_GLOBAL_FEEDBACK", "true") or "true"
+                            ).strip().lower() in ("1", "true", "yes", "on")
+                except Exception:
+                    _gfb = True
+                if _gfb:
+                    self._process_global_feedback(db, outcome)
                 db.commit()
                 logger.info(
                     f"[UnifiedLearning] 策略 {outcome.strategy_id} learning_enabled=false，"
-                    f"仅落交易记录，跳过学习环节"
+                    f"仅落交易记录+全局回灌（论题/复盘/熔断），跳过策略自身参数更新"
                 )
                 return
 
@@ -249,6 +411,36 @@ class UnifiedLearningService:
                                 meta["thesis_id"] = str(_t_fb["thesis_id"])
                         except Exception:
                             pass
+                # [新目标 R4] **论题兜底解析**。§100 逐笔 join 的实测结论（账户 14，
+                # 09-15→09-27，158 笔平仓）：mid 车道 137/138 本来就有 thesis_id，
+                # `mlto_block_skip=no_thesis` 埋点 **0 次命中**（原 §98/§99 判据已被生产数据否定）；
+                # 缺口在**长线车道**：20 笔平仓里 19 笔的 open_metadata 只有
+                # `e1/entry_source/structural_stop_price`，既无 thesis_id 也无 session_id。
+                # 现按 (session_id, symbol, tier) 从 thesis_store 解析当前活论题作为替代键。
+                # [R4 补强] 长线车道开仓元数据里**连 session_id 都没有**（§100：20 笔长线平仓
+                # 里 19 笔如此）⇒ 只有 session 内解析等于对长线无效；故再加一条**跨会话**兜底
+                # `thesis_store.find_latest(symbol, tier)`（默认 6h 时效，过期不套用）。
+                # 开关 MLTO_LEARNING_THESIS_FALLBACK（默认 true）；回滚置 false；
+                # 跨会话路径另有 MLTO_THESIS_FALLBACK_MAX_AGE_H=0 单独关掉。
+                # ⚠️ 近似性（如实声明）：解析到的是**平仓时刻**的论题，未必等于**开仓时刻**的论题
+                #    （brain 每 ~10 分钟刷新）。因此它把交易归到"当前论题"上，用于去重与归因是可接受的，
+                #    但不等于精确入场归因。
+                if not meta.get("thesis_id") and _thesis_fallback_enabled():
+                    try:
+                        _tid_fb, _via_fb, _sid_fb, _tier_fb = _resolve_fallback_thesis(meta, outcome)
+                        if _tid_fb:
+                            meta["thesis_id"] = _tid_fb
+                            # 长线车道 meta 里没有 session_id ⇒ 用解析到的论题所属会话补上，
+                            # 否则 `record_outcome` 的 OWM 权重更新会落到空会话桶（等于没学）。
+                            if _sid_fb and not meta.get("session_id"):
+                                meta["session_id"] = _sid_fb
+                            logger.info(
+                                "[UnifiedLearning][trace] thesis_id 兜底解析 %s/%s tier=%s "
+                                "via=%s → %s", getattr(outcome, "symbol", "") or meta.get("symbol", ""),
+                                _sid_fb or "-", _tier_fb, _via_fb, _tid_fb[:12],
+                            )
+                    except Exception as _tfb_err:
+                        logger.debug("[UnifiedLearning] thesis_id 兜底解析失败: %s", _tfb_err)
                 if meta.get("thesis_id"):
                     from backend.database.connection import AnalyticsSessionLocal
                     from backend.services.mlto.learning_bridge import record_outcome as mlto_record
@@ -260,8 +452,18 @@ class UnifiedLearningService:
                     try:
                         from backend.services.learning_bus import get_learning_bus
                         get_learning_bus().enqueue_thesis_postmortem(outcome)
-                    except Exception:
-                        pass
+                    except Exception as _lb_err:
+                        logger.warning(
+                            "[UnifiedLearning][trace] learning_bus 入队失败: %s", _lb_err)
+                else:
+                    # [2026-09-24 新目标 R12] H1 判据：MLTO 学习块**因缺 thesis_id 未进入**。
+                    # 原先此处完全静默（只有 logger.debug 的 except），无法与"被去重短路"区分。
+                    logger.info(
+                        "[UnifiedLearning][trace] mlto_block_skip=no_thesis %s/%s "
+                        "has_pid=%s",
+                        getattr(outcome, "strategy_id", None), getattr(outcome, "symbol", None),
+                        bool(meta.get("paper_position_id")),
+                    )
             except Exception as _mlto_le:
                 logger.debug("[UnifiedLearning] MLTO outcome skip: %s", _mlto_le)
 
@@ -486,6 +688,12 @@ class UnifiedLearningService:
         _SYSTEM_STRATEGY_PREFIXES = (
             "scalp_router", "cross_cycle_", "swing_agent", "trend_agent",
             "scalp_", "short_tier_", "paper_engine",
+            # [2026-09-28 用户指令·补漏] `trend_e1:<SYMBOL>` 是长线趋势车道的系统策略族：
+            # 不在 ai_strategies 表里 ⇒ 此前 FK 解析返回 None ⇒ `_persist_strategy_trade`
+            # 返回 False ⇒ 整条学习链（含 thesis postmortem/owm）被**静默跳过**。
+            # 实测：09-28 SOL(#4815)/AVAX(#4801) 两笔长线平仓 postmortem/owm 全 0，
+            # 且无任何失败日志（跳过路径是 DEBUG 级）。占位行建好后学习数据可正常落盘。
+            "trend_e1",
         )
         if any(sid.startswith(p) for p in _SYSTEM_STRATEGY_PREFIXES):
             try:
@@ -700,6 +908,8 @@ class UnifiedLearningService:
                 status="closed",
                 opened_at=_opened_at_dt,
                 closed_at=_closed_at_dt.replace(tzinfo=None),
+                # [P0 2026-09-29] 学习链硬外键：列级落库（此前只进 decision_context JSON）
+                paper_position_id=(int(_paper_position_id) if _paper_position_id else None),
             )
             db.add(trade)
             db.flush()

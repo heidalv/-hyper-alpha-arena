@@ -1,0 +1,70 @@
+{
+  "ts": 1791201797.2730312,
+  "as_of": "2026-10-05T20:03:17",
+  "hours": 10,
+  "cost_bp": 6.0,
+  "gates": {
+    "NEAR": {
+      "allow": false,
+      "side": null,
+      "pred_bp": 3.33,
+      "n_train": 2353,
+      "horizon_sec": 90.0,
+      "max_hold_sec": 90.0,
+      "reason": "mid_drift_not_entry_prob"
+    },
+    "PENGU": {
+      "allow": false,
+      "side": null,
+      "pred_bp": 1.95,
+      "n_train": 2353,
+      "horizon_sec": 90.0,
+      "max_hold_sec": 90.0,
+      "reason": "mid_drift_not_entry_prob"
+    },
+    "CBRS": {
+      "allow": false,
+      "reason": "err:'dbid'"
+    },
+    "RESOLV": {
+      "allow": false,
+      "side": null,
+      "pred_bp": -1.35,
+      "n_train": 1368,
+      "horizon_sec": 90.0,
+      "max_hold_sec": 90.0,
+      "reason": "mid_drift_not_entry_prob"
+    },
+    "1000SHIB": {
+      "allow": false,
+      "side": null,
+      "pred_bp": 2.18,
+      "n_train": 2353,
+      "horizon_sec": 90.0,
+      "max_hold_sec": 90.0,
+      "reason": "mid_drift_not_entry_prob"
+    },
+    "COIN": {
+      "allow": false,
+      "reason": "err:'dbid'"
+    },
+    "BTW": {
+      "allow": false,
+      "side": null,
+      "pred_bp": 110.07,
+      "n_train": 2293,
+      "horizon_sec": 900.0,
+      "max_hold_sec": 900.0,
+      "reason": "mid_drift_not_entry_prob"
+    },
+    "LYN": {
+      "allow": false,
+      "side": null,
+      "pred_bp": -221.37,
+      "n_train": 2203,
+      "horizon_sec": 900.0,
+      "max_hold_sec": 900.0,
+      "reason": "mid_drift_not_entry_prob"
+    }
+  }
+}

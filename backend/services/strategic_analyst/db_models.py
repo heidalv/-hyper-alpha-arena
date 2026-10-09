@@ -80,7 +80,10 @@ class StrategicReportRecord(AnalyticsBase):
     # LLM 分析
     llm_analysis = Column(Text, nullable=True)
 
-    # 关联数据 macro_snapshot_id = Column(Integer, nullable=True)       # 关联 strategic_macro_snapshots.id
+    # 关联数据
+    # [2026-09-17 修复] 此前字段定义被本行注释吞掉 → report_generator 传
+    # macro_snapshot_id 报 invalid keyword，战略报告持久化每轮必败。
+    macro_snapshot_id = Column(Integer, nullable=True)       # 关联 strategic_macro_snapshots.id
     new_coin_count = Column(Integer, nullable=False, default=0)
     memory_count = Column(Integer, nullable=False, default=0)
 

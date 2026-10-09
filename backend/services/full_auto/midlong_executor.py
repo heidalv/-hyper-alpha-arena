@@ -599,6 +599,30 @@ def execute_midlong_open(
     except Exception as _lg_err:
         logger.warning("[MidLong] 位置闸检查跳过(fail-open): %s", _lg_err)
 
+    # [2026-09-24 R1-宏观] 事件窗口闸：CPI 前 12h 内、且 24h 已朝开仓方向移动 ≥3% → 缩仓
+    # （实测该组合 18/20 = 90% 事件后 24h 反转；FOMC/非农翻转率 36%/39% 低于 52% 基线，
+    #  故默认只对 cpi 生效，见 backend/services/macro_calendar.py 证据段）。
+    # 总开关 MACRO_EVENT_GUARD_ENABLED（默认 false）。
+    try:
+        from backend.services.macro_calendar import entry_guard as _macro_entry_guard
+        _me_ok, _me_reason, _me_detail = _macro_entry_guard(sym_u, act, market_summary)
+        if not _me_ok:
+            logger.info(
+                "[MidLong] stage=fuse tier=%s symbol=%s authority=%s source=%s action=hold reason=%s",
+                tier, sym_u, auth, source, _me_reason,
+            )
+            _record_fail(_me_reason[:80] or "macro_event_veto")
+            return False
+        if isinstance(_me_detail, dict) and _me_detail.get("paper_shrink_mult"):
+            _mshr = float(_me_detail["paper_shrink_mult"])
+            margin = margin * _mshr
+            logger.info(
+                "[MidLong] stage=fuse tier=%s symbol=%s 宏观事件闸 缩仓×%.2f（%s）",
+                tier, sym_u, _mshr, _me_reason[:110],
+            )
+    except Exception as _me_err:
+        logger.warning("[MidLong] 宏观事件闸检查跳过(fail-open): %s", _me_err)
+
     # [2026-08-16 long_trend_v2 入场闸] tier=long 时要求 L1=up（多头单边，禁做空）。
     # 默认 LONG_TREND_V2 关 = 无影响；开=长线开仓只认趋势判定器。
     if (tier or "").lower() == "long":

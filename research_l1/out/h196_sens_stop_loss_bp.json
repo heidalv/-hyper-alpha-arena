@@ -1,0 +1,70 @@
+{
+  "key": "stop_loss_bp",
+  "symbols": [
+    "ASTER",
+    "XRP",
+    "SOL"
+  ],
+  "curve": [
+    {
+      "value": 10,
+      "fills": 49456,
+      "flattens": 10909,
+      "net_bp": -1.6184,
+      "spread_bp": 3.4938,
+      "price_bp": -4.005,
+      "fee_bp": -1.1072,
+      "net_usd": -2603.457
+    },
+    {
+      "value": 20,
+      "fills": 44898,
+      "flattens": 7437,
+      "net_bp": -1.3209,
+      "spread_bp": 3.6143,
+      "price_bp": -4.1296,
+      "fee_bp": -0.8056,
+      "net_usd": -1901.9923
+    },
+    {
+      "value": 25,
+      "fills": 44317,
+      "flattens": 7112,
+      "net_bp": -1.2756,
+      "spread_bp": 3.6202,
+      "price_bp": -4.1197,
+      "fee_bp": -0.7761,
+      "net_usd": -1809.4633
+    },
+    {
+      "value": 30,
+      "fills": 43962,
+      "flattens": 6953,
+      "net_bp": -1.2779,
+      "spread_bp": 3.6205,
+      "price_bp": -4.1361,
+      "fee_bp": -0.7623,
+      "net_usd": -1796.0925
+    },
+    {
+      "value": 40,
+      "fills": 43679,
+      "flattens": 6841,
+      "net_bp": -1.2521,
+      "spread_bp": 3.6199,
+      "price_bp": -4.1202,
+      "fee_bp": -0.7518,
+      "net_usd": -1746.536
+    },
+    {
+      "value": 60,
+      "fills": 43481,
+      "flattens": 6771,
+      "net_bp": -1.2578,
+      "spread_bp": 3.6164,
+      "price_bp": -4.1288,
+      "fee_bp": -0.7453,
+      "net_usd": -1745.0508
+    }
+  ]
+}

@@ -1,0 +1,1135 @@
+[
+  {
+    "key": "h16_rollback",
+    "ts": "2026-09-20T10:39:22.785459+00:00",
+    "data": {
+      "at": "2026-09-20T10:39:22.785459+00:00",
+      "params": {
+        "side_mode": "counter_trend",
+        "w_base_bp": 30.0,
+        "min_width_bp": 3.0,
+        "k_vol_sigma_cap": null,
+        "min_width_reduce_bp": 6.0,
+        "max_one_side_seconds": 3600.0
+      }
+    }
+  },
+  {
+    "key": "h17_rollback",
+    "ts": "2026-09-20T11:04:54.043300+00:00",
+    "data": {
+      "params": {
+        "max_one_side_seconds": 300.0
+      },
+      "reason": "H17 timeout sweep",
+      "applied_at": "2026-09-20T11:04:54.043300+00:00"
+    }
+  },
+  {
+    "key": "f280_spread_mult_rollback",
+    "ts": "2026-09-20T15:59:18.428805+00:00",
+    "data": {
+      "params": {
+        "spread_mult": null,
+        "spread_cross_margin": null
+      },
+      "reason": "F280 spread-relative width; evidence: h53b/h54/h55/h56",
+      "applied_at": "2026-09-20T15:59:18.428805+00:00"
+    }
+  },
+  {
+    "key": "f258_hold_window_rollback",
+    "ts": "2026-09-20T16:28:29.898463+00:00",
+    "data": {
+      "params": {
+        "min_hold_seconds": 30.0,
+        "max_one_side_seconds": 300.0
+      },
+      "reason": "F258 hold window 30s-300s (user-specified, validated range)",
+      "applied_at": "2026-09-20T16:28:29.898463+00:00"
+    }
+  },
+  {
+    "key": "f282_leverage_rollback",
+    "ts": "2026-09-20T17:41:08.365282+00:00",
+    "data": {
+      "params": {
+        "compound_ratio": 0.1,
+        "daily_loss_stop_pct": 10.0,
+        "max_net_exposure_ratio": 0.6,
+        "max_gross_notional_ratio": 1.0,
+        "max_net_directional_ratio": 0.3
+      },
+      "reason": "F282 leverage 0.5 (user request: amplify capital, accept losses)",
+      "applied_at": "2026-09-20T17:41:08.365282+00:00"
+    }
+  },
+  {
+    "key": "f287_reduce_mult_rollback",
+    "ts": "2026-09-20T19:02:14.625964+00:00",
+    "data": {
+      "params": {
+        "spread_mult_reduce": null
+      },
+      "reason": "F287 reduce-side spread mult = 0.95; evidence H77 (f=1 best)",
+      "applied_at": "2026-09-20T19:02:14.625964+00:00"
+    }
+  },
+  {
+    "key": "f290_shadow_equity_rollback",
+    "ts": "2026-09-20T19:15:12.668280+00:00",
+    "data": {
+      "reason": "F290 sync shadow_equity to engine live equity (dashboard showed stale 300)",
+      "applied_at": "2026-09-20T19:15:12.668280+00:00",
+      "shadow_equity": 300.0
+    }
+  },
+  {
+    "key": "f291_hold_300_rollback",
+    "ts": "2026-09-20T19:19:59.713453+00:00",
+    "data": {
+      "params": {
+        "min_hold_seconds": 30.0,
+        "max_one_side_seconds": 60.0
+      },
+      "reason": "F291 hold 60->120 s: H94/H95 show taker flatten cost 4.36bp is structural and unfixable; H97 shows waiting to 300s costs only 0.69bp extra adverse drift => +3.67bp/flatten saved",
+      "applied_at": "2026-09-20T19:19:59.713453+00:00"
+    }
+  },
+  {
+    "key": "f341_baseline_backfill_rollback",
+    "ts": "2026-09-22T09:21:49.026863+00:00",
+    "data": {
+      "before": {
+        "ARB": 11.7218,
+        "SEI": 3.9164,
+        "SOL": 3.2726,
+        "UNI": 9.0309,
+        "XRP": 3.9099,
+        "DOGE": 3.414,
+        "ASTER": 3.6678,
+        "PENDLE": 7.5478,
+        "VIRTUAL": 4.5372,
+        "1000SHIB": 4.1838
+      },
+      "reason": "补齐无基准币的车道 σ 闸免暂停特权（HYPE 缺失 ⇒ σ 恒为 0）",
+      "applied_at": "2026-09-22T09:21:49.026863+00:00"
+    }
+  },
+  {
+    "key": "h354_p2_trial",
+    "ts": "2026-09-26T16:38:44.722039+00:00",
+    "data": {
+      "bp": 2.0,
+      "why": "welch_p=0.740 delta=-0.041bp",
+      "verdict": "INCONCLUSIVE",
+      "criteria": "12h 后对比 12h 前基线（era 对比）与同期 h326 口径 net_bp/腿",
+      "judge_at": "2026-09-27T04:38:44.722039+00:00",
+      "judged_at": "2026-09-28T19:38:03.758200+00:00",
+      "started_at": "2026-09-26T16:38:44.722039+00:00",
+      "rollback_to": 0.0,
+      "extend_until": "2026-09-29T08:38:09.311700+00:00",
+      "baseline_params": {
+        "vwap_revert_bp": 0.0
+      },
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC"
+      ]
+    }
+  },
+  {
+    "key": "h356_trial",
+    "ts": "2026-09-27T05:00:00.993077+00:00",
+    "data": {
+      "why": "welch_p=0.270 delta=-0.196bp",
+      "added": [
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ],
+      "dropped": [],
+      "verdict": "INCONCLUSIVE",
+      "judge_at": "2026-09-27T17:00:00.993077+00:00",
+      "judged_at": "2026-09-28T17:00:01.324215+00:00",
+      "started_at": "2026-09-27T05:00:00.993077+00:00",
+      "judged_count": 3,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC"
+      ]
+    }
+  },
+  {
+    "key": "h392_trial",
+    "ts": "2026-09-27T17:35:06.054507+00:00",
+    "data": {
+      "why": "frequency_collapse 137.8/h < 0.8×223.6/h",
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B 逐腿 net_bp Welch α=0.10；C 止损腿均值应收窄（−65.4→≈−44）",
+      "judge_at": "2026-09-28T05:35:06.054507+00:00",
+      "to_grace": 0.0,
+      "judged_at": "2026-09-28T05:37:01.608645+00:00",
+      "from_grace": 30.0,
+      "started_at": "2026-09-27T17:35:06.054507+00:00",
+      "rollback_to": 30.0,
+      "extend_until": "2026-09-28T18:37:01.650425+00:00",
+      "rolled_back_at": "2026-09-28T18:37:01.606933+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h429_trial",
+    "ts": "2026-09-27T17:35:51.376373+00:00",
+    "data": {
+      "to": 90.0,
+      "why": "welch_p=0.008 delta=-0.627bp",
+      "from": 0.0,
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 止损笔数下降、sudden_move 腿均值不恶化",
+      "judge_at": "2026-09-28T05:35:51.376373+00:00",
+      "judged_at": "2026-09-28T05:35:01.469580+00:00",
+      "started_at": "2026-09-27T17:35:51.376373+00:00",
+      "rollback_to": 0.0,
+      "rolled_back_at": "2026-09-28T18:35:02.511982+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h425_trial",
+    "ts": "2026-09-27T17:35:52.255538+00:00",
+    "data": {
+      "to": 12.0,
+      "why": "welch_p=0.008 delta=-0.627bp",
+      "from": 0.0,
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 止损尾部收窄（max|net| 与−80bp 外笔数）+ jump_exit 腿数/均值",
+      "judge_at": "2026-09-28T05:35:52.255538+00:00",
+      "judged_at": "2026-09-28T05:35:01.159936+00:00",
+      "started_at": "2026-09-27T17:35:52.255538+00:00",
+      "rollback_to": 0.0,
+      "extend_until": "2026-09-28T18:35:01.187304+00:00",
+      "rolled_back_at": "2026-09-28T18:35:01.577433+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h426_trial",
+    "ts": "2026-09-27T17:35:52.924815+00:00",
+    "data": {
+      "to": 1.0,
+      "why": "welch_p=0.008 delta=-0.627bp",
+      "from": 0.0,
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 平静段止损笔数下降、止损腿均值不变差",
+      "judge_at": "2026-09-28T05:35:52.924815+00:00",
+      "judged_at": "2026-09-28T05:35:00.993842+00:00",
+      "started_at": "2026-09-27T17:35:52.924815+00:00",
+      "rollback_to": 0.0,
+      "extend_until": "2026-09-28T18:35:01.030771+00:00",
+      "rolled_back_at": "2026-09-28T18:35:01.026897+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h427_trial",
+    "ts": "2026-09-27T17:35:53.631054+00:00",
+    "data": {
+      "to": 45.0,
+      "why": "welch_p=0.008 delta=-0.631bp",
+      "from": 90.0,
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 硬上限笔数下降、持仓时长分布左移",
+      "judge_at": "2026-09-28T05:35:53.631054+00:00",
+      "judged_at": "2026-09-28T05:35:01.521912+00:00",
+      "started_at": "2026-09-27T17:35:53.631054+00:00",
+      "rollback_to": 90.0,
+      "extend_until": "2026-09-28T18:35:01.557525+00:00",
+      "rolled_back_at": "2026-09-28T18:35:03.517374+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h432_trial",
+    "ts": "2026-09-27T18:40:20.645446+00:00",
+    "data": {
+      "to": {
+        "exit_skew_k": 1.0,
+        "vol_spread_k": 0.5
+      },
+      "why": "welch_p=0.009 delta=-0.650bp",
+      "from": {
+        "exit_skew_k": 0.0,
+        "vol_spread_k": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 强平笔数下降、taker 费占比下降",
+      "judge_at": "2026-09-28T06:40:20.645446+00:00",
+      "judged_at": "2026-09-28T06:40:01.569578+00:00",
+      "started_at": "2026-09-27T18:40:20.645446+00:00",
+      "rollback_to": {
+        "exit_skew_k": 0.0,
+        "vol_spread_k": 0.0
+      },
+      "extend_until": "2026-09-28T19:40:01.609169+00:00",
+      "rolled_back_at": "2026-09-28T19:40:03.392845+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h411_trial",
+    "ts": "2026-09-28T03:47:29.310162+00:00",
+    "data": {
+      "to": 300.0,
+      "why": "用户硬约束兜底（30s–5min），非策略试跑；不再参与频率判据自动回滚",
+      "from": 0.0,
+      "verdict": "COMPLIANCE_BACKSTOP",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C timeout_hard_taker 腿数/均值 + 持仓时长分布",
+      "judge_at": "2026-09-28T15:47:29.310162+00:00",
+      "started_at": "2026-09-28T03:47:29.310162+00:00",
+      "rejudged_at": "2026-09-28T16:14:46.827390+00:00",
+      "rollback_to": 0.0,
+      "rolled_back_at": "2026-09-28T15:47:01.519524+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h433_trial",
+    "ts": "2026-09-28T04:56:35.972596+00:00",
+    "data": {
+      "to": {
+        "vwap_flow_block": 0.3
+      },
+      "why": "frequency_collapse 65.2/h < 0.8×223.0/h",
+      "from": {
+        "vwap_flow_block": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C vwap_revert 组亏损收窄",
+      "judge_at": "2026-09-28T16:56:35.973178+00:00",
+      "judged_at": "2026-09-28T16:56:01.649111+00:00",
+      "started_at": "2026-09-28T04:56:35.972596+00:00",
+      "rollback_to": {
+        "vwap_flow_block": 0.0
+      },
+      "guards_bypassed": true,
+      "spurious_reason": "判据用跨 regime 基线（0.8×223/h 白天）比夜间 65.2/h；绝对腿速高于用户 60/h 硬约束 ⇒ 误杀（h458 已修正判据）",
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ],
+      "spurious_rollback": true
+    }
+  },
+  {
+    "key": "h434_trial",
+    "ts": "2026-09-28T04:56:37.083285+00:00",
+    "data": {
+      "to": {
+        "pullback_flow_block": 0.3
+      },
+      "why": "frequency_collapse 65.2/h < 0.8×223.0/h",
+      "from": {
+        "pullback_flow_block": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 回调 fade 亏损收窄",
+      "judge_at": "2026-09-28T16:56:37.083285+00:00",
+      "started_at": "2026-09-28T04:56:37.083285+00:00",
+      "rollback_to": {
+        "pullback_flow_block": 0.0
+      },
+      "rolled_back_at": "2026-09-28T16:56:01.649111+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h439_trial",
+    "ts": "2026-09-28T04:56:42.235051+00:00",
+    "data": {
+      "to": {
+        "p3_spike_gate": 0.3
+      },
+      "why": "manual_rollback",
+      "from": {
+        "p3_spike_gate": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10",
+      "judge_at": "2026-09-28T16:56:42.235051+00:00",
+      "started_at": "2026-09-28T04:56:42.235051+00:00",
+      "rollback_to": {
+        "p3_spike_gate": 0.0
+      },
+      "rolled_back_at": "2026-09-28T05:47:38.978011+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "ETH",
+        "BTC",
+        "DOGE",
+        "SUI",
+        "NEAR",
+        "ARB",
+        "ADA",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h440_trial",
+    "ts": "2026-09-28T05:44:43.524995+00:00",
+    "data": {
+      "to": {
+        "k_trend": 0.5
+      },
+      "why": "welch_p=0.028 delta=-1.875bp",
+      "from": {
+        "k_trend": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 顺势成交占比下降",
+      "judge_at": "2026-09-28T17:44:43.524995+00:00",
+      "started_at": "2026-09-28T05:44:43.524995+00:00",
+      "rollback_to": {
+        "k_trend": 0.0
+      },
+      "rolled_back_at": "2026-09-28T17:44:01.531233+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h441_trial",
+    "ts": "2026-09-28T13:13:55.994592+00:00",
+    "data": {
+      "to": {
+        "ofi_flatten_threshold": 0.5
+      },
+      "why": "信号保留、执行方式改由 h472 接管（taker→maker-only）。证据：h471 该路径付 −3.53bp/腿 taker 费 + −1.19bp/腿穿价差、吞掉全部手续费 49%；h470 出场后 300s 离场方向有利漂移 +9.91bp(t=2.15) ⇒ 该时点被动减仓本有对手方流量。自动判定任务已注销，避免把 _fl_th 回滚成 0 从而静默废掉 h472。",
+      "from": {
+        "ofi_flatten_threshold": 0.0
+      },
+      "verdict": "SUPERSEDED",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C vwap_revert_up 回补腿亏损收窄",
+      "judge_at": "2026-09-29T01:13:55.994592+00:00",
+      "started_at": "2026-09-28T13:13:55.994592+00:00",
+      "rollback_to": {
+        "ofi_flatten_threshold": 0.0
+      },
+      "superseded_at": "2026-09-28T18:30:39.183234+00:00",
+      "superseded_by": "h472",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ],
+      "original_verdict_fields": {
+        "to": {
+          "ofi_flatten_threshold": 0.5
+        },
+        "from": {
+          "ofi_flatten_threshold": 0.0
+        },
+        "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C vwap_revert_up 回补腿亏损收窄",
+        "judge_at": "2026-09-29T01:13:55.994592+00:00",
+        "started_at": "2026-09-28T13:13:55.994592+00:00",
+        "rollback_to": {
+          "ofi_flatten_threshold": 0.0
+        }
+      }
+    }
+  },
+  {
+    "key": "h442_trial",
+    "ts": "2026-09-28T13:17:58.865118+00:00",
+    "data": {
+      "to": {
+        "stop_ref_last_leg": 1.0
+      },
+      "why": "freq_shortfall_market_explained 38.2/h < 60/h，但窗口内**市场更冷/波动更高**（真实逐笔 活跃度 0.90×、波动代理 1.41×）⇒ 短fall 归因于外部（风控闸在高波动里按设计收紧），**不据此回滚该参数**；需在同类市况下重开窗口再判",
+      "from": {
+        "stop_ref_last_leg": 0.0
+      },
+      "verdict": "INCONCLUSIVE",
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 止损腿均值/尾部收窄、正收益误平减少",
+      "judge_at": "2026-09-29T01:17:58.865118+00:00",
+      "judged_at": "2026-09-29T01:17:01.854522+00:00",
+      "started_at": "2026-09-28T13:17:58.865118+00:00",
+      "rollback_to": {
+        "stop_ref_last_leg": 0.0
+      },
+      "extend_until": "2026-09-29T14:17:02.427817+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h443_trial",
+    "ts": "2026-09-28T14:47:00.774035+00:00",
+    "data": {
+      "to": {
+        "compound_ratio": 0.5
+      },
+      "from": {
+        "compound_ratio": 1.0
+      },
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 止损腿 USD 损失减半、峰值持仓名义/权益 ≤ 0.75",
+      "judge_at": "2026-09-29T02:47:00.774035+00:00",
+      "started_at": "2026-09-28T14:47:00.774035+00:00",
+      "rollback_to": {
+        "compound_ratio": 1.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h448_trial",
+    "ts": "2026-09-28T15:17:23.302017+00:00",
+    "data": {
+      "to": {
+        "ofi_confirm_threshold": 0.5
+      },
+      "why": "时序冲突：其判定（11:17L）会把 ofi_confirm_threshold 回滚到 0.15，而 ③/h464 在 14:35L 预注册的是 0.5→0.9 —— 先回滚会破坏 ③ 的基线与 rollback_to。h448 产出的 0.5 是当前线上值且正被 ③ 继承，故按 h441→h472 先例标记 SUPERSEDED，不再单独判定。",
+      "from": {
+        "ofi_confirm_threshold": 0.15
+      },
+      "verdict": "SUPERSEDED",
+      "criteria": "A legs/h≥0.8×基线（且 ≥60/h）；B Welch α=0.10；C 净/腿转正、止损笔数下降",
+      "judge_at": "2026-09-29T03:17:23.302017+00:00",
+      "started_at": "2026-09-28T15:17:23.302017+00:00",
+      "rollback_to": {
+        "ofi_confirm_threshold": 0.15
+      },
+      "superseded_at": "2026-09-28T20:39:15.695034+00:00",
+      "superseded_by": "h464",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ],
+      "original_verdict_fields": {
+        "to": {
+          "ofi_confirm_threshold": 0.5
+        },
+        "from": {
+          "ofi_confirm_threshold": 0.15
+        },
+        "criteria": "A legs/h≥0.8×基线（且 ≥60/h）；B Welch α=0.10；C 净/腿转正、止损笔数下降",
+        "judge_at": "2026-09-29T03:17:23.302017+00:00",
+        "started_at": "2026-09-28T15:17:23.302017+00:00",
+        "rollback_to": {
+          "ofi_confirm_threshold": 0.15
+        }
+      }
+    }
+  },
+  {
+    "key": "h452_trial",
+    "ts": "2026-09-28T15:25:37.255869+00:00",
+    "data": {
+      "to": {
+        "trend_only_bp": 30.0
+      },
+      "why": "manual_rollback",
+      "from": {
+        "trend_only_bp": 0.0
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥60/h（硬约束，破则回滚）；B Welch α=0.10；C 净/腿 ≥ +0.5bp",
+      "judge_at": "2026-09-29T03:25:37.256866+00:00",
+      "started_at": "2026-09-28T15:25:37.255869+00:00",
+      "rollback_to": {
+        "trend_only_bp": 0.0
+      },
+      "rolled_back_at": "2026-09-28T15:44:08.855816+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h454_trial",
+    "ts": "2026-09-28T15:46:50.600913+00:00",
+    "data": {
+      "to": {
+        "trend_only_q": 0.35
+      },
+      "from": {
+        "trend_only_q": 0.0
+      },
+      "criteria": "A legs/h≥60/h（硬约束）；B Welch α=0.10（vs 部署前基线）；C 净/腿 ≥ +0.3bp；D 安静时段不熔断（近 1h 腿数 > 0）",
+      "judge_at": "2026-09-29T03:46:50.600913+00:00",
+      "started_at": "2026-09-28T15:46:50.600913+00:00",
+      "rollback_to": {
+        "trend_only_q": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h435_trial",
+    "ts": "2026-09-28T17:28:27.679048+00:00",
+    "data": {
+      "to": {
+        "trail_lock_bp": 20.0
+      },
+      "from": {
+        "trail_lock_bp": 20.0
+      },
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 浮盈回吐收窄",
+      "judge_at": "2026-09-29T05:28:27.679048+00:00",
+      "started_at": "2026-09-28T17:28:27.679048+00:00",
+      "rollback_to": {
+        "trail_lock_bp": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h436_trial",
+    "ts": "2026-09-28T17:28:28.399888+00:00",
+    "data": {
+      "to": {
+        "post_stop_decay": 0.5
+      },
+      "from": {
+        "post_stop_decay": 0.5
+      },
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 连续止损次数下降",
+      "judge_at": "2026-09-29T05:28:28.399888+00:00",
+      "started_at": "2026-09-28T17:28:28.399888+00:00",
+      "rollback_to": {
+        "post_stop_decay": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h437_trial",
+    "ts": "2026-09-28T17:28:29.140957+00:00",
+    "data": {
+      "to": {
+        "p1_hold_sec": 60.0
+      },
+      "from": {
+        "p1_hold_sec": 60.0
+      },
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10",
+      "judge_at": "2026-09-29T05:28:29.140957+00:00",
+      "started_at": "2026-09-28T17:28:29.140957+00:00",
+      "rollback_to": {
+        "p1_hold_sec": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h438_trial",
+    "ts": "2026-09-28T17:28:29.973488+00:00",
+    "data": {
+      "to": {
+        "p45_hold_sec": 300.0
+      },
+      "from": {
+        "p45_hold_sec": 300.0
+      },
+      "criteria": "A legs/h≥0.8×基线；B Welch α=0.10；C 与硬上限交互无恶化",
+      "judge_at": "2026-09-29T05:28:29.973488+00:00",
+      "started_at": "2026-09-28T17:28:29.973488+00:00",
+      "rollback_to": {
+        "p45_hold_sec": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h472_trial",
+    "ts": "2026-09-28T18:33:15.457988+00:00",
+    "data": {
+      "to": {
+        "ofi_flatten_maker_only": 1.0
+      },
+      "from": {
+        "ofi_flatten_maker_only": 0.0
+      },
+      "criteria": "A legs/h≥60/h（硬约束）；B Welch α=0.10（净/腿）；C taker 出场腿占比与费/腿显著下降（机制判据）；D 未成交仓不越过 300s 合规硬顶",
+      "judge_at": "2026-09-29T06:33:15.457988+00:00",
+      "started_at": "2026-09-28T18:33:15.457988+00:00",
+      "rollback_to": {
+        "ofi_flatten_maker_only": 0.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h464_trial",
+    "ts": "2026-09-29T01:23:36.583418+00:00",
+    "data": {
+      "to": {
+        "ofi_confirm_threshold": 0.9
+      },
+      "why": "manual_rollback",
+      "from": {
+        "ofi_confirm_threshold": 0.9
+      },
+      "verdict": "ROLLBACK",
+      "criteria": "A legs/h≥60/h（硬约束）；B Welch α=0.10（净/腿）；C **机制判据**：入场腿净/腿上升（confirm 只留饱和态）、往返数不塌（≥0.85×基线）；D 两半窗口方向一致",
+      "judge_at": "2026-09-29T13:23:36.583418+00:00",
+      "started_at": "2026-09-29T01:23:36.583418+00:00",
+      "rollback_to": {
+        "ofi_confirm_threshold": 0.5
+      },
+      "rolled_back_at": "2026-09-29T01:24:55.118387+00:00",
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "h463_trial",
+    "ts": "2026-09-29T01:48:11.023510+00:00",
+    "data": {
+      "to": {
+        "max_one_side_seconds": 90.0
+      },
+      "from": {
+        "max_one_side_seconds": 90.0
+      },
+      "criteria": "A legs/h≥60/h；B Welch α=0.10；C **机制**：`legs_per_trip`（腿数÷平仓腿数）应上升——加仓窗翻倍若不起作用则该值不变；⚠️ 原判据「30–60s 桶净额」无法从账本算（出场腿无持仓年龄字段），已在判定前替换为 `legs_per_trip`（见 `h547_exit_age_probe.py`）",
+      "judge_at": "2026-09-29T13:48:11.023510+00:00",
+      "started_at": "2026-09-29T01:48:11.023510+00:00",
+      "rollback_to": {
+        "max_one_side_seconds": 45.0
+      },
+      "guards_bypassed": true,
+      "baseline_symbols": [
+        "BNB",
+        "NEAR",
+        "ARB",
+        "XRP",
+        "ENA"
+      ]
+    }
+  },
+  {
+    "key": "params",
+    "ts": null,
+    "data": {
+      "k_inv": 1.0,
+      "k_vol": 0.3,
+      "k_trend": 0.0,
+      "side_mode": "model",
+      "w_base_bp": 5.0,
+      "exit_skew_k": 0.0,
+      "p1_hold_sec": 60.0,
+      "spread_mult": 0.5,
+      "jump_exit_bp": 0.0,
+      "max_width_bp": 60.0,
+      "min_width_bp": 0.3,
+      "p45_hold_sec": 300.0,
+      "stop_loss_bp": 40,
+      "trend_only_q": 0.35,
+      "vol_spread_k": 0.0,
+      "fill_notional": 300.0,
+      "p3_spike_gate": 0.0,
+      "sudden_move_k": 1,
+      "trail_lock_bp": 20.0,
+      "trend_only_bp": 0.0,
+      "compound_ratio": 0.5,
+      "model_thr_frac": 0.1,
+      "sudden_move_bp": 20,
+      "take_profit_bp": 30,
+      "trend_pause_bp": 15,
+      "vol_pause_mult": 0.3,
+      "vwap_revert_bp": 0.0,
+      "frozen_lookback": 120,
+      "frozen_width_bp": 0.0,
+      "k_vol_sigma_cap": 2.0,
+      "post_stop_decay": 0.5,
+      "vol_pause_sigma": 1.5,
+      "vwap_flow_block": 0.0,
+      "min_hold_seconds": 0.0,
+      "jump_exit_tick_bp": 8,
+      "reversal_decay_bp": 3,
+      "side_trend_min_bp": 2,
+      "stop_loss_vol_min": 0.0,
+      "stop_ref_last_leg": 1.0,
+      "frozen_max_move_bp": 8.0,
+      "spread_mult_reduce": 0.4,
+      "daily_loss_stop_pct": 25,
+      "min_width_reduce_bp": 0.0,
+      "ofi_block_threshold": 0.5,
+      "pullback_flow_block": 0.0,
+      "spread_cross_margin": 0.05,
+      "stop_loss_fast_mult": 3.0,
+      "trend_skew_lookback": 6,
+      "max_one_side_seconds": 90.0,
+      "stop_maker_grace_sec": 30.0,
+      "vpin_pause_threshold": 0,
+      "max_leg_notional_mult": 3,
+      "ofi_confirm_threshold": 0.5,
+      "ofi_flatten_threshold": 0.5,
+      "reduce_quote_disabled": false,
+      "max_net_exposure_ratio": 24.0,
+      "ofi_flatten_maker_only": 1.0,
+      "timeout_hard_taker_sec": 300.0,
+      "timeout_exit_maker_only": true,
+      "max_gross_notional_ratio": 48.0,
+      "reversal_decay_grace_sec": 300,
+      "sudden_move_cooldown_sec": 0.0,
+      "max_net_directional_ratio": 2.0,
+      "max_symbol_notional_ratio": 12.0,
+      "ofi_flatten_min_age_ratio": 0.5,
+      "reversal_decay_min_age_sec": 15,
+      "take_profit_maker_grace_sec": 240,
+      "reversal_decay_window_periods": 2
+    }
+  },
+  {
+    "key": "ai_model",
+    "ts": null,
+    "data": {
+      "n": 10909,
+      "mu": {
+        "r60": 0.1858
+      },
+      "sd": {
+        "r60": 9.3289
+      },
+      "as_of": "2026-09-26T11:10:04.970395+00:00",
+      "ic_val": 0.03482,
+      "lambda": 0.0,
+      "weights": {
+        "r60": 0.213103
+      },
+      "features": [
+        "r60"
+      ],
+      "ic_train": 0.023,
+      "r60_ic_val": 0.03482
+    }
+  },
+  {
+    "key": "universe",
+    "ts": null,
+    "data": {
+      "ai": [
+        "BNB",
+        "ETH",
+        "BTC"
+      ],
+      "note": "H125：10 槽全部参与轮询；排序＝实测每周期净额(bp)；取消硬编码固定币（原 ASTER,XRP,SOL,DOGE,UNI 不参与评分）",
+      "as_of": "2026-09-26T15:40:00.230394+08:00",
+      "fixed": [],
+      "net_bp_per_cycle": {
+        "LTC": null,
+        "XLM": null,
+        "PENDLE": null,
+        "1000SHIB": null
+      }
+    }
+  },
+  {
+    "key": "evolution",
+    "ts": null,
+    "data": {
+      "mode": "proposal",
+      "reason": "F310: 实盘21.8h诊断——亏损100%%来自taker平仓(12笔/-52bp per leg)，maker腿+12.7bp为正；tape复盘9/12止损过早(价格5~60min回归)。回放18h扫描9组合无一转正，stop_loss_bp 10->60是唯一方向正确项(Delta+0.66USD, flatten 10->8, maker_bp +0.26)。注意:此改动仅减少损失,不使其转正;真正的修复需把平仓从taker改为被动。",
+      "prev_params": {
+        "stop_loss_bp": 10.0
+      },
+      "last_change_ts": "2026-09-17T01:39:44.909944+00:00"
+    }
+  },
+  {
+    "key": "h125_rollback",
+    "ts": null,
+    "data": {
+      "symbols": [
+        "ETH",
+        "BNB"
+      ]
+    }
+  },
+  {
+    "key": "h127_rollback",
+    "ts": null,
+    "data": {
+      "stop_loss_bp": 60.0,
+      "compound_ratio": 3.0,
+      "stop_loss_vol_min": 1.0,
+      "stop_loss_fast_mult": null,
+      "max_net_exposure_ratio": 32.0,
+      "max_gross_notional_ratio": 64.0,
+      "max_net_directional_ratio": 4.0
+    }
+  },
+  {
+    "key": "h156_rollback",
+    "ts": null,
+    "data": {
+      "compound_ratio": 1.0,
+      "max_net_exposure_ratio": 24.0,
+      "max_gross_notional_ratio": 48.0,
+      "max_net_directional_ratio": 3.0
+    }
+  },
+  {
+    "key": "h181_rollback",
+    "ts": null,
+    "data": {
+      "max_net_directional_ratio": 6.0
+    }
+  },
+  {
+    "key": "h185_rollback",
+    "ts": null,
+    "data": {
+      "compound_ratio": 2.0,
+      "max_net_exposure_ratio": 48.0,
+      "max_gross_notional_ratio": 96.0,
+      "max_net_directional_ratio": 4.0
+    }
+  },
+  {
+    "key": "replay_baseline",
+    "ts": null,
+    "data": {
+      "note": "基准=0 会让 σ 恒为 0 ⇒ vol_pause 对该币永不触发（己知公平性坑）。快照表无数据的币由 tick 口径补齐。",
+      "as_of": "2026-09-22T09:21:49.026863+00:00",
+      "method": "mid 按 15s 网格取末值 → compute_vol_baselines(window=20) → 20×15s=5min 窗口的 realized_vol_bp 中位；与 runner 的 mid_hist 同网格",
+      "source": "tick_15s_grid+snapshot",
+      "symbols": 10,
+      "f341_note": "补入 ['HYPE']（compute_vol_baselines, 14.0天, 15s网格, 窗口20）",
+      "window_days": 14.0,
+      "vol_baseline_bp": {
+        "ARB": 11.7218,
+        "SEI": 3.9164,
+        "SOL": 3.2726,
+        "UNI": 9.0309,
+        "XRP": 3.9099,
+        "DOGE": 3.414,
+        "HYPE": 4.234966,
+        "ASTER": 3.6678,
+        "PENDLE": 7.5478,
+        "VIRTUAL": 4.5372,
+        "1000SHIB": 4.1838
+      }
+    }
+  },
+  {
+    "key": "arbitrage_config",
+    "ts": null,
+    "data": {
+      "venue": "asterdex",
+      "budget_usd": 300.0,
+      "strategy_id": "MM"
+    }
+  },
+  {
+    "key": "h120_escalate_rollback",
+    "ts": null,
+    "data": {
+      "compound_ratio": 0.5,
+      "min_hold_seconds": 30.0,
+      "daily_loss_stop_pct": 25.0,
+      "max_one_side_seconds": 120.0,
+      "max_net_exposure_ratio": 4.0,
+      "max_symbol_notional_ratio": 1.0
+    }
+  },
+  {
+    "key": "f292_exit_near_mid_rollback",
+    "ts": null,
+    "data": {}
+  }
+]

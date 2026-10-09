@@ -2503,6 +2503,62 @@ MIDLONG_SHORT_SIZE_MULT: float = float(os.getenv("MIDLONG_SHORT_SIZE_MULT", "0.5
 MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES: bool = os.getenv(
     "MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES", "true"
 ).lower() in ("1", "true", "yes", "on")
+# [2026-09-24 用户指令] **长线分档止盈执行化**（车道声明 tp_stages=[8,15,25]% 真正接进执行层）。
+# 背景：exit_policy.py:22 原文"本模块只声明档位"，长线止盈侧实际为空 ⇒ 4 个长线仓峰值
+# +6.4%~+14.2% 全程无锁定，合计回吐 ≈$100（用户实盘观测）。用户 2026-09-24 指令：
+# "动态止盈止损，长线基本上没有止盈……现在全线是模拟仓，不要以怕亏钱为理由压制"。
+# 行为：收盘价 ≥ entry×(1+8%) → 减 50%（占当前仓位）；≥15% → 再减 50%（=原仓 25%）；
+# ≥25% → 清剩余；每档触发后 SL 推保本。幂等标记 exit_state_json.staged_tp_done=[1,2,3]。
+# 回滚：.env 置 LONG_STAGED_TP_EXEC=false。
+LONG_STAGED_TP_EXEC: bool = os.getenv(
+    "LONG_STAGED_TP_EXEC", "true"
+).lower() in ("1", "true", "yes", "on")
+# [2026-09-24 用户指令] **长线止损归一开关**：统一为「结构止损（Chandelier）+ 统一保本提升」。
+# 背景：现状三套口径并存（声明 sl_pct 2.5~3.2% 从不执行 / 初始 sl_price 各开仓路径不一致 /
+# 实际底线 structural Chandelier），且 peak 来源口径飘忽导致 ETH/SOL 峰值 +6% 以上仍未被推保本。
+# 行为：① 保本阈值统一 2%（峰值）、锁利 1/3（峰值 ≥3%）；② 峰值口径统一由 DB 行
+# peak_pnl_pct（小数、无杠杆价格%）+ 由 peak_unrealized_pnl/名义 反推兜底取大者。
+# 回滚：.env 置 LONG_SL_UNIFY=false（恢复仅 DB 列口径）。
+LONG_SL_UNIFY: bool = os.getenv(
+    "LONG_SL_UNIFY", "true"
+).lower() in ("1", "true", "yes", "on")
+# [2026-09-24 用户指令] **存量长线仓的管理与入场闸解耦**（修复"长线从未被管理"）。
+# 根因：`manage_long_position` 首行读入场闸 `LONG_TREND_V2`（.env=0）直接返回 hold，
+# 且 midlong 循环的 V2 管理块条件 `_v2_active and tier=="long"` 同样被该闸判死
+# ⇒ Chandelier 上移 / 保本 / 锁利 / 分档止盈 / 极端回撤全部**从未执行**；
+# 而 paper 引擎对趋势车道又跳过全部中短线保护（轮99）⇒ 长线仓实际无人管理，只剩硬止损。
+# 回滚：LONG_V2_MANAGE_ALWAYS=false；EXIT_TREND_MANAGE_DECOUPLED=false（两道门各自可关）。
+LONG_V2_MANAGE_ALWAYS: bool = os.getenv(
+    "LONG_V2_MANAGE_ALWAYS", "true"
+).lower() in ("1", "true", "yes", "on")
+EXIT_TREND_MANAGE_DECOUPLED: bool = os.getenv(
+    "EXIT_TREND_MANAGE_DECOUPLED", "true"
+).lower() in ("1", "true", "yes", "on")
+# [2026-09-24 用户指令 · 长线动态止损] **绝对亏损硬闸**：多单浮亏（无杠杆价格口径）≥ 该值 → 市价全平。
+# 依据（09-15 后样本，用户规定作废线之后，n=15 kline / 12 agg，双价源）：
+#   −8% 硬闸 Δ总 +89.50 / +69.04，前半Δ +5.92 / +6.44、后半Δ +83.58 / +62.60（均非负），
+#   最差单笔 −14.15 → −9.55 / −7.61（尾部改善）。
+# 实现位置：`paper_trading_engine._run_v2_protection`（tick 级，与车道归属无关 ——
+# 趋势车道其他保护被轮99 有意跳过，但亏损上限必须 tick 级生效）。
+# 回滚：LONG_LOSS_CAP_PCT=0（关闭）。
+LONG_LOSS_CAP_PCT: float = float(os.getenv("LONG_LOSS_CAP_PCT", "8") or 0)
+# [2026-09-24 第13轮 · 用户指令「中线按 09-15 后样本验证并落地」] 中线是否跑统一分段止盈（ATR 阶梯）。
+# 默认 **false**（关）：`cf_mid_trail_grid.py --days 9`（n=114，双价源，基线=活体追踪 5.0/2.5）显示
+# 无分档 +0.733/+0.809pp 优于所有分档版本（声明档 2.5/4/6 → +0.221/+0.313，后半 −0.240/−0.207；
+# 早档 1.5/2.5/4 → −0.077/−0.019；单档 1.5×50% → +0.043/+0.119 后半 −0.324）。
+# 生效点：`paper_trading_engine._should_run_unified_staged_tp`（仅 mid 车道受影响）。
+# 回滚：MID_STAGED_TP_ENABLED=true。
+MID_STAGED_TP_ENABLED: bool = os.getenv(
+    "MID_STAGED_TP_ENABLED", "false"
+).lower() in ("1", "true", "yes", "on")
+# [2026-09-24 第15轮 · 待决项预置] 长线**锁利比例**（占峰值浮盈的多少写进止损线）。
+# 默认 1/3（= 现状）；设 **0.5** 即切到第 7 轮验证出的候选 V4（锁峰值一半）。
+# 依据（09-15 后 17 笔 / 已平仓 10 笔，`cf_long_exit_variants_20260924.py`）：
+#   已平仓口径 V4(1/2) −$3.49 vs V0(1/3) −$6.73（V4 更优），但 V4 只在后半占优、前半仍落后
+#   ⇒ **样本不足，未启用**，只留开关备选。
+# 生效点：`long_tier_manager.lock_profit_frac()`（decide_long 与 trend_e1_engine 共用）。
+# 回滚：置 0.3333333333（或删除该键）。
+LONG_LOCK_PEAK_FRAC: float = float(os.getenv("LONG_LOCK_PEAK_FRAC", "0.3333333333") or 0.3333333333)
 # [2026-09-12 F40] 受控逆势补仓：行情未反转（论题同向 + 反转价格闸噪音区 +
 # 亏损带 -2%~-8% + evaluate_dca 全门控）时补仓 30% 原仓位、杠杆减半、
 # SL 地板不得比原仓更差。false=回到「补仓默认禁止」旧行为。
@@ -2532,6 +2588,13 @@ MIDLONG_POSITION_MGMT_PYRAMID_ONLY_PROFIT: bool = os.getenv(
 MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL: float = float(
     os.getenv("MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL", "0.05")
 )
+# [2026-09-28 用户指令「这么久了没有滚仓」] 规则直通滚仓**不受 LLM 节流约束**：
+# 原实现 `_pyr_direct` 写在 `_llm_due` 早退之后 ⇒ 长线 4h 一次 LLM 复审，规则直通永远够不到。
+# true（默认）＝ 保证金浮盈>PYRAMID_DIRECT_PNL 且 4h/1d 双周期同向时，节流早退前直接进 5 层门控。
+# 回滚：false = 旧行为（直通只在 LLM 复审窗口内生效）。
+MIDLONG_PYRAMID_RULE_PRETHROTTLE: bool = os.getenv(
+    "MIDLONG_PYRAMID_RULE_PRETHROTTLE", "true"
+).lower() in ("1", "true", "yes", "on")
 # [P0-2] 浮盈 tighten 保护：保证金口径浮盈 > 此值时，收紧 SL 不得越过 entry±MIDLONG_TIGHTEN_SL_FLOOR
 MIDLONG_TIGHTEN_PROFIT_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_PROFIT_FLOOR", "0.015"))
 MIDLONG_TIGHTEN_SL_FLOOR: float = float(os.getenv("MIDLONG_TIGHTEN_SL_FLOOR", "0.01"))
@@ -3266,6 +3329,20 @@ PAPER_DISABLE_LOSS_LOCKS: bool = os.getenv(
 PAPER_NETTING_MODE: bool = os.getenv(
     "PAPER_NETTING_MODE", "true"
 ).strip().lower() in ("true", "1", "yes", "on")
+# Paper 余额/权益曲线的已实现盈亏口径（2026-09-23 回滚 + 开关）：
+#  - "orders"（默认）：SUM(paper_orders.pnl)，订单账本逐腿口径。
+#    · 2026-09-23 曾短暂改成 "positions"（持仓账本 SUM(unrealized_pnl)），用户发现权益
+#      "凭空多出一百"并质疑手续费被剔除 ⇒ 已回滚。
+#    · 根因（已核实）：持仓账本部分仓的 closed.unrealized_pnl 只记了最后一腿
+#      （如 pos 4601 记 −1.87，其 5 腿订单合计 −44.84；4601/4680/4650/4612 等一批
+#       trim 腿盈亏只落在订单表），漏腿让权益虚高 ≈ +$125；手续费从未被剔除
+#      （order_fees 一直在扣）。
+#    · 订单账本的另一侧缺陷：09-16 幂等修复前有历史重复平仓腿（已识别 17 对 ≈ −$73），
+#      会让 orders 口径偏保守。两害相权取订单账本（保守、逐腿完整、与用户预期一致）。
+#  - "positions"：持仓账本口径（仅作对照实验，勿默认启用）。
+PAPER_BALANCE_PNL_SOURCE: str = os.getenv(
+    "PAPER_BALANCE_PNL_SOURCE", "orders"
+).strip().lower()
 # Paper Engine 单向(One-Way)反手净额抵消（2026-07-03 修复：消除同层多空并存伪对冲）
 #  - true (默认): 反向订单先平/减同层(scalp/swing/trend)已有反向仓，剩余量才翻新仓，
 #    保证同一币同一层永远只有一个方向（真 One-Way 记账，杜绝"短线全是多空对冲单"）

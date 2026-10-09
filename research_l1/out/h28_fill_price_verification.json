@@ -1,0 +1,2907 @@
+{
+  "hours": 8.0,
+  "win_ms": 20000,
+  "px_tol_bp": 2.0,
+  "n": 292,
+  "match": 145,
+  "nomatch": 147,
+  "match_rate": 0.4965753424657534,
+  "details": [
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21335634370092832,
+      "is_buy": false
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21439,
+      "is_buy": true
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21177900286603496,
+      "is_buy": true
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.2109687111802232,
+      "is_buy": false
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21304344057855346,
+      "is_buy": false
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21318834812499998,
+      "is_buy": true
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21229594479499336,
+      "is_buy": true
+    },
+    {
+      "symbol": "ARB",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.21328163133628297,
+      "is_buy": false
+    },
+    {
+      "symbol": "ARB",
+      "ok": false,
+      "dev_bp": 28.564499770550672,
+      "engine_px": 0.21352009054226972,
+      "engine_qty": 139.6904524633,
+      "real_px": 0.21413,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 2.182686052458686,
+      "engine_px": 0.7321598075000001,
+      "engine_qty": 40.9876569438,
+      "real_px": 0.732,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6224435669249171,
+      "engine_px": 0.7318544461908043,
+      "real_px": 0.7319,
+      "engine_qty": 40.632,
+      "real_qty": 106.54,
+      "dt_ms": 15566,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.0,
+      "engine_px": 0.7318,
+      "real_px": 0.7318,
+      "engine_qty": 0.3556569438,
+      "real_qty": 287.81,
+      "dt_ms": -7378,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5516453536559245,
+      "engine_px": 0.7310403275,
+      "real_px": 0.731,
+      "engine_qty": 41.018939197,
+      "real_qty": 1027.65,
+      "dt_ms": -19984,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5516453536559245,
+      "engine_px": 0.7310403275,
+      "real_px": 0.731,
+      "engine_qty": 41.0178794884,
+      "real_qty": 1538.13,
+      "dt_ms": 3263,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5659815059192038,
+      "engine_px": 0.7311413812499999,
+      "real_px": 0.7311,
+      "engine_qty": 82.0368186855,
+      "real_qty": 354.49,
+      "dt_ms": -7385,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.0517445242250472,
+      "engine_px": 0.7311231045278278,
+      "real_px": 0.7312,
+      "engine_qty": 41.0096477265,
+      "real_qty": 1417.95,
+      "dt_ms": -14294,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.78726195981823,
+      "engine_px": 0.7311231045278278,
+      "engine_qty": 40.9994590198,
+      "real_px": 0.7314,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.5518148235062585,
+      "engine_px": 0.7311403125,
+      "engine_qty": 82.0091067463,
+      "real_px": 0.7314,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 12.606768174543959,
+      "engine_px": 0.7313779687499999,
+      "engine_qty": 40.9329307309,
+      "real_px": 0.7323,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 7.385350601946208,
+      "engine_px": 0.7315597175000002,
+      "engine_qty": 40.9063420855,
+      "real_px": 0.7321,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.566580087664299,
+      "engine_px": 0.7330746091567888,
+      "engine_qty": 81.8392728164,
+      "real_px": 0.7323,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.716797336287135,
+      "engine_px": 0.7325722822707381,
+      "engine_qty": 40.9214611024,
+      "real_px": 0.7323,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.716797336287135,
+      "engine_px": 0.7325722822707381,
+      "engine_qty": 40.9140374291,
+      "real_px": 0.7323,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6766607062580057,
+      "engine_px": 0.7321504582553829,
+      "real_px": 0.7322,
+      "engine_qty": 81.8354985315,
+      "real_qty": 138.4,
+      "dt_ms": -17704,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.1464745954975966,
+      "engine_px": 0.7321303629587642,
+      "engine_qty": 40.9346929016,
+      "real_px": 0.7319,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 2.0616584312952035,
+      "engine_px": 0.7317491383219386,
+      "engine_qty": 40.9346929016,
+      "real_px": 0.7319,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 2.0616557152108452,
+      "engine_px": 0.7317491385206468,
+      "engine_qty": 40.9328698682,
+      "real_px": 0.7319,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.970845315312226,
+      "engine_px": 0.7320710727771481,
+      "real_px": 0.732,
+      "engine_qty": 40.9328698682,
+      "real_qty": 207.52,
+      "dt_ms": -17874,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 2.0593546633364155,
+      "engine_px": 0.7320507552136548,
+      "engine_qty": 40.9370916046,
+      "real_px": 0.7319,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6753485792512874,
+      "engine_px": 0.7318494253469634,
+      "real_px": 0.7318,
+      "engine_qty": 40.9370916046,
+      "real_qty": 42.7,
+      "dt_ms": -3063,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6753485792512874,
+      "engine_px": 0.7318494253469634,
+      "real_px": 0.7318,
+      "engine_qty": 40.9538484455,
+      "real_qty": 42.7,
+      "dt_ms": -18180,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6753485792512874,
+      "engine_px": 0.7318494253469634,
+      "real_px": 0.7318,
+      "engine_qty": 40.9451052668,
+      "real_qty": 714.28,
+      "dt_ms": -6487,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.3945468598386489,
+      "engine_px": 0.7318711242546119,
+      "real_px": 0.7319,
+      "engine_qty": 81.8989537123,
+      "real_qty": 467.89,
+      "dt_ms": -15215,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.6736687652824012,
+      "engine_px": 0.7318506975044241,
+      "real_px": 0.7319,
+      "engine_qty": 40.9468108477,
+      "real_qty": 319.65,
+      "dt_ms": -19056,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5669513890247615,
+      "engine_px": 0.7318585071802785,
+      "real_px": 0.7319,
+      "engine_qty": 40.9468108477,
+      "real_qty": 426.52,
+      "dt_ms": -15441,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.2501264739571025,
+      "engine_px": 0.731908502180491,
+      "real_px": 0.732,
+      "engine_qty": 40.9426687615,
+      "real_qty": 136.33,
+      "dt_ms": -13160,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.2501264739571025,
+      "engine_px": 0.731908502180491,
+      "real_px": 0.732,
+      "engine_qty": 40.9431805451,
+      "real_qty": 314.2,
+      "dt_ms": -19318,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.623872839992295,
+      "engine_px": 0.7312231578153712,
+      "engine_qty": 81.8858493066,
+      "real_px": 0.732,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.783071836533545,
+      "engine_px": 0.7317231838630989,
+      "engine_qty": 40.9220180316,
+      "real_px": 0.732,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.7830581037196267,
+      "engine_px": 0.7317231848675807,
+      "engine_qty": 40.9228890103,
+      "real_px": 0.732,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 13.34461171008477,
+      "engine_px": 0.7319767946104869,
+      "engine_qty": 81.8449070419,
+      "real_px": 0.731,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 18.80926582132352,
+      "engine_px": 0.7319767946104869,
+      "engine_qty": 40.9741984681,
+      "real_px": 0.7306,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 21.54158226743013,
+      "engine_px": 0.7319767938322187,
+      "engine_qty": 41.0115319324,
+      "real_px": 0.7304,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 8.004670618178125,
+      "engine_px": 0.7309851295188585,
+      "engine_qty": 41.0129464029,
+      "real_px": 0.7304,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.488236634190809,
+      "engine_px": 0.7309666551250654,
+      "engine_qty": 41.0261022937,
+      "real_px": 0.7302,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 12.205569540132148,
+      "engine_px": 0.7300089824599664,
+      "engine_qty": 164.0247790971,
+      "real_px": 0.7309,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.9714083264043958,
+      "engine_px": 0.7311710265623228,
+      "real_px": 0.7311,
+      "engine_qty": 40.9295948848,
+      "real_qty": 4005.36,
+      "dt_ms": 7191,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.4277724241982022,
+      "engine_px": 0.7310312715019175,
+      "real_px": 0.731,
+      "engine_qty": 40.9295948848,
+      "real_qty": 1285.34,
+      "dt_ms": -13696,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.515671874106683,
+      "engine_px": 0.7310312715019175,
+      "engine_qty": 40.9415765784,
+      "real_px": 0.7318,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.224041789100653,
+      "engine_px": 0.7310525687986573,
+      "engine_qty": 40.8863057586,
+      "real_px": 0.7318,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 7.023189758957078,
+      "engine_px": 0.7312864036818797,
+      "engine_qty": 81.827882337,
+      "real_px": 0.7318,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 14.39620581581643,
+      "engine_px": 0.7310475688737341,
+      "engine_qty": 40.8818486442,
+      "real_px": 0.7321,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 3.7793951550581393,
+      "engine_px": 0.7318234150130941,
+      "engine_qty": 40.8818486442,
+      "real_px": 0.7321,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.43101188013409253,
+      "engine_px": 0.732068446980228,
+      "real_px": 0.7321,
+      "engine_qty": 40.8558956925,
+      "real_qty": 1217.54,
+      "dt_ms": 6582,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.16091611966423996,
+      "engine_px": 0.732188217911311,
+      "real_px": 0.7322,
+      "engine_qty": 40.8571689535,
+      "real_qty": 246.18,
+      "dt_ms": 4222,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5008416087154991,
+      "engine_px": 0.7321633302139853,
+      "real_px": 0.7322,
+      "engine_qty": 40.8774731594,
+      "real_qty": 246.18,
+      "dt_ms": -10854,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.3500330532821329,
+      "engine_px": 0.7323743644765057,
+      "real_px": 0.7324,
+      "engine_qty": 122.5905378055,
+      "real_qty": 591.34,
+      "dt_ms": -12730,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.7887348931333764,
+      "engine_px": 0.7320422612725286,
+      "real_px": 0.7321,
+      "engine_qty": 40.8541529115,
+      "real_qty": 681.45,
+      "dt_ms": -18879,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.341202699484946,
+      "engine_px": 0.7322427729060146,
+      "engine_qty": 40.8541529115,
+      "real_px": 0.733,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 8.974399309668584,
+      "engine_px": 0.7323427663583153,
+      "engine_qty": 40.8077177931,
+      "real_px": 0.733,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.3912727999790404,
+      "engine_px": 0.7332020084011178,
+      "real_px": 0.7331,
+      "engine_qty": 40.8077177931,
+      "real_qty": 1083.91,
+      "dt_ms": 4144,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.336488413279429,
+      "engine_px": 0.7332020084011178,
+      "real_px": 0.7333,
+      "engine_qty": 40.8154640835,
+      "real_qty": 1146.01,
+      "dt_ms": 13956,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 1.250109319250118,
+      "engine_px": 0.7332083409420036,
+      "real_px": 0.7333,
+      "engine_qty": 40.8054875537,
+      "real_qty": 1146.01,
+      "dt_ms": -1148,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 5.995038368519367,
+      "engine_px": 0.7330605274011783,
+      "engine_qty": 81.6209516372,
+      "real_px": 0.7335,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 6.246554336199746,
+      "engine_px": 0.7330421012683705,
+      "engine_qty": 40.7783023446,
+      "real_px": 0.7335,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 5.130040042298988,
+      "engine_px": 0.7332238532272976,
+      "engine_qty": 40.7802407306,
+      "real_px": 0.7336,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 10.561350495128874,
+      "engine_px": 0.7344757055356319,
+      "engine_qty": 81.5585430752,
+      "real_px": 0.7337,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 7.838319651595068,
+      "engine_px": 0.7344757055356319,
+      "engine_qty": 40.7511242249,
+      "real_px": 0.7339,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 7.131212682348508,
+      "engine_px": 0.7331771557768316,
+      "engine_qty": 40.7511242249,
+      "real_px": 0.7337,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 7.371070017874521,
+      "engine_px": 0.7338590673431362,
+      "engine_qty": 40.6908236095,
+      "real_px": 0.7344,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 5.202660026815235,
+      "engine_px": 0.7340181153292419,
+      "engine_qty": 40.6908236095,
+      "real_px": 0.7344,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 4.332332526283326,
+      "engine_px": 0.7342818846707581,
+      "engine_qty": 40.6925639594,
+      "real_px": 0.7346,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": false,
+      "dev_bp": 4.333181925035213,
+      "engine_px": 0.7342818223279607,
+      "engine_qty": 40.6925107223,
+      "real_px": 0.7346,
+      "is_buy": false
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.5412094113580788,
+      "engine_px": 0.7343397431580131,
+      "real_px": 0.7343,
+      "engine_qty": 81.3850746817,
+      "real_qty": 760.25,
+      "dt_ms": -7299,
+      "is_buy": true
+    },
+    {
+      "symbol": "ASTER",
+      "ok": true,
+      "dev_bp": 0.05934594213904287,
+      "engine_px": 0.7346043595787819,
+      "real_px": 0.7346,
+      "engine_qty": 40.6828757912,
+      "real_qty": 892.82,
+      "dt_ms": -14601,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.27298580928606336,
+      "engine_px": 0.08459230925,
+      "real_px": 0.08459,
+      "engine_qty": 319.8,
+      "real_qty": 1879.0,
+      "dt_ms": 6162,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.2733230731826048,
+      "engine_px": 0.08459768775,
+      "real_px": 0.0846,
+      "engine_qty": 319.8,
+      "real_qty": 1867.0,
+      "dt_ms": -11452,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.9087423314355165,
+      "engine_px": 0.08459768775,
+      "real_px": 0.08459,
+      "engine_qty": 354.641710503,
+      "real_qty": 1118.0,
+      "dt_ms": -15685,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.8649821819560624,
+      "engine_px": 0.08464578628832053,
+      "real_px": 0.08463,
+      "engine_qty": 354.6665618535,
+      "real_qty": 40006.0,
+      "dt_ms": 6204,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.7722652935180143,
+      "engine_px": 0.08464653695827094,
+      "real_px": 0.08464,
+      "engine_qty": 567.3,
+      "real_qty": 1175.0,
+      "dt_ms": -3684,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.1815805101859281,
+      "engine_px": 0.08464153692534579,
+      "real_px": 0.08464,
+      "engine_qty": 142.0082723565,
+      "real_qty": 362.0,
+      "dt_ms": -14649,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.27172917843891414,
+      "engine_px": 0.08465230024999999,
+      "real_px": 0.08465,
+      "engine_qty": 354.4267529092,
+      "real_qty": 419.0,
+      "dt_ms": -19975,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5220417800434611,
+      "engine_px": 0.08465558062499999,
+      "real_px": 0.08466,
+      "engine_qty": 354.4267529092,
+      "real_qty": 318.0,
+      "dt_ms": -15436,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.27151991310705414,
+      "engine_px": 0.08466229875,
+      "real_px": 0.08466,
+      "engine_qty": 354.1606139678,
+      "real_qty": 763.0,
+      "dt_ms": -11219,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.27143846934804694,
+      "engine_px": 0.08468770125000001,
+      "real_px": 0.08469,
+      "engine_qty": 354.1606139678,
+      "real_qty": 1071.0,
+      "dt_ms": -2560,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.27143846934804694,
+      "engine_px": 0.08468770125000001,
+      "real_px": 0.08469,
+      "engine_qty": 354.1834842671,
+      "real_qty": 1071.0,
+      "dt_ms": -17642,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 4.453133278523698,
+      "engine_px": 0.08466229875,
+      "engine_qty": 354.1834842671,
+      "real_px": 0.0847,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.4522474714103293,
+      "engine_px": 0.08468770125000001,
+      "real_px": 0.0847,
+      "engine_qty": 354.1096027858,
+      "real_qty": 539.0,
+      "dt_ms": 4805,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5207078317939201,
+      "engine_px": 0.08470441062499999,
+      "real_px": 0.0847,
+      "engine_qty": 354.1096027858,
+      "real_qty": 344.0,
+      "dt_ms": -12455,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5206940841457868,
+      "engine_px": 0.08470441050854528,
+      "real_px": 0.0847,
+      "engine_qty": 354.0988726908,
+      "real_qty": 272.0,
+      "dt_ms": -19839,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 5.2417015128028215,
+      "engine_px": 0.084725589375,
+      "engine_qty": 310.2,
+      "real_px": 0.08477,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 0.08473,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.068949088465918,
+      "engine_px": 0.08470752555577848,
+      "engine_qty": 354.2886679662,
+      "real_px": 0.08469,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 4.928180574911909,
+      "engine_px": 0.08472175240944968,
+      "engine_qty": 354.2886679662,
+      "real_px": 0.08468,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.14776818925508628,
+      "engine_px": 0.08465874901299537,
+      "real_px": 0.08466,
+      "engine_qty": 354.1618602728,
+      "real_qty": 400.0,
+      "dt_ms": -13194,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.14776818925508628,
+      "engine_px": 0.08465874901299537,
+      "real_px": 0.08466,
+      "engine_qty": 269.1,
+      "real_qty": 857.0,
+      "dt_ms": -10562,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.2202607656927844,
+      "engine_px": 0.08467880090193285,
+      "engine_qty": 354.1719813382,
+      "real_px": 0.08466,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.093881274314689,
+      "engine_px": 0.08465772632278734,
+      "engine_qty": 854.7,
+      "real_px": 0.08464,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 6.158049414091083,
+      "engine_px": 0.08464787342126741,
+      "engine_qty": 122.7338416111,
+      "real_px": 0.0847,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.7953202406766287,
+      "engine_px": 0.08464787342126741,
+      "engine_qty": 354.0173779588,
+      "real_px": 0.08468,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.5418901778499836,
+      "engine_px": 0.08465848074393253,
+      "engine_qty": 354.0173779588,
+      "real_px": 0.08468,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.26638574908773877,
+      "engine_px": 0.08465774483832252,
+      "real_px": 0.08466,
+      "engine_qty": 354.0784910561,
+      "real_qty": 1566.0,
+      "dt_ms": 13158,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 4.244678060188485,
+      "engine_px": 0.08471595919733528,
+      "engine_qty": 354.087360529,
+      "real_px": 0.08468,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.7791468955313894,
+      "engine_px": 0.08469200635328863,
+      "engine_qty": 708.1658515851,
+      "real_px": 0.08466,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.132782370728649,
+      "engine_px": 0.08468653044696224,
+      "engine_qty": 354.1904801276,
+      "real_px": 0.08466,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.271197739402302,
+      "engine_px": 0.08467769975,
+      "engine_qty": 354.1904801276,
+      "real_px": 0.08465,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.909503858098159,
+      "engine_px": 0.08464230175000001,
+      "real_px": 0.08465,
+      "engine_qty": 354.2392546217,
+      "real_qty": 349.0,
+      "dt_ms": -19015,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.884067463924784,
+      "engine_px": 0.084665581875,
+      "engine_qty": 354.2392546217,
+      "real_px": 0.08469,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.7029462187210778,
+      "engine_px": 0.08466558190674361,
+      "real_px": 0.08468,
+      "engine_qty": 354.0109285166,
+      "real_qty": 1947.0,
+      "dt_ms": 5746,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5211101076364365,
+      "engine_px": 0.08470558590630109,
+      "real_px": 0.08471,
+      "engine_qty": 354.0188890857,
+      "real_qty": 1354.0,
+      "dt_ms": 2511,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.951820438679503,
+      "engine_px": 0.08469652945238249,
+      "engine_qty": 708.0298176023,
+      "real_px": 0.08473,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.631105068643262,
+      "engine_px": 0.08472770725,
+      "engine_qty": 353.8029697363,
+      "real_px": 0.08475,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 9.712613815593405,
+      "engine_px": 0.08472770725,
+      "engine_qty": 353.823431066,
+      "real_px": 0.08481,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 15.613871104720436,
+      "engine_px": 0.08472770725,
+      "engine_qty": 353.3320094256,
+      "real_px": 0.08486,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.528607044227117,
+      "engine_px": 0.08480296304066753,
+      "real_px": 0.08479,
+      "engine_qty": 1060.9584102279,
+      "real_qty": 475.0,
+      "dt_ms": 14436,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.528607044227117,
+      "engine_px": 0.08480296304066753,
+      "real_px": 0.08479,
+      "engine_qty": 353.4905374948,
+      "real_qty": 475.0,
+      "dt_ms": -946,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.528607044227117,
+      "engine_px": 0.08480296304066753,
+      "real_px": 0.08479,
+      "engine_qty": 353.3430201144,
+      "real_qty": 475.0,
+      "dt_ms": -16061,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.014534549763049,
+      "engine_px": 0.08475707460551296,
+      "engine_qty": 294.3,
+      "real_px": 0.08474,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 5.269476803960465,
+      "engine_px": 0.08477467181667013,
+      "engine_qty": 412.5335576093,
+      "real_px": 0.08473,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.3872779307094775,
+      "engine_px": 0.08473671833390685,
+      "real_px": 0.08474,
+      "engine_qty": 353.6299344862,
+      "real_qty": 100.0,
+      "dt_ms": 10523,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.1263818702697719,
+      "engine_px": 0.08471045836754726,
+      "real_px": 0.08472,
+      "engine_qty": 353.6299344862,
+      "real_qty": 100.0,
+      "dt_ms": 15689,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.310534341651254,
+      "engine_px": 0.08474958168189166,
+      "engine_qty": 184.2,
+      "real_px": 0.08473,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.3914728814868271,
+      "engine_px": 0.08470178602382657,
+      "real_px": 0.08469,
+      "engine_qty": 184.2,
+      "real_qty": 790.0,
+      "dt_ms": 8782,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.3914728814868271,
+      "engine_px": 0.08470178602382657,
+      "real_px": 0.08469,
+      "engine_qty": 353.9594708557,
+      "real_qty": 790.0,
+      "dt_ms": -6334,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.7526981801340287,
+      "engine_px": 0.08470178602382657,
+      "engine_qty": 353.9806271777,
+      "real_px": 0.08467,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.7048185478539144,
+      "engine_px": 0.08467596811928879,
+      "real_px": 0.08467,
+      "engine_qty": 573.9,
+      "real_qty": 418.0,
+      "dt_ms": -15315,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.366304077278382,
+      "engine_px": 0.08467689825069195,
+      "real_px": 0.08468,
+      "engine_qty": 134.0400980334,
+      "real_qty": 3699.0,
+      "dt_ms": -4108,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.270988536840439,
+      "engine_px": 0.08468770125000001,
+      "engine_qty": 353.8831363287,
+      "real_px": 0.08466,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 7.6073009155668005,
+      "engine_px": 0.084674414375,
+      "engine_qty": 353.8831363287,
+      "real_px": 0.08461,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 7.6073009155668005,
+      "engine_px": 0.084674414375,
+      "engine_qty": 354.1568118168,
+      "real_px": 0.08461,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 12.469614201119334,
+      "engine_px": 0.08467441427213207,
+      "engine_qty": 353.4982013328,
+      "real_px": 0.08478,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 14.70089503213901,
+      "engine_px": 0.084635578125,
+      "engine_qty": 707.6550131496,
+      "real_px": 0.08476,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5387632547444516,
+      "engine_px": 0.08479456841976665,
+      "real_px": 0.08479,
+      "engine_qty": 353.3285758094,
+      "real_qty": 913.0,
+      "dt_ms": 9014,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5369303899114193,
+      "engine_px": 0.08479455287723388,
+      "real_px": 0.08479,
+      "engine_qty": 353.3360960075,
+      "real_qty": 913.0,
+      "dt_ms": -6073,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 8.902586386904614,
+      "engine_px": 0.08477547209638286,
+      "engine_qty": 706.6646718169,
+      "real_px": 0.0847,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 12.441345801407747,
+      "engine_px": 0.08477547209638286,
+      "engine_qty": 353.6536981288,
+      "real_px": 0.08467,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 12.461684105676685,
+      "engine_px": 0.08477564473044859,
+      "engine_qty": 269.4,
+      "real_px": 0.08467,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.4073375852542505,
+      "engine_px": 0.08469038783537458,
+      "engine_qty": 309.6,
+      "real_px": 0.08467,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 11.42815610359335,
+      "engine_px": 0.08466324552139447,
+      "engine_qty": 760.2,
+      "real_px": 0.08476,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 11.42815610359335,
+      "engine_px": 0.08466324552139447,
+      "engine_qty": 172.4536981288,
+      "real_px": 0.08476,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.1106619134053421,
+      "engine_px": 0.08475906204000162,
+      "real_px": 0.08476,
+      "engine_qty": 353.0025750516,
+      "real_qty": 724.0,
+      "dt_ms": -7111,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.2904597950811842,
+      "engine_px": 0.08476246200873457,
+      "real_px": 0.08476,
+      "engine_qty": 353.0025750516,
+      "real_qty": 413.0,
+      "dt_ms": -13215,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.629642723924557,
+      "engine_px": 0.08475771175,
+      "engine_qty": 352.9504133986,
+      "real_px": 0.08478,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 1.449113135005057,
+      "engine_px": 0.08477771475000001,
+      "real_px": 0.08479,
+      "engine_qty": 330.3,
+      "real_qty": 431.0,
+      "dt_ms": -12136,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.42644762630871275,
+      "engine_px": 0.08480638345190811,
+      "real_px": 0.08481,
+      "engine_qty": 683.2504133986,
+      "real_qty": 513.0,
+      "dt_ms": -18535,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.7527798322992263,
+      "engine_px": 0.08480638405355657,
+      "real_px": 0.0848,
+      "engine_qty": 170.1,
+      "real_qty": 329.0,
+      "dt_ms": -19998,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 2.2104356848093216,
+      "engine_px": 0.08480125522793276,
+      "engine_qty": 352.6574361997,
+      "real_px": 0.08482,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.3888673412906224,
+      "engine_px": 0.08483670097776469,
+      "real_px": 0.08484,
+      "engine_qty": 491.7,
+      "real_qty": 100.0,
+      "dt_ms": -1925,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 3.290451351758115,
+      "engine_px": 0.08483208641465845,
+      "engine_qty": 352.4590586156,
+      "real_px": 0.08486,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 6.774753436748026,
+      "engine_px": 0.0848225348240687,
+      "engine_qty": 383.5164948153,
+      "real_px": 0.08488,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 9.13261714662987,
+      "engine_px": 0.08482253482640238,
+      "engine_qty": 352.3086745569,
+      "real_px": 0.0849,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 4.073443482345321,
+      "engine_px": 0.08488542240293666,
+      "engine_qty": 352.3191568039,
+      "real_px": 0.08492,
+      "is_buy": false
+    },
+    {
+      "symbol": "DOGE",
+      "ok": true,
+      "dev_bp": 0.5165369218202817,
+      "engine_px": 0.08490438562499998,
+      "real_px": 0.0849,
+      "engine_qty": 404.4,
+      "real_qty": 100.0,
+      "dt_ms": 16338,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 17.54998590037308,
+      "engine_px": 0.08493906794448165,
+      "engine_qty": 300.2278313608,
+      "real_px": 0.08479,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 15.57421462751434,
+      "engine_px": 0.08492225975,
+      "engine_qty": 353.0066182805,
+      "real_px": 0.08479,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 15.57421462751434,
+      "engine_px": 0.08492225975,
+      "engine_qty": 352.8782368561,
+      "real_px": 0.08479,
+      "is_buy": true
+    },
+    {
+      "symbol": "DOGE",
+      "ok": false,
+      "dev_bp": 8.508929250438559,
+      "engine_px": 0.08492225975,
+      "engine_qty": 352.6825440821,
+      "real_px": 0.08485,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.1115778048429076,
+      "engine_px": 108.01879475,
+      "real_px": 108.02,
+      "engine_qty": 0.2776702217,
+      "real_qty": 0.7,
+      "dt_ms": -7385,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 3.813278718545759,
+      "engine_px": 108.06120675000001,
+      "engine_qty": 0.2776702217,
+      "real_px": 108.02,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.0370742967863162,
+      "engine_px": 108.06120675000001,
+      "real_px": 108.05,
+      "engine_qty": 0.2777928596,
+      "real_qty": 0.94,
+      "dt_ms": 12888,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.11170632973763892,
+      "engine_px": 108.02879325,
+      "real_px": 108.03,
+      "engine_qty": 0.2777928596,
+      "real_qty": 1.39,
+      "dt_ms": -14034,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 3.5651532965866584,
+      "engine_px": 107.99149937499999,
+      "engine_qty": 0.2777328884,
+      "real_px": 108.03,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.787088636643325,
+      "engine_px": 108.048504375,
+      "real_px": 108.04,
+      "engine_qty": 0.2777328884,
+      "real_qty": 0.6,
+      "dt_ms": 4536,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.7870917604600182,
+      "engine_px": 108.04850440875502,
+      "real_px": 108.04,
+      "engine_qty": 0.2776830815,
+      "real_qty": 0.6,
+      "dt_ms": -10704,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.7871555828338178,
+      "engine_px": 108.07850746005315,
+      "real_px": 108.07,
+      "engine_qty": 0.2776865516,
+      "real_qty": 1.44,
+      "dt_ms": -11498,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.813544508888187,
+      "engine_px": 108.04879025,
+      "real_px": 108.04,
+      "engine_qty": 0.5553696331,
+      "real_qty": 0.45,
+      "dt_ms": -11906,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.1380707451707505,
+      "engine_px": 108.051491875,
+      "real_px": 108.05,
+      "engine_qty": 0.2778018118,
+      "real_qty": 1.09,
+      "dt_ms": 9485,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.0644128955962195,
+      "engine_px": 108.0285013070117,
+      "real_px": 108.04,
+      "engine_qty": 0.2778018118,
+      "real_qty": 2.56,
+      "dt_ms": 17621,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.0644128955962195,
+      "engine_px": 108.0285013070117,
+      "real_px": 108.04,
+      "engine_qty": 0.2776142285,
+      "real_qty": 2.56,
+      "dt_ms": 2534,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.13820079347285033,
+      "engine_px": 108.07850634646655,
+      "real_px": 108.08,
+      "engine_qty": 0.2776447809,
+      "real_qty": 1.73,
+      "dt_ms": -2622,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.7874139312993972,
+      "engine_px": 108.051491875,
+      "real_px": 108.06,
+      "engine_qty": 0.5552590094,
+      "real_qty": 1.07,
+      "dt_ms": -4476,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.4629011192835146,
+      "engine_px": 108.04419420273688,
+      "real_px": 108.06,
+      "engine_qty": 0.2775139881,
+      "real_qty": 1.07,
+      "dt_ms": -19628,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.7873027066509178,
+      "engine_px": 108.098510625,
+      "real_px": 108.09,
+      "engine_qty": 0.2775139881,
+      "real_qty": 1.15,
+      "dt_ms": -12433,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.787366127226327,
+      "engine_px": 108.12851367290534,
+      "real_px": 108.12,
+      "engine_qty": 0.2774757869,
+      "real_qty": 0.69,
+      "dt_ms": -3095,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 2.410981575459089,
+      "engine_px": 108.15392428812278,
+      "engine_qty": 0.2772596931,
+      "real_px": 108.18,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.3866191946676241,
+      "engine_px": 108.18418260815558,
+      "real_px": 108.18,
+      "engine_qty": 0.55473548,
+      "real_qty": 9.06,
+      "dt_ms": -2172,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.38659871498627596,
+      "engine_px": 108.18418238658926,
+      "real_px": 108.18,
+      "engine_qty": 0.2771673107,
+      "real_qty": 9.06,
+      "dt_ms": -17405,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 4.5066820083072425,
+      "engine_px": 108.20876625,
+      "engine_qty": 0.2773494707,
+      "real_px": 108.16,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.5378317572621569,
+      "engine_px": 108.06581212256339,
+      "real_px": 108.06,
+      "engine_qty": 0.5545167814,
+      "real_qty": 0.45,
+      "dt_ms": 11012,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.5378317572621569,
+      "engine_px": 108.06581212256339,
+      "real_px": 108.06,
+      "engine_qty": 0.2774006614,
+      "real_qty": 0.45,
+      "dt_ms": -4082,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.1375570864061589,
+      "engine_px": 108.09148687499999,
+      "real_px": 108.09,
+      "engine_qty": 0.2774006614,
+      "real_qty": 0.63,
+      "dt_ms": 10062,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.063077992302878,
+      "engine_px": 108.07148884213835,
+      "real_px": 108.06,
+      "engine_qty": 0.2774438029,
+      "real_qty": 2.15,
+      "dt_ms": -3331,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 6.338266240892063,
+      "engine_px": 108.08850937499999,
+      "engine_qty": 0.2774438029,
+      "real_px": 108.02,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.2522559494929746,
+      "engine_px": 108.10353732977825,
+      "real_px": 108.09,
+      "engine_qty": 0.2770383795,
+      "real_qty": 19.71,
+      "dt_ms": -10781,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 6.8048062419023925,
+      "engine_px": 108.13358280792507,
+      "engine_qty": 0.2772225512,
+      "real_px": 108.06,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.9116486239880008,
+      "engine_px": 108.09985490839806,
+      "real_px": 108.09,
+      "engine_qty": 0.5542609307,
+      "real_qty": 3.39,
+      "dt_ms": 2081,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 2.520622876720357,
+      "engine_px": 108.05276397312365,
+      "engine_qty": 0.277225109,
+      "real_px": 108.08,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.6692521367493067,
+      "engine_px": 108.05276854537694,
+      "real_px": 108.06,
+      "engine_qty": 0.2771493178,
+      "real_qty": 2.06,
+      "dt_ms": 6049,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.8275429212186796,
+      "engine_px": 108.08024787080801,
+      "real_px": 108.1,
+      "engine_qty": 0.5543744268,
+      "real_qty": 2.09,
+      "dt_ms": -13681,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 5.297824526381273,
+      "engine_px": 108.1172786370489,
+      "engine_qty": 0.2773023386,
+      "real_px": 108.06,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.044591204633009376,
+      "engine_px": 108.03951823877338,
+      "real_px": 108.04,
+      "engine_qty": 0.2773023386,
+      "real_qty": 1.42,
+      "dt_ms": -4372,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.044591204633009376,
+      "engine_px": 108.03951823877338,
+      "real_px": 108.04,
+      "engine_qty": 0.2774042266,
+      "real_qty": 1.42,
+      "dt_ms": -19488,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.044591204633009376,
+      "engine_px": 108.03951823877338,
+      "real_px": 108.04,
+      "engine_qty": 0.2773822926,
+      "real_qty": 1.33,
+      "dt_ms": -17623,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.19786727110173488,
+      "engine_px": 107.98213661306994,
+      "real_px": 107.98,
+      "engine_qty": 0.2775338667,
+      "real_qty": 3.42,
+      "dt_ms": -18548,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 2.4472618823641574,
+      "engine_px": 108.0164344502699,
+      "engine_qty": 0.8323203859,
+      "real_px": 107.99,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.19786727110173488,
+      "engine_px": 107.98213661306994,
+      "real_px": 107.98,
+      "engine_qty": 0.277522868,
+      "real_qty": 3.59,
+      "dt_ms": -19288,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.786851964689046,
+      "engine_px": 107.9884970961104,
+      "real_px": 107.98,
+      "engine_qty": 0.277522868,
+      "real_qty": 1.04,
+      "dt_ms": -15833,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 5.445582798807217,
+      "engine_px": 107.97880075,
+      "engine_qty": 0.2777061675,
+      "real_px": 107.92,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 5.445582798807217,
+      "engine_px": 107.97880075,
+      "engine_qty": 0.2777105282,
+      "real_px": 107.92,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 7.519925155308542,
+      "engine_px": 107.97880075,
+      "engine_qty": 0.2772942129,
+      "real_px": 108.06,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 11.04485155533247,
+      "engine_px": 107.93079204236426,
+      "engine_qty": 0.8327109086,
+      "real_px": 108.05,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 6.261617148836574,
+      "engine_px": 108.0576615706754,
+      "engine_qty": 0.2774169885,
+      "real_px": 107.99,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 6.261617148836574,
+      "engine_px": 108.0576615706754,
+      "engine_qty": 0.2774265565,
+      "real_px": 107.99,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.27225820856234695,
+      "engine_px": 107.96706050815223,
+      "real_px": 107.97,
+      "engine_qty": 0.2774395629,
+      "real_qty": 0.55,
+      "dt_ms": -4913,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.2871226453908491,
+      "engine_px": 108.03310187500001,
+      "real_px": 108.03,
+      "engine_qty": 0.579,
+      "real_qty": 1.77,
+      "dt_ms": -18858,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 8.445694006586763,
+      "engine_px": 108.05873689734268,
+      "engine_qty": 0.2532831078,
+      "real_px": 108.15,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 7.520298674597604,
+      "engine_px": 108.05873660263485,
+      "engine_qty": 0.2766082471,
+      "real_px": 108.14,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.0607754177589177,
+      "engine_px": 108.18147562499999,
+      "real_px": 108.17,
+      "engine_qty": 0.2766082471,
+      "real_qty": 1.65,
+      "dt_ms": -18121,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 1.9851449186273102,
+      "engine_px": 108.18147559065584,
+      "real_px": 108.16,
+      "engine_qty": 0.2766663757,
+      "real_qty": 1.22,
+      "dt_ms": 14567,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.36282774355910713,
+      "engine_px": 108.16392448726562,
+      "real_px": 108.16,
+      "engine_qty": 0.2766663757,
+      "real_qty": 1.03,
+      "dt_ms": 3518,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": true,
+      "dev_bp": 0.11295637939921428,
+      "engine_px": 108.16122175000002,
+      "real_px": 108.16,
+      "engine_qty": 0.2766091406,
+      "real_qty": 1.03,
+      "dt_ms": -11588,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 6.336086264399984,
+      "engine_px": 108.141480625,
+      "engine_qty": 0.2766091406,
+      "real_px": 108.21,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 3.5786523788530853,
+      "engine_px": 108.30124275,
+      "engine_qty": 0.2761206433,
+      "real_px": 108.34,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 4.502002817506376,
+      "engine_px": 108.30124275,
+      "engine_qty": 0.276103375,
+      "real_px": 108.35,
+      "is_buy": false
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 9.613291994304449,
+      "engine_px": 108.35416402175399,
+      "engine_qty": 0.5522240183,
+      "real_px": 108.25,
+      "is_buy": true
+    },
+    {
+      "symbol": "SOL",
+      "ok": false,
+      "dev_bp": 11.622695049937459,
+      "engine_px": 108.15429556043603,
+      "engine_qty": 0.2759067811,
+      "real_px": 108.28,
+      "is_buy": false
+    },
+    {
+      "symbol": "UNI",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 8.779316699999999,
+      "is_buy": false
+    },
+    {
+      "symbol": "UNI",
+      "ok": null,
+      "reason": "no_trade_in_window",
+      "engine_px": 8.80139995284654,
+      "is_buy": true
+    },
+    {
+      "symbol": "UNI",
+      "ok": false,
+      "dev_bp": 12.528473804099354,
+      "engine_px": 8.78,
+      "engine_qty": 0.7112008986,
+      "real_px": 8.769,
+      "is_buy": true
+    },
+    {
+      "symbol": "VIRTUAL",
+      "ok": false,
+      "dev_bp": 4.504188325266741,
+      "engine_px": 0.6425106011251552,
+      "engine_qty": 46.5943598007,
+      "real_px": 0.6428,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.23888214135102115,
+      "engine_px": 1.3758328661901216,
+      "real_px": 1.3758,
+      "engine_qty": 21.792822897,
+      "real_qty": 95.4,
+      "dt_ms": 8822,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.23612342125868052,
+      "engine_px": 1.3759675101843953,
+      "real_px": 1.376,
+      "engine_qty": 21.792822897,
+      "real_qty": 127.5,
+      "dt_ms": -17013,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.2173992710989006,
+      "engine_px": 1.3759675101843953,
+      "real_px": 1.3758,
+      "engine_qty": 21.8132951612,
+      "real_qty": 67.8,
+      "dt_ms": 9450,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.0887664695157805,
+      "engine_px": 1.3756122108239377,
+      "real_px": 1.3756,
+      "engine_qty": 21.8082937927,
+      "real_qty": 86.2,
+      "dt_ms": -13520,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.0920997870100613,
+      "engine_px": 1.3756122081992217,
+      "engine_qty": 21.8021780926,
+      "real_px": 1.3759,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.2673622632481786,
+      "engine_px": 1.376436800725826,
+      "real_px": 1.3764,
+      "engine_qty": 65.4237670466,
+      "real_qty": 113.9,
+      "dt_ms": 8242,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.17375419123421484,
+      "engine_px": 1.3762760866261654,
+      "real_px": 1.3763,
+      "engine_qty": 21.80218931,
+      "real_qty": 172.6,
+      "dt_ms": 8344,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.201999052450159,
+      "engine_px": 1.3762721994319802,
+      "real_px": 1.3763,
+      "engine_qty": 21.7962667829,
+      "real_qty": 172.6,
+      "dt_ms": -6744,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.4098618519966594,
+      "engine_px": 1.3762564075000001,
+      "real_px": 1.3762,
+      "engine_qty": 21.796648358,
+      "real_qty": 128.4,
+      "dt_ms": 9881,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.4531792145585325,
+      "engine_px": 1.376262369349957,
+      "real_px": 1.3762,
+      "engine_qty": 65.3951044509,
+      "real_qty": 70.5,
+      "dt_ms": -17278,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.02346877556162352,
+      "engine_px": 1.37629677,
+      "real_px": 1.3763,
+      "engine_qty": 21.7963880391,
+      "real_qty": 57.6,
+      "dt_ms": 16827,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.566591603838987,
+      "engine_px": 1.3763220187499998,
+      "real_px": 1.3764,
+      "engine_qty": 21.7963880391,
+      "real_qty": 70.0,
+      "dt_ms": -18616,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.1599869938623995,
+      "engine_px": 1.3763220193622465,
+      "real_px": 1.3763,
+      "engine_qty": 21.795015948,
+      "real_qty": 43.1,
+      "dt_ms": 17425,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.1599869938623995,
+      "engine_px": 1.3763220193622465,
+      "real_px": 1.3763,
+      "engine_qty": 21.7915190499,
+      "real_qty": 43.1,
+      "dt_ms": -12773,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.31635099251418825,
+      "engine_px": 1.3765564525,
+      "real_px": 1.3766,
+      "engine_qty": 14.07,
+      "real_qty": 35.6,
+      "dt_ms": 13599,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.6368230390901566,
+      "engine_px": 1.3765123405227964,
+      "real_px": 1.3766,
+      "engine_qty": 57.6565349978,
+      "real_qty": 67.4,
+      "dt_ms": -19266,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.47539975126491957,
+      "engine_px": 1.3765345595812768,
+      "real_px": 1.3766,
+      "engine_qty": 21.7902052083,
+      "real_qty": 32.2,
+      "dt_ms": -14372,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.0185523880298324,
+      "engine_px": 1.37682208125,
+      "engine_qty": 21.7902052083,
+      "real_px": 1.3771,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.1603836041032892,
+      "engine_px": 1.3768220819687715,
+      "real_px": 1.3768,
+      "engine_qty": 21.7796868738,
+      "real_qty": 390.5,
+      "dt_ms": 13972,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.2020331661299095,
+      "engine_px": 1.377227824569788,
+      "real_px": 1.3772,
+      "engine_qty": 21.7796868738,
+      "real_qty": 73.4,
+      "dt_ms": -7997,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.31710611154150675,
+      "engine_px": 1.3756436224999997,
+      "real_px": 1.3756,
+      "engine_qty": 21.7973082794,
+      "real_qty": 198.9,
+      "dt_ms": -9196,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 3.681101663723823,
+      "engine_px": 1.37559363,
+      "engine_qty": 21.7972948317,
+      "real_px": 1.3761,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.6806515962135322,
+      "engine_px": 1.37559363,
+      "real_px": 1.3755,
+      "engine_qty": 21.7865751235,
+      "real_qty": 217.8,
+      "dt_ms": 7905,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.20377986298367623,
+      "engine_px": 1.3758719624999998,
+      "real_px": 1.3759,
+      "engine_qty": 65.3811782347,
+      "real_qty": 151.5,
+      "dt_ms": -5094,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.2730698710469891,
+      "engine_px": 1.3758375699787815,
+      "real_px": 1.3758,
+      "engine_qty": 21.7988498946,
+      "real_qty": 122.3,
+      "dt_ms": 179,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.859626851613738,
+      "engine_px": 1.37619354,
+      "engine_qty": 21.7988498946,
+      "real_px": 1.3758,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 3.588857002679438,
+      "engine_px": 1.375493645,
+      "engine_qty": 21.8017552074,
+      "real_px": 1.375,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.227236753245635,
+      "engine_px": 1.375493645,
+      "engine_qty": 21.8092175273,
+      "real_px": 1.3758,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.1816069675474177,
+      "engine_px": 1.3751375127933547,
+      "real_px": 1.3753,
+      "engine_qty": 43.6109727347,
+      "real_qty": 66.3,
+      "dt_ms": 19244,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.45412191154492904,
+      "engine_px": 1.3755375338265736,
+      "real_px": 1.3756,
+      "engine_qty": 21.7940952831,
+      "real_qty": 92.9,
+      "dt_ms": 526,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.6350874804407804,
+      "engine_px": 1.3755375338265736,
+      "engine_qty": 21.7964419247,
+      "real_px": 1.3759,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 4.157707735854619,
+      "engine_px": 1.3757280124999998,
+      "engine_qty": 43.5905372078,
+      "real_px": 1.3763,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 6.08858462004281,
+      "engine_px": 1.3756624162969764,
+      "engine_qty": 21.7888432334,
+      "real_px": 1.3765,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.2929809750156767,
+      "engine_px": 1.3764220312500002,
+      "real_px": 1.3766,
+      "engine_qty": 21.7888432334,
+      "real_qty": 37.7,
+      "dt_ms": -16760,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 9.756934861804634,
+      "engine_px": 1.3769565125,
+      "engine_qty": 21.7601240749,
+      "real_px": 1.3783,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 12.661892254204169,
+      "engine_px": 1.3769565125,
+      "engine_qty": 21.753599086,
+      "real_px": 1.3787,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 9.875621855181382,
+      "engine_px": 1.3792621071008908,
+      "engine_qty": 43.5137231609,
+      "real_px": 1.3779,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.33085676467425934,
+      "engine_px": 1.3772544326054295,
+      "real_px": 1.3773,
+      "engine_qty": 21.7596830101,
+      "real_qty": 88.7,
+      "dt_ms": -3289,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.33085676467425934,
+      "engine_px": 1.3772544326054295,
+      "real_px": 1.3773,
+      "engine_qty": 21.755735527,
+      "real_qty": 88.7,
+      "dt_ms": -18404,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.3297743121435748,
+      "engine_px": 1.3768830943769728,
+      "real_px": 1.3767,
+      "engine_qty": 43.5154185371,
+      "real_qty": 65.8,
+      "dt_ms": -13909,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.7878409053806419,
+      "engine_px": 1.3768461581882026,
+      "real_px": 1.3766,
+      "engine_qty": 21.7647244724,
+      "real_qty": 37.7,
+      "dt_ms": -19475,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.22964451741775685,
+      "engine_px": 1.3766316135902565,
+      "real_px": 1.3766,
+      "engine_qty": 21.7647244724,
+      "real_qty": 112.3,
+      "dt_ms": 15663,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.48915432085596267,
+      "engine_px": 1.376267320710658,
+      "real_px": 1.3762,
+      "engine_qty": 21.7680882107,
+      "real_qty": 95.1,
+      "dt_ms": 9425,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.942816443911027,
+      "engine_px": 1.3762673834903862,
+      "real_px": 1.376,
+      "engine_qty": 21.7701921889,
+      "real_qty": 28.1,
+      "dt_ms": -9557,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.412306366892488,
+      "engine_px": 1.3764320375767842,
+      "engine_qty": 43.5382803996,
+      "real_px": 1.3761,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.20921054598107786,
+      "engine_px": 1.3750287670519095,
+      "real_px": 1.375,
+      "engine_qty": 21.7893086097,
+      "real_qty": 60.5,
+      "dt_ms": 17695,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.20921054598107786,
+      "engine_px": 1.3750287670519095,
+      "real_px": 1.375,
+      "engine_qty": 21.791723822,
+      "real_qty": 60.5,
+      "dt_ms": 2579,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 3.521450480660095,
+      "engine_px": 1.3753843347826813,
+      "engine_qty": 43.5810324316,
+      "real_px": 1.3749,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.2872799552646654,
+      "engine_px": 1.375339510747312,
+      "real_px": 1.3753,
+      "engine_qty": 21.801067976,
+      "real_qty": 153.5,
+      "dt_ms": 11435,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.5226176882704285,
+      "engine_px": 1.3745281647268088,
+      "real_px": 1.3746,
+      "engine_qty": 21.801067976,
+      "real_qty": 97.2,
+      "dt_ms": -17175,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.31687895531013127,
+      "engine_px": 1.3761563925000002,
+      "real_px": 1.3762,
+      "engine_qty": 21.7427420328,
+      "real_qty": 107.3,
+      "dt_ms": -11040,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 4.882635742345456,
+      "engine_px": 1.3764279403741566,
+      "engine_qty": 21.7427420328,
+      "real_px": 1.3771,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.04767979738438823,
+      "engine_px": 1.376893435,
+      "real_px": 1.3769,
+      "engine_qty": 21.7156103067,
+      "real_qty": 101.4,
+      "dt_ms": -1324,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.2258298028227026,
+      "engine_px": 1.377306565,
+      "engine_qty": 21.7156103067,
+      "real_px": 1.377,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.4997750337452824,
+      "engine_px": 1.377306565,
+      "real_px": 1.3771,
+      "engine_qty": 21.7252682643,
+      "real_qty": 133.0,
+      "dt_ms": 18909,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 3.429077872206316,
+      "engine_px": 1.376827875,
+      "engine_qty": 21.7252682643,
+      "real_px": 1.3773,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 6.334313774216153,
+      "engine_px": 1.3768278740232849,
+      "engine_qty": 21.7131547394,
+      "real_px": 1.3777,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.3786771731167105,
+      "engine_px": 1.377972224892346,
+      "engine_qty": 21.7131547394,
+      "real_px": 1.3783,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.3786697342213907,
+      "engine_px": 1.3779722259171614,
+      "engine_qty": 21.7061636073,
+      "real_px": 1.3783,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 4.150615231013141,
+      "engine_px": 1.3788723168439916,
+      "engine_qty": 21.706434811,
+      "real_px": 1.3783,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 18.591198961766985,
+      "engine_px": 1.378162168708003,
+      "engine_qty": 43.4125984183,
+      "real_px": 1.3756,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 10.609554820197443,
+      "engine_px": 1.378162168708003,
+      "engine_qty": 21.749447975,
+      "real_px": 1.3767,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 10.609554820197443,
+      "engine_px": 1.378162168708003,
+      "engine_qty": 21.7415381371,
+      "real_px": 1.3767,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 8.036900260132754,
+      "engine_px": 1.3754945287663947,
+      "engine_qty": 43.4909861121,
+      "real_px": 1.3766,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 5.022731938028573,
+      "engine_px": 1.3765086166208327,
+      "engine_qty": 21.6984131847,
+      "real_px": 1.3772,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 4.4494010419745464,
+      "engine_px": 1.376587501013862,
+      "engine_qty": 21.6939379378,
+      "real_px": 1.3772,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 2.1155831415182713,
+      "engine_px": 1.3775914409228316,
+      "engine_qty": 21.6939095561,
+      "real_px": 1.3773,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 7.1856024913627525,
+      "engine_px": 1.37748980942064,
+      "engine_qty": 65.0862606787,
+      "real_px": 1.3765,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": false,
+      "dev_bp": 5.306059288164935,
+      "engine_px": 1.3775309260765043,
+      "engine_qty": 21.71069074,
+      "real_px": 1.3768,
+      "is_buy": true
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 1.8178258307948025,
+      "engine_px": 1.376549767227576,
+      "real_px": 1.3768,
+      "engine_qty": 21.71069074,
+      "real_qty": 43.1,
+      "dt_ms": -5947,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.3598434286161102,
+      "engine_px": 1.3769504513428554,
+      "real_px": 1.377,
+      "engine_qty": 21.687083288,
+      "real_qty": 106.8,
+      "dt_ms": -1633,
+      "is_buy": false
+    },
+    {
+      "symbol": "XRP",
+      "ok": true,
+      "dev_bp": 0.26957246912129706,
+      "engine_px": 1.3770371211296815,
+      "real_px": 1.377,
+      "engine_qty": 21.6984232236,
+      "real_qty": 69.1,
+      "dt_ms": -14139,
+      "is_buy": false
+    }
+  ]
+}

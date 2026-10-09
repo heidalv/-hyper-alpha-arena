@@ -1,0 +1,187 @@
+{
+  "generated_at": "2026-09-27T10:05:28.433326+00:00",
+  "n_stop_legs": 17,
+  "tot_A_bp": -1092.3,
+  "cells": {
+    "low_against": {
+      "n": 7,
+      "sum_bp": -538.8
+    },
+    "low_with": {
+      "n": 5,
+      "sum_bp": -258.9
+    },
+    "mid_with": {
+      "n": 1,
+      "sum_bp": -57.8
+    },
+    "high_against": {
+      "n": 1,
+      "sum_bp": -75.9
+    },
+    "high_with": {
+      "n": 1,
+      "sum_bp": -62.6
+    },
+    "mid_against": {
+      "n": 2,
+      "sum_bp": -98.3
+    }
+  },
+  "addressable_loss_bp": 538.8,
+  "rows": [
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "15:01:50",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.887,
+      "flow": "against",
+      "A_bp": -72.7
+    },
+    {
+      "sym": "ADA",
+      "side": "sell",
+      "entry": "15:09:48",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.0,
+      "flow": "with",
+      "A_bp": -52.8
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "15:15:09",
+      "mfe_bp": 11.9,
+      "ofi_norm": -0.375,
+      "flow": "with",
+      "A_bp": -57.8
+    },
+    {
+      "sym": "SUI",
+      "side": "sell",
+      "entry": "15:27:10",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.613,
+      "flow": "against",
+      "A_bp": -110.9
+    },
+    {
+      "sym": "SUI",
+      "side": "sell",
+      "entry": "15:46:22",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.27,
+      "flow": "against",
+      "A_bp": -130.4
+    },
+    {
+      "sym": "SUI",
+      "side": "buy",
+      "entry": "16:10:08",
+      "mfe_bp": 0.0,
+      "ofi_norm": 1.0,
+      "flow": "with",
+      "A_bp": -46.0
+    },
+    {
+      "sym": "SUI",
+      "side": "sell",
+      "entry": "16:14:43",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.221,
+      "flow": "against",
+      "A_bp": -64.6
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "16:09:38",
+      "mfe_bp": 71.5,
+      "ofi_norm": 1.0,
+      "flow": "against",
+      "A_bp": -75.9
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "16:28:16",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.943,
+      "flow": "against",
+      "A_bp": -30.4
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "16:28:16",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.943,
+      "flow": "against",
+      "A_bp": -84.0
+    },
+    {
+      "sym": "SUI",
+      "side": "sell",
+      "entry": "16:28:01",
+      "mfe_bp": 0.0,
+      "ofi_norm": -0.695,
+      "flow": "with",
+      "A_bp": -58.6
+    },
+    {
+      "sym": "ADA",
+      "side": "buy",
+      "entry": "16:35:57",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.0,
+      "flow": "with",
+      "A_bp": -51.4
+    },
+    {
+      "sym": "ARB",
+      "side": "buy",
+      "entry": "16:37:30",
+      "mfe_bp": 30.6,
+      "ofi_norm": 0.0,
+      "flow": "with",
+      "A_bp": -62.6
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "entry": "16:47:13",
+      "mfe_bp": 6.5,
+      "ofi_norm": 0.882,
+      "flow": "against",
+      "A_bp": -46.6
+    },
+    {
+      "sym": "ENA",
+      "side": "buy",
+      "entry": "16:57:29",
+      "mfe_bp": 11.7,
+      "ofi_norm": -1.0,
+      "flow": "against",
+      "A_bp": -51.7
+    },
+    {
+      "sym": "NEAR",
+      "side": "buy",
+      "entry": "17:03:52",
+      "mfe_bp": 0.0,
+      "ofi_norm": 0.2,
+      "flow": "with",
+      "A_bp": -50.2
+    },
+    {
+      "sym": "SUI",
+      "side": "sell",
+      "entry": "17:41:09",
+      "mfe_bp": 0.0,
+      "ofi_norm": 1.0,
+      "flow": "against",
+      "A_bp": -45.6
+    }
+  ]
+}

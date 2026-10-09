@@ -1825,6 +1825,12 @@ class MasterController:
     def _build_factor_signals_prompt_block(self, market_envs: Optional[Dict]) -> str:
         """从 DB 缓存与 market_summary.factor_v3 组装因子 prompt（QAA v3 无 db 时仍可用）。"""
         if not market_envs:
+            # [2026-09-24 新目标 R5] 修 R4 的漏洞：R4 把"因子段为空"的告警写在**本行之后**，
+            # 于是 market_envs 为空时仍然完全静默。而这一支比"全过期"更值得留痕：
+            # 主控 prompt 组装时若 market_envs 没传/为空，因子段**根本不会被尝试**。
+            logger.warning(
+                "[MasterController] 因子段跳过：market_envs 为空 ⇒ 提示词里**不会有**因子段"
+            )
             return ""
 
         from datetime import datetime as _dt_f
@@ -1833,18 +1839,38 @@ class MasterController:
         _now_f = _dt_f.utcnow()
         _seen: set = set()
 
-        def _append_factor_line(sym: str, payload: dict, source: str) -> None:
+        def _append_factor_line(sym: str, payload: dict, source: str,
+                                age_min: float | None = None) -> None:
             sym_u = str(sym).upper()
             if sym_u in _seen or not isinstance(payload, dict):
                 return
             _seen.add(sym_u)
+            # [2026-09-24 新目标 R4] 标注数据年龄：宽限窗口内取用的"略过期"行必须让模型看见
+            # 它的新旧（否则等于把过期因子当新鲜因子喂进去）。
+            _age_tag = ""
+            if age_min is not None:
+                _age_tag = "，%s" % (
+                    "刚更新" if age_min <= 1.0 else "%.0f分钟前" % age_min)
             _factor_lines.append(
                 f"- {sym_u}: 方向={payload.get('direction_label', 'neutral')} "
                 f"强度={float(payload.get('signal_score') or 0):.2f} "
                 f"置信={float(payload.get('confidence') or 0):.2f} "
                 f"regime={payload.get('regime', '?')} "
-                f"({int(payload.get('factor_count') or 0)} 因子, {source})"
+                f"({int(payload.get('factor_count') or 0)} 因子, {source}{_age_tag})"
             )
+
+        # [2026-09-24 新目标 R4] 宽限窗口：因子缓存 TTL 只有 15 分钟**且按需刷新**
+        # （某币被分析时才重算），实测 10 主流币同一时刻常只有 5 个未过期，
+        # 导致提示词里"因子段"对多数币**整段缺失** —— 而这里的"缺"是静默的。
+        # 现允许取用**刚过期不久**的行（默认 ≤45 分钟），并在行内标注年龄；
+        # 更旧的（XRP 9h / LINK 5d）仍拒绝。开关 SIGNAL_FACTOR_INJECT_MAX_AGE_MIN。
+        def _grace_min() -> float:
+            try:
+                return max(0.0, float(os.getenv("SIGNAL_FACTOR_INJECT_MAX_AGE_MIN", "45") or 45))
+            except (TypeError, ValueError):
+                return 45.0
+
+        _grace = _grace_min()
 
         if self._db_session:
             try:
@@ -1858,9 +1884,14 @@ class MasterController:
                     )
                     if _row is None or not isinstance(_row.value, dict):
                         continue
-                    if _row.expires_at and _row.expires_at < _now_f:
-                        continue
-                    _append_factor_line(_fsym, _row.value, "db")
+                    _age = None
+                    if _row.expires_at:
+                        # expires_at 为"到期时刻"：已过期的分钟数 = now - expires_at
+                        _overdue = (_now_f - _row.expires_at).total_seconds() / 60.0
+                        if _overdue > _grace:
+                            continue
+                        _age = max(0.0, _overdue)
+                    _append_factor_line(_fsym, _row.value, "db", age_min=_age)
             except Exception as _db_err:
                 logger.debug("[MasterController] 因子 DB 注入跳过: %s", _db_err)
 
@@ -1872,6 +1903,13 @@ class MasterController:
                 _append_factor_line(_fsym, _fv3, "runtime")
 
         if not _factor_lines:
+            # [2026-09-24 新目标 R4] **不再静默**：因子段为空必须留痕（用户问题：
+            # "有无静默丢失"）。带样本量，便于判断是"全过期"还是"上游没算"。
+            logger.warning(
+                "[MasterController] 因子段为空：请求 %d 币，db缓存命中 0、runtime(factor_v3)命中 0 "
+                "（宽限 %.0f 分钟）。提示词里**不会有**因子段。",
+                len(market_envs or {}), _grace,
+            )
             return ""
 
         _factor_lines.insert(

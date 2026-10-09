@@ -804,6 +804,20 @@ def _dim_staged_tp(
         return {"action": "hold", "channel": "", "reason": f"err:{e}"}
 
 
+def _time_stop_decision(hold_hours: float, pnl_pct: float, *,
+                        full_h: float = 24.0, reduce_h: float = 8.0) -> Tuple[str, str]:
+    """[P3 大轮回 2026-09-27] §6.1 时间止损纯决策：24h 全平 / 8h 未达 μ(pnl≤0) 减半。
+
+    阈值 0 = 关闭该档；full 优先于 reduce。返回 (action, reason)：
+    ("close","time_stop_full") / ("reduce","time_stop_reduce") / ("hold","")。
+    """
+    if full_h > 0 and hold_hours >= full_h:
+        return "close", "time_stop_full"
+    if reduce_h > 0 and hold_hours >= reduce_h and pnl_pct <= 0:
+        return "reduce", "time_stop_reduce"
+    return "hold", ""
+
+
 def _channel_shadowed(reason: Any, tier: str) -> bool:
     """出场通道熔断（阶段2，风控诊断 B3）：close_reason×tier 近 30 笔 wr<40% → shadow。
 
@@ -1175,6 +1189,34 @@ def _exec_tighten(db, *, account_id, position, new_sl, host, session, tp_price=N
     except Exception as e:
         logger.warning("[MidLong] stage=manage pid=%s TP/SL 调整失败: %s", pid, e)
         return False
+
+
+def _pyramid_rule_prethrottle_ready(
+    symbol: str, position: Dict[str, Any], market_summary: Dict[str, Any],
+) -> bool:
+    """[2026-09-28] 节流前的规则直通判据（纯函数，供单测锁定）。
+
+    条件 = 保证金口径浮盈 > `MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL`(默认5%)
+           且 4h 与 1d 双周期都与持仓方向同向（与 `_dim_pyramid` 规则分支同口径）。
+    只回答"该不该进 5 层门控"，不执行任何动作。
+    """
+    sym_u = str(symbol or "").upper()
+    margin = float(position.get("margin", 0) or 0)
+    upnl = float(position.get("unrealized_pnl", 0) or 0)
+    margin_pnl = (upnl / margin) if margin > 0 else 0.0
+    if margin_pnl <= _cfg_float("MIDLONG_POSITION_MGMT_PYRAMID_DIRECT_PNL", 0.05):
+        return False
+    md = (market_summary or {}).get(sym_u) or (market_summary or {}).get(sym_u.upper()) or {}
+    md = md if isinstance(md, dict) else {}
+    i4 = md.get("indicators_4h") if isinstance(md.get("indicators_4h"), dict) else {}
+    i1 = md.get("indicators_1d") if isinstance(md.get("indicators_1d"), dict) else {}
+    orch = md.get("orchestrator") if isinstance(md.get("orchestrator"), dict) else {}
+    tf4 = _tf_vote(orch.get("mid_bias"), i4.get("macd"), i4.get("trend"))
+    tf1 = _tf_vote(orch.get("long_bias") or orch.get("mid_bias"), i1.get("macd"), i1.get("trend"))
+    pos_dir = 1 if (_pos_direction(position.get("side")) or "long") == "long" else -1
+    align4 = (tf4 == "bullish" and pos_dir > 0) or (tf4 == "bearish" and pos_dir < 0)
+    align1 = (tf1 == "bullish" and pos_dir > 0) or (tf1 == "bearish" and pos_dir < 0)
+    return align4 and align1
 
 
 def _exec_pyramid(
@@ -1732,6 +1774,42 @@ def manage_position(
             )
             return _summary(f"4h反转离场: {_r4_detail}", action="manage_close")
 
+    # ═══ ⑥c 时间止损（P3 大轮回 2026-09-27，§6.1；mid 专用，规则，每 tick）═══
+    # min_roi 弱化（仅盈利后生效）后，浮亏死持仓的指定接管者（§9.2 ⑤）：
+    #   8h 且未达 μ（pnl≤0 代理）→ 减半；24h → 全平。
+    # 依据：中位持仓 1.7h——8h 仍浮亏且无任何方向信号 = 论点没兑现；轮6 实测
+    # 死扛仓是 23 笔 giveback ~303 的主源之一。因子仓同样适用（M1-B 口径：
+    # 因子仓只认 SL/TP/**时间**/因子失效）。
+    # 回滚：MIDLONG_TIME_STOP_ENABLED=false。
+    if (not _trend_own_pipeline) and _cfg_bool("MIDLONG_TIME_STOP_ENABLED", True):
+        _ts_act, _ts_reason = _time_stop_decision(
+            hold_hours, pnl_pct,
+            full_h=_cfg_float("MIDLONG_TIME_STOP_FULL_H", 24.0),
+            reduce_h=_cfg_float("MIDLONG_TIME_STOP_REDUCE_H", 8.0),
+        )
+        if _ts_act == "close":
+            if _channel_shadowed("time_stop", pos_tier):
+                _sig["exit"] = "breaker_shadow_time_stop"
+            else:
+                _exec_close(db, account_id=account_id, position=position,
+                            reason=_ts_reason, host=host, session=session)
+                logger.info(
+                    "[MidLong] stage=manage symbol=%s 时间止损全平 hold=%.1fh pnl=%+.1f%%（≥24h 未兑现）",
+                    sym, hold_hours, pnl_pct * 100,
+                )
+                return _summary("时间止损全平(24h 未兑现)", action="manage_close")
+        elif _ts_act == "reduce":
+            if _channel_shadowed("time_stop", pos_tier):
+                _sig["exit"] = "breaker_shadow_time_stop"
+            else:
+                _exec_reduce(db, account_id=account_id, position=position, ratio=0.5,
+                             reason=_ts_reason, host=host, session=session)
+                logger.info(
+                    "[MidLong] stage=manage symbol=%s 时间止损减半 hold=%.1fh pnl=%+.1f%%（≥8h 未达 μ）",
+                    sym, hold_hours, pnl_pct * 100,
+                )
+                return _summary("时间止损减半(8h 未达 μ)", action="manage_reduce")
+
     # ═══ ⑤ 分批止盈（规则，每 tick）═══
     # [轮103] 中线专属：长线的分档档位是 8/15/25%（别处声明），
     # 这套 15min 尺度的分批止盈用在长线上就是"过早止盈"。
@@ -1806,6 +1884,31 @@ def manage_position(
         _held_sec = _held_hours(position, db) * 3600.0
         if _last_llm <= 0.0 or _held_sec < _llm_interval:
             _llm_due = _held_sec >= _llm_interval
+
+    # ── [2026-09-28 用户指令「这么久了没有滚仓」] 规则直通滚仓**不受 LLM 节流约束** ──
+    # 现状（实测）：① `_pyr_direct` 写在 `_llm_due` 早退**之后** ⇒ 长线 4h 一次 LLM 复审，
+    # 规则直通永远够不到；② 09-25 凌晨 LLM 反复判 add，又撞上 09-19 滚仓事故残留的
+    # 「已加仓3次」快照（phantom rollback 后 DB add_count 已复位 0，门控当时读的是旧快照）。
+    # 修复：保证金浮盈 > 直通阈值(默认5%) 且 4h/1d 双周期同向时，**先于节流早退**直接进
+    # 5 层门控（门控内仍有 3 次上限 / 逐档盈利门槛 / 冷却，不会无脑加）。
+    # 开关 MIDLONG_PYRAMID_RULE_PRETHROTTLE（默认 true）；回滚置 false = 旧行为。
+    if _cfg_bool("MIDLONG_PYRAMID_RULE_PRETHROTTLE", True) and not _llm_due:
+        try:
+            if _pyramid_rule_prethrottle_ready(sym, position, market_summary):
+                _ok_pre = _exec_pyramid(
+                    db, account_id=account_id, position=position,
+                    market_summary=market_summary, host=host,
+                    session=session, trading_mode=trading_mode,
+                )
+                if _ok_pre:
+                    _margin_pnl = _pnl_pct_of(position)
+                    logger.info(
+                        "[MidLong] %s 滚仓执行(规则直通·节流前，保证金浮盈%.1f%%)",
+                        sym, _margin_pnl * 100,
+                    )
+                    return _summary("顺势滚仓执行(规则直通·节流前)", action="manage_pyramid")
+        except Exception as _pre_err:
+            logger.debug("[MidLong] %s 节流前滚仓检查跳过: %s", sym, _pre_err)
 
     if not _llm_due:
         logger.debug("[MidLong] stage=manage %s LLM维度节流中(距上次%.0fs)", sym, _now - _last_llm)

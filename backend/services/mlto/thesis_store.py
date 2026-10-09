@@ -94,6 +94,83 @@ def get(
     return cached
 
 
+def _fallback_max_age_hours() -> float:
+    """跨会话兜底解析的时效上限（小时）。非法/非正值 ⇒ 0 ⇒ 兜底整体失效（fail-closed）。
+
+    默认 24h 的实测依据（§100）：`midlong_thesis` 事件间隔按 tier 统计，
+    long 层 中位 1.38h / p90 8.04h / max 24.3h，mid 层 中位 0.71h / p90 4.05h。
+    取 6h 会把 long 层约 15~20% 的时段误判为"过期"，等于对长线车道时灵时不灵；
+    取 24h 覆盖 p90 且仍在"当天论题"的量级内。
+    """
+    import os as _os
+    raw = _os.environ.get("MLTO_THESIS_FALLBACK_MAX_AGE_H", "24")
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    return v if v > 0 else 0.0
+
+
+def find_latest(
+    symbol: str,
+    tier: str,
+    db=None,
+    max_age_hours: Optional[float] = None,
+) -> Optional[ThesisDTO]:
+    """跨会话按 (symbol, tier) 找**最近更新**的活论题（[新目标 R4] 平仓学习兜底）。
+
+    与 `get()` 的差别：`get()` 必须先有 session_id；而**长线车道**（`trend_e1:*`）开仓
+    元数据里既没有 session_id 也没有 thesis_id（§100 实测 20 笔平仓里 19 笔如此），
+    所以只能跨会话找。返回 None 的三种情况：无行、行比时效上限更旧、开关关闭。
+
+    时效用**库内同一时钟**计算（同一 SQL 里取 current_timestamp），避免 `updated_at`
+    的 UTC/本地口径歧义把时效算错 8 小时。
+    回滚开关：`MLTO_THESIS_FALLBACK_MAX_AGE_H=0`（或非法值）⇒ 本函数恒返回 None。
+    """
+    sym = str(symbol or "").upper()
+    t = str(tier or "")
+    if not sym or not t:
+        return None
+    max_age = _fallback_max_age_hours() if max_age_hours is None else float(max_age_hours)
+    if max_age <= 0:
+        return None
+    try:
+        from sqlalchemy import text as _sa_text
+
+        from backend.database.connection import AnalyticsSessionLocal
+        from backend.services.mlto.db_models import MltoThesis
+
+        with AnalyticsSessionLocal() as adb:
+            row = (
+                adb.query(MltoThesis)
+                .filter(MltoThesis.symbol == sym, MltoThesis.tier == t)
+                .order_by(MltoThesis.updated_at.desc())
+                .first()
+            )
+            if row is None:
+                return None
+            upd = getattr(row, "updated_at", None)
+            db_now = adb.execute(_sa_text("SELECT current_timestamp")).scalar()
+            if upd is not None and db_now is not None:
+                if getattr(db_now, "tzinfo", None) is not None and upd.tzinfo is None:
+                    db_now = db_now.replace(tzinfo=None)
+                elif getattr(db_now, "tzinfo", None) is None and upd.tzinfo is not None:
+                    upd = upd.replace(tzinfo=None)
+                age_h = (db_now - upd).total_seconds() / 3600.0
+                if age_h > max_age:
+                    logger.info(
+                        "[MLTO] thesis fallback skip stale symbol=%s tier=%s age=%.1fh > %.1fh",
+                        sym, t, age_h, max_age,
+                    )
+                    return None
+            dto = _row_to_dto(row)
+            _THESIS_CACHE[_key(dto.session_id, dto.symbol, dto.tier)] = dto
+            return dto
+    except Exception as exc:
+        logger.debug("[MLTO] thesis find_latest skip %s %s: %s", sym, t, exc)
+        return None
+
+
 def get_or_create(
     session_id: str,
     symbol: str,
@@ -224,6 +301,17 @@ def apply_regime_reset(thesis: ThesisDTO, new_hash: str, db=None) -> None:
         _persist(db, thesis)
 
 
+def _event_write_disabled() -> bool:
+    """[R23] 离线探针零写入开关（默认 false，生产行为不变）。"""
+    try:
+        import os
+        return (os.getenv("MLTO_THESIS_EVENT_WRITE_DISABLED") or "false").strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+    except Exception:
+        return False
+
+
 def append_event(
     thesis_id: str,
     event_type: str,
@@ -232,6 +320,18 @@ def append_event(
 ) -> None:
     # db 参数保留兼容；与 _persist 一样用独立短连接，避免 LLM 后传入连接已死导致事件丢失。
     if not thesis_id:
+        return
+    # [R23] **离线探针防污染闸**。上面这条"忽略调用方 db、自行 commit"的设计意味着：
+    # 任何用 SAVEPOINT/回滚包裹的验证方法对**本表无效** —— R22 的 A/B 脚本因此把
+    # 2 条 postmortem + 1 条 owm_bump（thesis=th-1）泄漏进生产库，已用
+    # scripts/cleanup_probe_artifacts_20260924.py 清除。教训是"验证脚本必须能真正零写入"，
+    # 所以这里给离线探针一个显式开关：置 MLTO_THESIS_EVENT_WRITE_DISABLED=true 时
+    # 本函数只留日志、不落库。默认 false ⇒ 生产行为完全不变。
+    if _event_write_disabled():
+        logger.info(
+            "[MLTO] audit event suppressed (MLTO_THESIS_EVENT_WRITE_DISABLED) "
+            "thesis=%s type=%s", thesis_id, event_type,
+        )
         return
     try:
         from backend.database.connection import AnalyticsSessionLocal as _ASL

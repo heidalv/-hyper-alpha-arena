@@ -1,0 +1,23 @@
+{
+  "legs": 16238,
+  "hi_n": 388,
+  "lo_n": 15850,
+  "hi_usd": 2.25,
+  "lo_usd": -64.95,
+  "hi_maker_usd": 2.25,
+  "hi_flat_usd": 0,
+  "hi_flat_n": 0,
+  "lo_maker_usd": -64.95,
+  "lo_flat_usd": 0,
+  "lo_flat_n": 0,
+  "bands": [
+    0,
+    3,
+    6,
+    10,
+    15,
+    25,
+    40,
+    1000000000.0
+  ]
+}

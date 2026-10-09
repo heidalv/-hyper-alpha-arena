@@ -1,12 +1,96 @@
 import React, { useState, useEffect } from 'react'
 import TouchButton from '@/components/ui/TouchButton'
 import { apiRequest } from '@/api/client'
+import { useTheme, type ThemeMode } from '@/hooks/useTheme'
 
 interface SettingsPageProps {
   onBack: () => void
 }
 
 type SubPage = 'main' | 'api-keys' | 'llm-config' | 'trading-pairs' | 'notifications'
+
+/**
+ * 外观 · 三档主题（跟随系统 / 日间 / 夜间）
+ *
+ * 设计依据 design/light-mode.html：
+ *   · 三档而非两档 —— 移动端默认就该跟随系统，手动切很容易忘
+ *   · "跟随系统"必须显示此刻实际解析成什么（太阳/月亮随系统变），
+ *     否则用户无法判断跟随是否生效
+ *   · 强制态的按钮自身也用目标主题的外观，提前预示切换结果
+ */
+export function ThemeSettings() {
+  const { mode, resolved, setMode } = useTheme()
+
+  const OPTIONS: Array<{ key: ThemeMode; label: string; desc: string; icon: React.ReactNode }> = [
+    {
+      key: 'system', label: '跟随系统', desc: '随手机深色模式自动切换',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="2.5" y="4" width="19" height="13" rx="2" /><path d="M8 20h8" />
+        </svg>
+      ),
+    },
+    {
+      key: 'light', label: '日间', desc: '始终浅色，白天户外更清楚',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4.2" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ),
+    },
+    {
+      key: 'dark', label: '夜间', desc: '始终深色，夜间盯盘不刺眼',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z" />
+        </svg>
+      ),
+    },
+  ]
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">外观</p>
+        <span className="badge-active">当前 {resolved === 'light' ? '日间' : '夜间'}</span>
+      </div>
+      <div className="mt-3 space-y-2">
+        {OPTIONS.map(opt => {
+          const active = mode === opt.key
+          return (
+            <button
+              key={opt.key}
+              onClick={() => setMode(opt.key)}
+              className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 min-h-[52px] border transition-colors ${
+                active
+                  ? 'border-terminal-primary/60 bg-terminal-primary/10 text-terminal-primary'
+                  : 'border-terminal-border bg-terminal-card-2 text-terminal-text/80'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                {opt.icon}
+                <span className="text-left">
+                  <span className="block text-sm font-medium">{opt.label}</span>
+                  <span className="block text-xs text-muted mt-0.5">{opt.desc}</span>
+                </span>
+              </span>
+              {opt.key === 'system' && <span className="badge-active shrink-0">推荐</span>}
+              {opt.key !== 'system' && active && (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-xs text-muted mt-3 leading-relaxed">
+        选择会记住。<span className="font-medium">跟随系统</span>时，看板随系统切换深色的瞬间一起切换，不需要重开。
+      </p>
+    </div>
+  )
+}
 
 export default function SettingsPage({ onBack }: SettingsPageProps) {
   const [subPage, setSubPage] = useState<SubPage>('main')
@@ -47,6 +131,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         <h2 className="text-lg font-semibold">设置</h2>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <ThemeSettings />
         <button onClick={() => setSubPage('api-keys')} className="w-full card text-left flex items-center justify-between active:opacity-70">
           <div className="flex items-center gap-3">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>

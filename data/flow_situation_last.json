@@ -1,0 +1,3155 @@
+{
+  "ts": 1791563591.4812114,
+  "as_of": "2026-10-10T00:33:11",
+  "hours": 12.0,
+  "protocol": "tick_situation",
+  "ahead_edges_usd": [
+    30.0,
+    100.0,
+    300.0
+  ],
+  "spread_edges_bp": [
+    2.0,
+    8.0,
+    16.0
+  ],
+  "coins": {
+    "TRUMP": {
+      "buy": [
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 34.2096,
+          "median_y": 34.2096,
+          "recent_mean_y": 34.2096
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -25.9178,
+          "median_y": -25.9178,
+          "recent_mean_y": -25.9178
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -20.1638,
+          "median_y": -20.1638,
+          "recent_mean_y": -20.1638
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -25.6685,
+          "median_y": -25.6685,
+          "recent_mean_y": -25.6685
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -6.7203,
+          "median_y": -6.7203,
+          "recent_mean_y": -6.7203
+        }
+      ]
+    },
+    "US": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 4,
+          "mean_y": 32.8915,
+          "median_y": -2.5416,
+          "recent_mean_y": 68.3247
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 15,
+          "mean_y": 0.9079,
+          "median_y": 9.9234,
+          "recent_mean_y": -5.8071
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 69,
+          "mean_y": 16.7175,
+          "median_y": 11.9701,
+          "recent_mean_y": 2.2892
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 548,
+          "mean_y": -0.3711,
+          "median_y": -40.1011,
+          "recent_mean_y": -4.208
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": 8.6879,
+          "median_y": 16.4948,
+          "recent_mean_y": -16.5836
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 49,
+          "mean_y": 4.5962,
+          "median_y": 5.3029,
+          "recent_mean_y": -13.9274
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 247,
+          "mean_y": -2.5584,
+          "median_y": 7.4405,
+          "recent_mean_y": -5.1673
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 61.6449,
+          "median_y": 61.6449,
+          "recent_mean_y": 61.6449
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 9,
+          "mean_y": -13.2567,
+          "median_y": -3.3125,
+          "recent_mean_y": 1.2695
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 38,
+          "mean_y": -8.3798,
+          "median_y": -1.0921,
+          "recent_mean_y": 3.3123
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 213,
+          "mean_y": 3.0295,
+          "median_y": 11.4309,
+          "recent_mean_y": -0.1474
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 12,
+          "mean_y": -34.4078,
+          "median_y": -42.2585,
+          "recent_mean_y": -33.0538
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 13,
+          "mean_y": 2.8779,
+          "median_y": 11.369,
+          "recent_mean_y": 18.8162
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 99,
+          "mean_y": -4.9613,
+          "median_y": -41.519,
+          "recent_mean_y": -19.4431
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 3,
+          "mean_y": -41.7367,
+          "median_y": -41.3318,
+          "recent_mean_y": -43.5293
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 10,
+          "mean_y": -13.6015,
+          "median_y": 5.8401,
+          "recent_mean_y": -5.3911
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 54,
+          "mean_y": -8.7055,
+          "median_y": -3.2456,
+          "recent_mean_y": 4.3526
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 415,
+          "mean_y": -4.5033,
+          "median_y": 4.9092,
+          "recent_mean_y": 3.3838
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 3,
+          "mean_y": -52.7537,
+          "median_y": -42.9694,
+          "recent_mean_y": -74.4652
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 12,
+          "mean_y": 1.0058,
+          "median_y": 2.3792,
+          "recent_mean_y": -12.5879
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 46,
+          "mean_y": 4.2893,
+          "median_y": 9.1003,
+          "recent_mean_y": 2.0425
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 199,
+          "mean_y": -3.4111,
+          "median_y": 5.6804,
+          "recent_mean_y": -7.7604
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 6,
+          "mean_y": -21.2434,
+          "median_y": -47.8083,
+          "recent_mean_y": -12.1871
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 18,
+          "mean_y": -22.7116,
+          "median_y": -40.7369,
+          "recent_mean_y": -13.2573
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 56,
+          "mean_y": -10.5349,
+          "median_y": 0.9923,
+          "recent_mean_y": -11.0332
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 253,
+          "mean_y": -12.6988,
+          "median_y": -7.881,
+          "recent_mean_y": -12.9116
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": -42.9594,
+          "median_y": -42.9594,
+          "recent_mean_y": -42.9594
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -29.9019,
+          "median_y": -41.207,
+          "recent_mean_y": -41.207
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -30.2483,
+          "median_y": -53.6361,
+          "recent_mean_y": -53.6361
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 89,
+          "mean_y": -14.1731,
+          "median_y": -41.3413,
+          "recent_mean_y": -22.9035
+        }
+      ]
+    },
+    "QNT": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 108.7393,
+          "median_y": 108.7393,
+          "recent_mean_y": 108.7393
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -19.0977,
+          "median_y": -19.0977,
+          "recent_mean_y": -19.0977
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": -20.4733,
+          "median_y": -20.4733,
+          "recent_mean_y": -20.4733
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": 33.5781,
+          "median_y": 42.3922,
+          "recent_mean_y": 10.6305
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": 14.4307,
+          "median_y": 17.2422,
+          "recent_mean_y": 11.6192
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -22.7242,
+          "median_y": -20.616,
+          "recent_mean_y": -20.616
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -43.3142,
+          "median_y": -43.3142,
+          "recent_mean_y": -43.3142
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -15.6321,
+          "median_y": -15.6321,
+          "recent_mean_y": -15.6321
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -15.581,
+          "median_y": -17.2296,
+          "recent_mean_y": -22.9015
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -20.9578,
+          "median_y": -20.2055,
+          "recent_mean_y": -20.2055
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -17.032,
+          "median_y": -17.032,
+          "recent_mean_y": -17.032
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -28.1887,
+          "median_y": -28.1887,
+          "recent_mean_y": -28.1887
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": 0.7351,
+          "median_y": -23.5695,
+          "recent_mean_y": 61.1641
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -19.6609,
+          "median_y": -19.6609,
+          "recent_mean_y": -19.6609
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 8,
+          "mean_y": -19.176,
+          "median_y": -17.7589,
+          "recent_mean_y": -17.5541
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": 136.4538,
+          "median_y": 136.4538,
+          "recent_mean_y": 136.4538
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 6,
+          "mean_y": -2.8836,
+          "median_y": -15.0721,
+          "recent_mean_y": 21.9025
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 6,
+          "mean_y": -3.956,
+          "median_y": -16.7295,
+          "recent_mean_y": 26.4039
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -24.8379,
+          "median_y": -24.7659,
+          "recent_mean_y": -25.3286
+        }
+      ]
+    },
+    "BTC": {
+      "buy": [
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 48,
+          "mean_y": -0.972,
+          "median_y": -0.643,
+          "recent_mean_y": -0.2087
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 1.9654,
+          "median_y": 1.9654,
+          "recent_mean_y": 1.9654
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 20,
+          "mean_y": -3.0634,
+          "median_y": -0.6241,
+          "recent_mean_y": -7.383
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 359,
+          "mean_y": -0.8143,
+          "median_y": 0.0121,
+          "recent_mean_y": -1.2825
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": 0.7887,
+          "median_y": 2.4987,
+          "recent_mean_y": -2.8347
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 95,
+          "mean_y": -1.2432,
+          "median_y": -0.7957,
+          "recent_mean_y": -1.5566
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 35,
+          "mean_y": -2.5543,
+          "median_y": -1.4041,
+          "recent_mean_y": -3.9177
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 272,
+          "mean_y": -0.3952,
+          "median_y": -0.0423,
+          "recent_mean_y": -0.2085
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 7,
+          "mean_y": 0.8825,
+          "median_y": 1.625,
+          "recent_mean_y": 0.2089
+        }
+      ]
+    },
+    "SOLUSD1": {
+      "buy": [
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 23.66,
+          "median_y": 23.66,
+          "recent_mean_y": 23.66
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.844,
+          "median_y": -15.844,
+          "recent_mean_y": -15.844
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -16.7516,
+          "median_y": -16.7516,
+          "recent_mean_y": -16.7516
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.7668,
+          "median_y": -15.7668,
+          "recent_mean_y": -15.7668
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -0.3807,
+          "median_y": -0.3807,
+          "recent_mean_y": -0.3807
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": -16.2216,
+          "median_y": -16.2216,
+          "recent_mean_y": -16.2216
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -14.5274,
+          "median_y": -16.5809,
+          "recent_mean_y": -16.7288
+        }
+      ]
+    },
+    "TQQQ": {
+      "buy": [
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.2354,
+          "median_y": -16.2354,
+          "recent_mean_y": -16.2354
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -22.3262,
+          "median_y": -22.3262,
+          "recent_mean_y": -22.3262
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -18.8112,
+          "median_y": -18.8112,
+          "recent_mean_y": -18.8112
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 21.6254,
+          "median_y": 21.6254,
+          "recent_mean_y": 21.6254
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -22.3509,
+          "median_y": -22.3509,
+          "recent_mean_y": -22.3509
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.6217,
+          "median_y": -18.6217,
+          "recent_mean_y": -18.6217
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -43.0625,
+          "median_y": -43.0625,
+          "recent_mean_y": -43.0625
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.6039,
+          "median_y": -18.6039,
+          "recent_mean_y": -18.6039
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.1345,
+          "median_y": -15.1345,
+          "recent_mean_y": -15.1345
+        }
+      ]
+    },
+    "PONS": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -23.1701,
+          "median_y": -23.1701,
+          "recent_mean_y": -23.1701
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": 24.4342,
+          "median_y": -16.5628,
+          "recent_mean_y": 110.5412
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -19.3767,
+          "median_y": -17.1058,
+          "recent_mean_y": -15.8562
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -2.1266,
+          "median_y": -2.1266,
+          "recent_mean_y": -2.1266
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -33.6338,
+          "median_y": -33.6338,
+          "recent_mean_y": -33.6338
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": 7.6144,
+          "median_y": -18.4267,
+          "recent_mean_y": -18.4267
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.6134,
+          "median_y": -15.6134,
+          "recent_mean_y": -15.6134
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -12.8324,
+          "median_y": -12.8324,
+          "recent_mean_y": -12.8324
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -21.9296,
+          "median_y": -21.9296,
+          "recent_mean_y": -21.9296
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -24.8836,
+          "median_y": -24.8836,
+          "recent_mean_y": -24.8836
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -26.8859,
+          "median_y": -26.8859,
+          "recent_mean_y": -26.8859
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -22.951,
+          "median_y": -22.951,
+          "recent_mean_y": -22.951
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 32.7816,
+          "median_y": 32.7816,
+          "recent_mean_y": 32.7816
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -31.4371,
+          "median_y": -31.4371,
+          "recent_mean_y": -31.4371
+        }
+      ]
+    },
+    "INJ": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.4123,
+          "median_y": -15.4123,
+          "recent_mean_y": -15.4123
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -16.4041,
+          "median_y": -15.5374,
+          "recent_mean_y": -15.274
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -19.6472,
+          "median_y": -19.6472,
+          "recent_mean_y": -19.6472
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 32.0697,
+          "median_y": 32.0697,
+          "recent_mean_y": 32.0697
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": 20.2605,
+          "median_y": 20.2605,
+          "recent_mean_y": 20.2605
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -18.8894,
+          "median_y": -19.6697,
+          "recent_mean_y": -20.4301
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -14.7142,
+          "median_y": -14.7142,
+          "recent_mean_y": -14.7142
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -19.8868,
+          "median_y": -19.8868,
+          "recent_mean_y": -19.8868
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -21.3837,
+          "median_y": -20.9468,
+          "recent_mean_y": -15.458
+        }
+      ]
+    },
+    "PAXG": {
+      "buy": [
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 20.3263,
+          "median_y": 20.3263,
+          "recent_mean_y": 20.3263
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": -8.5679,
+          "median_y": -8.5679,
+          "recent_mean_y": -8.5679
+        }
+      ]
+    },
+    "SEI": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -324.8955,
+          "median_y": -324.8955,
+          "recent_mean_y": -324.8955
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -17.1015,
+          "median_y": -16.2137,
+          "recent_mean_y": -16.2137
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -17.373,
+          "median_y": -17.373,
+          "recent_mean_y": -17.373
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -1.8246,
+          "median_y": -16.8818,
+          "recent_mean_y": 14.0019
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -15.9421,
+          "median_y": -15.9421,
+          "recent_mean_y": -15.9421
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -20.7428,
+          "median_y": -20.7428,
+          "recent_mean_y": -20.7428
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -18.6438,
+          "median_y": -18.997,
+          "recent_mean_y": -17.6157
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -15.8624,
+          "median_y": -15.8624,
+          "recent_mean_y": -15.8624
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": 27.3293,
+          "median_y": 27.3293,
+          "recent_mean_y": 27.3293
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": 27.679,
+          "median_y": 27.679,
+          "recent_mean_y": 27.679
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -17.827,
+          "median_y": -17.827,
+          "recent_mean_y": -17.827
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -18.5947,
+          "median_y": -16.1933,
+          "recent_mean_y": -23.7179
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -18.8765,
+          "median_y": -18.8765,
+          "recent_mean_y": -18.8765
+        }
+      ]
+    },
+    "ETH": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 138,
+          "mean_y": -0.5207,
+          "median_y": 0.0,
+          "recent_mean_y": -0.9039
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 11,
+          "mean_y": -1.5074,
+          "median_y": -1.2841,
+          "recent_mean_y": 1.065
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 16,
+          "mean_y": 0.4397,
+          "median_y": 0.9603,
+          "recent_mean_y": 2.5244
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 6,
+          "mean_y": -3.2792,
+          "median_y": -4.6629,
+          "recent_mean_y": -5.912
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 16,
+          "mean_y": -0.8959,
+          "median_y": -0.0184,
+          "recent_mean_y": -1.6049
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -6.8657,
+          "median_y": -4.7566,
+          "recent_mean_y": -15.7603
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 373,
+          "mean_y": -0.2013,
+          "median_y": 0.0799,
+          "recent_mean_y": -0.8487
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 18,
+          "mean_y": -1.0051,
+          "median_y": 0.181,
+          "recent_mean_y": -4.8718
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 6.0176,
+          "median_y": 6.0176,
+          "recent_mean_y": 6.0176
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 217,
+          "mean_y": 0.0969,
+          "median_y": 0.0401,
+          "recent_mean_y": -0.012
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -0.9806,
+          "median_y": -0.9585,
+          "recent_mean_y": -0.7589
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 11,
+          "mean_y": 0.4077,
+          "median_y": 0.6805,
+          "recent_mean_y": 0.4313
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 30,
+          "mean_y": -0.1304,
+          "median_y": 0.1406,
+          "recent_mean_y": 0.1661
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -3.1524,
+          "median_y": -3.0522,
+          "recent_mean_y": -1.466
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 284,
+          "mean_y": -0.4022,
+          "median_y": 0.02,
+          "recent_mean_y": -0.3121
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 10,
+          "mean_y": -0.1065,
+          "median_y": -1.1263,
+          "recent_mean_y": -0.1631
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 1.5744,
+          "median_y": 1.5744,
+          "recent_mean_y": 1.5744
+        }
+      ]
+    },
+    "GRASS": {
+      "buy": [
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.1554,
+          "median_y": -18.1554,
+          "recent_mean_y": -18.1554
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -19.3965,
+          "median_y": -19.3965,
+          "recent_mean_y": -19.3965
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.6662,
+          "median_y": -16.6662,
+          "recent_mean_y": -16.6662
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -19.8228,
+          "median_y": -19.8228,
+          "recent_mean_y": -19.8228
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": 54.7335,
+          "median_y": 54.7335,
+          "recent_mean_y": 54.7335
+        }
+      ]
+    },
+    "BTCUSD1": {
+      "buy": [
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -15.2176,
+          "median_y": -15.2176,
+          "recent_mean_y": -15.2176
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -3.7818,
+          "median_y": -3.7818,
+          "recent_mean_y": -3.7818
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -15.2908,
+          "median_y": -15.2908,
+          "recent_mean_y": -15.2908
+        }
+      ]
+    },
+    "PENGU": {
+      "buy": [
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -16.4642,
+          "median_y": -16.4642,
+          "recent_mean_y": -16.4642
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -19.8517,
+          "median_y": -19.8517,
+          "recent_mean_y": -19.8517
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -15.1871,
+          "median_y": -15.1871,
+          "recent_mean_y": -15.1871
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 28.8587,
+          "median_y": 28.8587,
+          "recent_mean_y": 28.8587
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -19.9099,
+          "median_y": -19.9099,
+          "recent_mean_y": -19.9099
+        }
+      ]
+    },
+    "AAVE": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -22.3313,
+          "median_y": -22.3313,
+          "recent_mean_y": -22.3313
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -14.8069,
+          "median_y": -14.8069,
+          "recent_mean_y": -14.8069
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -33.4325,
+          "median_y": -33.4325,
+          "recent_mean_y": -33.4325
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.4509,
+          "median_y": -18.4509,
+          "recent_mean_y": -18.4509
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -42.7759,
+          "median_y": -42.7759,
+          "recent_mean_y": -42.7759
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 7.7802,
+          "median_y": 7.7802,
+          "recent_mean_y": 7.7802
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -19.9377,
+          "median_y": -19.9377,
+          "recent_mean_y": -19.9377
+        }
+      ]
+    },
+    "USELESS": {
+      "buy": [
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -26.0149,
+          "median_y": -26.0149,
+          "recent_mean_y": -26.0149
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -20.6951,
+          "median_y": -18.0413,
+          "recent_mean_y": -16.6369
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 94.7469,
+          "median_y": 94.7469,
+          "recent_mean_y": 94.7469
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -16.6028,
+          "median_y": -16.205,
+          "recent_mean_y": -17.4722
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -32.9167,
+          "median_y": -32.9167,
+          "recent_mean_y": -32.9167
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 73.6818,
+          "median_y": 73.6818,
+          "recent_mean_y": 73.6818
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -16.4058,
+          "median_y": -16.4058,
+          "recent_mean_y": -16.4058
+        }
+      ]
+    },
+    "ETHUSD1": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 5,
+          "mean_y": -3.385,
+          "median_y": -15.1667,
+          "recent_mean_y": 14.3599
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 13.15,
+          "median_y": 13.15,
+          "recent_mean_y": 13.15
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -14.5633,
+          "median_y": -15.6153,
+          "recent_mean_y": -15.6153
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": 1.5245,
+          "median_y": 1.5245,
+          "recent_mean_y": 1.5245
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 2.1281,
+          "median_y": 2.1281,
+          "recent_mean_y": 2.1281
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -13.2044,
+          "median_y": -13.2044,
+          "recent_mean_y": -13.2044
+        }
+      ]
+    },
+    "LYN": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 30.8129,
+          "median_y": 30.8129,
+          "recent_mean_y": 30.8129
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 7,
+          "mean_y": -9.4674,
+          "median_y": -33.4118,
+          "recent_mean_y": 13.5845
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -11.0964,
+          "median_y": -11.0964,
+          "recent_mean_y": -11.0964
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -21.4152,
+          "median_y": -21.4152,
+          "recent_mean_y": -21.4152
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -32.49,
+          "median_y": -32.49,
+          "recent_mean_y": -32.49
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -86.4642,
+          "median_y": -73.9751,
+          "recent_mean_y": -163.7682
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -42.6558,
+          "median_y": -26.036,
+          "recent_mean_y": -26.036
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -167.0435,
+          "median_y": -167.0435,
+          "recent_mean_y": -167.0435
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -59.6462,
+          "median_y": -79.9346,
+          "recent_mean_y": 18.226
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 7,
+          "mean_y": -35.6198,
+          "median_y": -40.8324,
+          "recent_mean_y": -25.0782
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -65.3497,
+          "median_y": -65.3497,
+          "recent_mean_y": -65.3497
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -20.3599,
+          "median_y": -20.3599,
+          "recent_mean_y": -20.3599
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -32.9894,
+          "median_y": -45.7602,
+          "recent_mean_y": -13.5524
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 17.6072,
+          "median_y": 17.6072,
+          "recent_mean_y": 17.6072
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": -15.3318,
+          "median_y": -15.7371,
+          "recent_mean_y": -10.5204
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.4548,
+          "median_y": -15.4548,
+          "recent_mean_y": -15.4548
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -36.1228,
+          "median_y": -36.1228,
+          "recent_mean_y": -36.1228
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -21.3322,
+          "median_y": -21.3322,
+          "recent_mean_y": -21.3322
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 6,
+          "mean_y": -4.4353,
+          "median_y": 9.2062,
+          "recent_mean_y": -11.2417
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": 22.4204,
+          "median_y": 36.1882,
+          "recent_mean_y": 19.3392
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 17,
+          "mean_y": -11.6837,
+          "median_y": -27.4604,
+          "recent_mean_y": 2.2742
+        }
+      ]
+    },
+    "PUMP": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 7,
+          "mean_y": 13.8352,
+          "median_y": -18.0845,
+          "recent_mean_y": 0.9453
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -19.3323,
+          "median_y": -19.8786,
+          "recent_mean_y": -18.0696
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": 16.0571,
+          "median_y": 16.0571,
+          "recent_mean_y": 16.0571
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 9,
+          "mean_y": -2.2764,
+          "median_y": -16.396,
+          "recent_mean_y": -7.467
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 11,
+          "mean_y": -13.5709,
+          "median_y": -18.5349,
+          "recent_mean_y": -8.405
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": -10.0578,
+          "median_y": -10.0578,
+          "recent_mean_y": -10.0578
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 13,
+          "mean_y": 1.0392,
+          "median_y": -16.471,
+          "recent_mean_y": 3.8347
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 7,
+          "mean_y": -2.2804,
+          "median_y": -20.1725,
+          "recent_mean_y": -20.5196
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": 18.2361,
+          "median_y": 20.2728,
+          "recent_mean_y": 20.2728
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 96.7049,
+          "median_y": 96.7049,
+          "recent_mean_y": 96.7049
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -29.7353,
+          "median_y": -29.7353,
+          "recent_mean_y": -29.7353
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 23.9135,
+          "median_y": 23.9135,
+          "recent_mean_y": 23.9135
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 8,
+          "mean_y": 20.6874,
+          "median_y": -1.9471,
+          "recent_mean_y": 53.5535
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -20.1357,
+          "median_y": -20.1357,
+          "recent_mean_y": -20.1357
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -24.2317,
+          "median_y": -24.2317,
+          "recent_mean_y": -24.2317
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 3,
+          "mean_y": 28.0802,
+          "median_y": 39.0694,
+          "recent_mean_y": 65.4903
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 14,
+          "mean_y": 1.3743,
+          "median_y": -16.5998,
+          "recent_mean_y": 14.3618
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 6,
+          "mean_y": -13.5836,
+          "median_y": -20.0519,
+          "recent_mean_y": -11.9538
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -22.2415,
+          "median_y": -22.2415,
+          "recent_mean_y": -22.2415
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 2,
+          "mean_y": 33.9604,
+          "median_y": 33.9604,
+          "recent_mean_y": 33.9604
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 11,
+          "mean_y": -4.2233,
+          "median_y": -16.718,
+          "recent_mean_y": 13.3954
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": -6.1806,
+          "median_y": -16.5854,
+          "recent_mean_y": -30.3362
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": 10.5152,
+          "median_y": 10.5152,
+          "recent_mean_y": 10.5152
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 3.3511,
+          "median_y": 3.3511,
+          "recent_mean_y": 3.3511
+        }
+      ]
+    },
+    "BTW": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -21.9752,
+          "median_y": -20.9005,
+          "recent_mean_y": -16.0252
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 6,
+          "mean_y": -5.1958,
+          "median_y": -16.7339,
+          "recent_mean_y": 2.3253
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 7,
+          "mean_y": -27.349,
+          "median_y": -41.2439,
+          "recent_mean_y": -42.8606
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 17.7362,
+          "median_y": 17.7362,
+          "recent_mean_y": 17.7362
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 5,
+          "mean_y": -6.0235,
+          "median_y": -6.6754,
+          "recent_mean_y": 6.5795
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.4531,
+          "median_y": -16.4531,
+          "recent_mean_y": -16.4531
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": 1.9813,
+          "median_y": 8.6005,
+          "recent_mean_y": 16.8366
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 0.6873,
+          "median_y": 0.6873,
+          "recent_mean_y": 0.6873
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.9693,
+          "median_y": -16.9693,
+          "recent_mean_y": -16.9693
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 7,
+          "mean_y": -4.4416,
+          "median_y": -15.7777,
+          "recent_mean_y": 28.7055
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 12,
+          "mean_y": -28.5688,
+          "median_y": -29.6881,
+          "recent_mean_y": -31.4835
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -36.6526,
+          "median_y": -36.6526,
+          "recent_mean_y": -36.6526
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 8,
+          "mean_y": -27.8674,
+          "median_y": -25.6868,
+          "recent_mean_y": -24.2189
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 9,
+          "mean_y": 2.4567,
+          "median_y": -16.3883,
+          "recent_mean_y": -5.5072
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -17.4766,
+          "median_y": -17.4766,
+          "recent_mean_y": -17.4766
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -25.9709,
+          "median_y": -25.9709,
+          "recent_mean_y": -25.9709
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -21.7497,
+          "median_y": -21.7497,
+          "recent_mean_y": -21.7497
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -31.9562,
+          "median_y": -31.9562,
+          "recent_mean_y": -31.9562
+        }
+      ]
+    },
+    "牛来": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -27.3004,
+          "median_y": -27.3004,
+          "recent_mean_y": -27.3004
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -20.3154,
+          "median_y": -20.3154,
+          "recent_mean_y": -20.3154
+        }
+      ]
+    },
+    "GTC": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 46,
+          "mean_y": -7.4564,
+          "median_y": -33.4622,
+          "recent_mean_y": -16.1663
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -42.9064,
+          "median_y": -42.9064,
+          "recent_mean_y": -42.9064
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -36.0073,
+          "median_y": -36.0073,
+          "recent_mean_y": -36.0073
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 59.5718,
+          "median_y": 59.5718,
+          "recent_mean_y": 59.5718
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -30.1302,
+          "median_y": -30.1302,
+          "recent_mean_y": -30.1302
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -26.8687,
+          "median_y": -26.8687,
+          "recent_mean_y": -26.8687
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 5,
+          "mean_y": -9.9309,
+          "median_y": -30.0284,
+          "recent_mean_y": 33.9625
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": 199.0994,
+          "median_y": 199.0994,
+          "recent_mean_y": 199.0994
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -53.3697,
+          "median_y": -53.3697,
+          "recent_mean_y": -53.3697
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -40.2167,
+          "median_y": -43.0918,
+          "recent_mean_y": -35.787
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -41.1653,
+          "median_y": -41.1653,
+          "recent_mean_y": -41.1653
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -19.3928,
+          "median_y": -35.2153,
+          "recent_mean_y": 12.7427
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": -16.556,
+          "median_y": -16.556,
+          "recent_mean_y": -16.556
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -1.6727,
+          "median_y": -17.0598,
+          "recent_mean_y": 44.9207
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -26.0941,
+          "median_y": -26.0941,
+          "recent_mean_y": -26.0941
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": 37.2706,
+          "median_y": 37.2706,
+          "recent_mean_y": 37.2706
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -20.3497,
+          "median_y": -20.3497,
+          "recent_mean_y": -20.3497
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 5,
+          "mean_y": -39.3756,
+          "median_y": -41.7302,
+          "recent_mean_y": -35.3108
+        }
+      ]
+    },
+    "BCH": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -17.7189,
+          "median_y": -17.7189,
+          "recent_mean_y": -17.7189
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.98,
+          "median_y": -15.98,
+          "recent_mean_y": -15.98
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 31.5055,
+          "median_y": 31.5055,
+          "recent_mean_y": 31.5055
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -19.1448,
+          "median_y": -19.1448,
+          "recent_mean_y": -19.1448
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -8.3831,
+          "median_y": -8.3831,
+          "recent_mean_y": -8.3831
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -18.2414,
+          "median_y": -18.2414,
+          "recent_mean_y": -18.2414
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -13.7806,
+          "median_y": -15.6499,
+          "recent_mean_y": -15.6499
+        }
+      ]
+    },
+    "ADA": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -9.1154,
+          "median_y": -16.474,
+          "recent_mean_y": -16.6718
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -16.7605,
+          "median_y": -16.7605,
+          "recent_mean_y": -16.7605
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -8.9817,
+          "median_y": -16.6422,
+          "recent_mean_y": -18.644
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 4,
+          "mean_y": -1.9491,
+          "median_y": -8.3078,
+          "recent_mean_y": -16.6263
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.5366,
+          "median_y": -16.5366,
+          "recent_mean_y": -16.5366
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -16.5948,
+          "median_y": -16.5948,
+          "recent_mean_y": -16.5948
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 18.8976,
+          "median_y": 18.8976,
+          "recent_mean_y": 18.8976
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -16.5945,
+          "median_y": -16.5945,
+          "recent_mean_y": -16.5945
+        }
+      ]
+    },
+    "NEAR": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 4,
+          "mean_y": 33.2401,
+          "median_y": 32.325,
+          "recent_mean_y": 42.4258
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 17,
+          "mean_y": -4.37,
+          "median_y": -16.5209,
+          "recent_mean_y": -5.3731
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -25.1929,
+          "median_y": -22.6814,
+          "recent_mean_y": -20.681
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -16.5448,
+          "median_y": -16.5448,
+          "recent_mean_y": -16.5448
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -16.5839,
+          "median_y": -16.5839,
+          "recent_mean_y": -16.5839
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 14,
+          "mean_y": -4.8015,
+          "median_y": -18.3812,
+          "recent_mean_y": 11.0897
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 10,
+          "mean_y": -17.3009,
+          "median_y": -19.6954,
+          "recent_mean_y": -18.1233
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -20.7015,
+          "median_y": -20.7015,
+          "recent_mean_y": -20.7015
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -16.9001,
+          "median_y": -22.6683,
+          "recent_mean_y": -23.8104
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 14,
+          "mean_y": -5.673,
+          "median_y": -18.4376,
+          "recent_mean_y": 1.8064
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -24.8333,
+          "median_y": -24.8333,
+          "recent_mean_y": -24.8333
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -22.0298,
+          "median_y": -18.6474,
+          "recent_mean_y": -16.5156
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 12,
+          "mean_y": -5.2668,
+          "median_y": -16.6303,
+          "recent_mean_y": -18.1403
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": -8.5425,
+          "median_y": -18.55,
+          "recent_mean_y": 9.5883
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -20.6147,
+          "median_y": -20.6147,
+          "recent_mean_y": -20.6147
+        }
+      ]
+    },
+    "ARB": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 4,
+          "mean_y": 5.6733,
+          "median_y": 0.5557,
+          "recent_mean_y": 0.3964
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 80.0133,
+          "median_y": 80.0133,
+          "recent_mean_y": 80.0133
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 6,
+          "mean_y": -10.2805,
+          "median_y": -21.0794,
+          "recent_mean_y": 19.5316
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 10,
+          "mean_y": -12.0598,
+          "median_y": -15.7924,
+          "recent_mean_y": -19.0995
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": -13.6349,
+          "median_y": -17.369,
+          "recent_mean_y": -8.5511
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": 18.1477,
+          "median_y": -15.2347,
+          "recent_mean_y": -16.2896
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 7,
+          "mean_y": 9.2955,
+          "median_y": 5.5534,
+          "recent_mean_y": 0.778
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 6,
+          "mean_y": -16.9907,
+          "median_y": -16.405,
+          "recent_mean_y": -16.405
+        }
+      ]
+    },
+    "PLAY": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 39,
+          "mean_y": -15.3011,
+          "median_y": -16.859,
+          "recent_mean_y": -14.9677
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 18,
+          "mean_y": -9.4599,
+          "median_y": -16.6289,
+          "recent_mean_y": -11.9122
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -6.9489,
+          "median_y": -16.7497,
+          "recent_mean_y": -16.7497
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": 23.2764,
+          "median_y": 23.2764,
+          "recent_mean_y": 23.2764
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -64.2273,
+          "median_y": -64.2273,
+          "recent_mean_y": -64.2273
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 39.4216,
+          "median_y": 39.4216,
+          "recent_mean_y": 39.4216
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -16.6316,
+          "median_y": -16.6316,
+          "recent_mean_y": -16.6316
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 5,
+          "mean_y": -13.2746,
+          "median_y": -16.5997,
+          "recent_mean_y": -8.2945
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -16.5986,
+          "median_y": -16.6077,
+          "recent_mean_y": -16.555
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 21.4097,
+          "median_y": 21.4097,
+          "recent_mean_y": 21.4097
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -16.6566,
+          "median_y": -16.6566,
+          "recent_mean_y": -16.6566
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 12,
+          "mean_y": -7.5326,
+          "median_y": -16.6853,
+          "recent_mean_y": 2.3497
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 8,
+          "mean_y": 9.9842,
+          "median_y": -6.177,
+          "recent_mean_y": 18.091
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": 10.5867,
+          "median_y": 10.5867,
+          "recent_mean_y": 10.5867
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -16.6263,
+          "median_y": -16.6263,
+          "recent_mean_y": -16.6263
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 3,
+          "mean_y": -9.7299,
+          "median_y": -16.605,
+          "recent_mean_y": -16.7986
+        }
+      ]
+    },
+    "AAPL": {
+      "buy": [
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -22.5127,
+          "median_y": -22.5127,
+          "recent_mean_y": -22.5127
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -4.0441,
+          "median_y": -4.0441,
+          "recent_mean_y": -4.0441
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 14.8623,
+          "median_y": 14.8623,
+          "recent_mean_y": 14.8623
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": 1.6952,
+          "median_y": 1.6952,
+          "recent_mean_y": 1.6952
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 4,
+          "mean_y": -10.933,
+          "median_y": -16.5629,
+          "recent_mean_y": -5.3032
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 4,
+          "mean_y": 9.4585,
+          "median_y": -4.0826,
+          "recent_mean_y": 34.4991
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.6711,
+          "median_y": -18.6711,
+          "recent_mean_y": -18.6711
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 1,
+          "mean_y": 18.3574,
+          "median_y": 18.3574,
+          "recent_mean_y": 18.3574
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 6,
+          "mean_y": -4.63,
+          "median_y": -6.261,
+          "recent_mean_y": -15.4066
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 0,
+          "n": 6,
+          "mean_y": -1.547,
+          "median_y": -1.7002,
+          "recent_mean_y": -10.3052
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -15.3633,
+          "median_y": -15.3633,
+          "recent_mean_y": -15.3633
+        }
+      ]
+    },
+    "MARSCOIN": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -23.2719,
+          "median_y": -23.2719,
+          "recent_mean_y": -23.2719
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -35.6389,
+          "median_y": -35.6389,
+          "recent_mean_y": -35.6389
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 8,
+          "mean_y": -4.8026,
+          "median_y": -21.4246,
+          "recent_mean_y": -28.3944
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -31.7897,
+          "median_y": -31.7897,
+          "recent_mean_y": -31.7897
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -20.136,
+          "median_y": -20.136,
+          "recent_mean_y": -20.136
+        }
+      ]
+    },
+    "HBAR": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 8,
+          "mean_y": -16.1863,
+          "median_y": -17.6723,
+          "recent_mean_y": -16.7612
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 10,
+          "mean_y": -8.5549,
+          "median_y": -16.0078,
+          "recent_mean_y": -3.692
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 4,
+          "mean_y": -8.3742,
+          "median_y": -11.617,
+          "recent_mean_y": 3.6704
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 0,
+          "n": 3,
+          "mean_y": -17.7802,
+          "median_y": -15.9487,
+          "recent_mean_y": -21.473
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -19.3072,
+          "median_y": -19.3072,
+          "recent_mean_y": -19.3072
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -8.3431,
+          "median_y": -8.3431,
+          "recent_mean_y": -8.3431
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -16.9659,
+          "median_y": -16.9659,
+          "recent_mean_y": -16.9659
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 0,
+          "n": 3,
+          "mean_y": -11.3913,
+          "median_y": -17.0876,
+          "recent_mean_y": 1.0903
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 7,
+          "mean_y": -10.0039,
+          "median_y": -15.8842,
+          "recent_mean_y": -11.7164
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 11,
+          "mean_y": -2.0325,
+          "median_y": -15.8675,
+          "recent_mean_y": 10.708
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 8.4183,
+          "median_y": 8.4183,
+          "recent_mean_y": 8.4183
+        }
+      ]
+    },
+    "CASHCAT": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -32.5408,
+          "median_y": -32.5408,
+          "recent_mean_y": -32.5408
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -22.4552,
+          "median_y": -22.4552,
+          "recent_mean_y": -22.4552
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -20.832,
+          "median_y": -20.832,
+          "recent_mean_y": -20.832
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -32.49,
+          "median_y": -32.49,
+          "recent_mean_y": -32.49
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 5,
+          "mean_y": -29.6252,
+          "median_y": -25.4919,
+          "recent_mean_y": -39.3284
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 2,
+          "mean_y": -26.5435,
+          "median_y": -26.5435,
+          "recent_mean_y": -26.5435
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 2,
+          "mean_y": -30.1777,
+          "median_y": -30.1777,
+          "recent_mean_y": -30.1777
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -27.144,
+          "median_y": -27.144,
+          "recent_mean_y": -27.144
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -51.2598,
+          "median_y": -51.2598,
+          "recent_mean_y": -51.2598
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -29.4833,
+          "median_y": -29.4833,
+          "recent_mean_y": -29.4833
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 3,
+          "mean_y": -24.2752,
+          "median_y": -19.2919,
+          "recent_mean_y": -19.2919
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 8.5662,
+          "median_y": 8.5662,
+          "recent_mean_y": 8.5662
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -30.5907,
+          "median_y": -30.7195,
+          "recent_mean_y": -18.0114
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": 77.9961,
+          "median_y": 77.9961,
+          "recent_mean_y": 77.9961
+        }
+      ]
+    },
+    "MOVR": {
+      "buy": [
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -37.0984,
+          "median_y": -37.0984,
+          "recent_mean_y": -37.0984
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -18.1213,
+          "median_y": -18.1213,
+          "recent_mean_y": -18.1213
+        }
+      ]
+    },
+    "MAGMA": {
+      "buy": [],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -29.6107,
+          "median_y": -29.6107,
+          "recent_mean_y": -29.6107
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -22.9742,
+          "median_y": -24.2239,
+          "recent_mean_y": -26.4719
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -16.9735,
+          "median_y": -16.9735,
+          "recent_mean_y": -16.9735
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -18.1119,
+          "median_y": -18.1119,
+          "recent_mean_y": -18.1119
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -31.7643,
+          "median_y": -20.5057,
+          "recent_mean_y": -20.5057
+        }
+      ]
+    },
+    "NIGHT": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -17.3929,
+          "median_y": -17.3929,
+          "recent_mean_y": -17.3929
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -15.0791,
+          "median_y": -15.0791,
+          "recent_mean_y": -15.0791
+        },
+        {
+          "ahead_i": 3,
+          "spread_i": 3,
+          "n": 1,
+          "mean_y": -17.3156,
+          "median_y": -17.3156,
+          "recent_mean_y": -17.3156
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 2,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": 8.9234,
+          "median_y": 8.9234,
+          "recent_mean_y": 8.9234
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -15.1408,
+          "median_y": -15.1408,
+          "recent_mean_y": -15.1408
+        }
+      ]
+    },
+    "SI": {
+      "buy": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 2,
+          "mean_y": -47.0935,
+          "median_y": -47.0935,
+          "recent_mean_y": -47.0935
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -79.7863,
+          "median_y": -79.7863,
+          "recent_mean_y": -79.7863
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 28,
+          "mean_y": -72.7692,
+          "median_y": -63.2267,
+          "recent_mean_y": -61.9381
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 3,
+          "n": 4,
+          "mean_y": -171.2696,
+          "median_y": -164.4435,
+          "recent_mean_y": -195.8566
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 3,
+          "mean_y": -54.0763,
+          "median_y": -48.4086,
+          "recent_mean_y": -44.8618
+        }
+      ],
+      "sell": [
+        {
+          "ahead_i": 0,
+          "spread_i": 1,
+          "n": 1,
+          "mean_y": -105.0466,
+          "median_y": -105.0466,
+          "recent_mean_y": -105.0466
+        },
+        {
+          "ahead_i": 0,
+          "spread_i": 3,
+          "n": 35,
+          "mean_y": -41.4126,
+          "median_y": -44.9531,
+          "recent_mean_y": -46.2106
+        },
+        {
+          "ahead_i": 1,
+          "spread_i": 2,
+          "n": 1,
+          "mean_y": -130.7281,
+          "median_y": -130.7281,
+          "recent_mean_y": -130.7281
+        },
+        {
+          "ahead_i": 2,
+          "spread_i": 3,
+          "n": 5,
+          "mean_y": -13.9977,
+          "median_y": -32.9017,
+          "recent_mean_y": 88.2025
+        }
+      ]
+    }
+  }
+}

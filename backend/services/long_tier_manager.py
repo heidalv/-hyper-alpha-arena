@@ -28,8 +28,26 @@ _EARLY_NP_REDUCE_DAYS = 2.0   # 持仓 ≥2 天且峰值从未达 0.3R → 减�
 _EARLY_NP_CLOSE_DAYS = 3.0    # 持仓 ≥3 天且峰值从未达 0.3R → 退出（与 72h min_hold 对齐）
 _EARLY_NP_PEAK_R = 0.3        # 峰值 R 门槛（0.3R ≈ 0.6×周ATR，"动起来过"的最低标准）
 _BREAKEVEN_PEAK_PCT = 0.02    # 峰值浮盈(无杠杆价格%) ≥2% → SL 推保本
-_LOCK_PROFIT_PEAK_PCT = 0.03  # 峰值浮盈 ≥3% → 锁定峰值利润的 1/3
+_LOCK_PROFIT_PEAK_PCT = 0.03  # 峰值浮盈 ≥3% → 锁定峰值利润的 1/3（可用开关改为 1/2）
 _LOCK_PROFIT_FRAC = 1.0 / 3.0
+
+
+def lock_profit_frac() -> float:
+    """[2026-09-24 第15轮 · 待决项预置] 锁利比例（占峰值浮盈），默认 **1/3**。
+
+    第 7 轮变体对照（09-15 后 17 笔 / 已平仓 10 笔）显示"锁峰值一半（1/2）"是最优候选：
+      已平仓口径 V4(1/2) −$3.49 vs V0(1/3) −$6.73；但 V4 只在后半占优、前半仍落后 ⇒ **样本不足，未启用**。
+    本函数把该候选做成一个开关：`LONG_LOCK_PEAK_FRAC`（默认 1/3，设 0.5 即切到 V4）。
+    生效点：`decide_long`（非 E1 长线）与 `trend_e1_engine._run_account`（E1 长线）共用本函数。
+    回滚：置回 1/3（或删掉该 env 键）。
+    """
+    try:
+        v = float(os.getenv("LONG_LOCK_PEAK_FRAC", "0.3333333333") or 0)
+    except Exception:  # noqa: BLE001
+        return _LOCK_PROFIT_FRAC
+    if v <= 0 or v > 1:
+        return _LOCK_PROFIT_FRAC
+    return v
 
 
 def weekly_atr(df_1d: pd.DataFrame, period: int = _ATR_PERIOD) -> pd.Series:
@@ -143,6 +161,15 @@ def is_new_high(high: pd.Series, window: int = _NEW_HIGH_WINDOW) -> pd.Series:
     return high > prev_high
 
 
+def _staged_tp_exec_enabled() -> bool:
+    """[2026-09-24 用户指令] 分档止盈执行化开关（`LONG_STAGED_TP_EXEC`，默认 true）。
+
+    历史：`exit_policy.py:22` 明确"本模块只声明档位"⇒ 长线 tp_stages=[8,15,25]% 从未执行，
+    长线止盈侧为空。用户 2026-09-24 指令要求接进执行层（模拟仓，不以怕亏为由压制）。
+    """
+    return str(os.getenv("LONG_STAGED_TP_EXEC", "true")).strip().lower() in ("1", "true", "yes", "on")
+
+
 def decide_long(
     *,
     l1_state: str,
@@ -165,6 +192,7 @@ def decide_long(
     dd_halve_done: bool = False,
     target_halve_done: bool = False,
     early_np_done: bool = False,
+    staged_tp_done: Optional[list] = None,
 ) -> Dict[str, Any]:
     """长线持仓单日决策（纯规则，回测/实盘同核的唯一决策函数）。
 
@@ -225,11 +253,38 @@ def decide_long(
     if hold_days is not None and peak_r is not None and hold_days >= 30.0 and peak_r < 1.0:
         return {"action": "close",
                 "reason": f"no_progress(hold={hold_days:.0f}天, peak_r={peak_r:.2f})"}
+    # [2026-09-24 用户指令 · 分档止盈执行化] 把车道声明的 tp_stages=[8,15,25]%（exit_policy
+    # long 车道）真正接进执行层。此前 exit_policy.py:22 只声明不执行 ⇒ 长线止盈侧为空，
+    # 4 个长线仓峰值 +6.4%~+14.2% 全程无锁定、合计回吐 ≈$100（用户实盘观测）。
+    # 语义：收盘价 ≥ entry×(1+8%) → 减 50%（占**当前**仓位）；≥15% → 再减 50%（=原仓 25%）；
+    # ≥25% → 清剩余（原仓 25%）；每档触发后 SL 推保本（entry）。
+    # 幂等：staged_tp_done=[1,2,3]（调用方从 exit_state_json 读出并回写）。
+    # 顺序：风险退出（结构破坏/Chandelier/极端回撤）之后、结构目标减半与加仓之前。
+    # 开关 LONG_STAGED_TP_EXEC（默认 true）；回滚 = .env 置 false。
+    if _staged_tp_exec_enabled() and entry_price and float(entry_price) > 0:
+        _tp_stages = (8.0, 15.0, 25.0)
+        _tp_ratios = (0.5, 0.5, 1.0)  # 占当前仓位比例 ⇒ 原仓 50/25/25
+        _tp_done = []
+        try:
+            _tp_done = [int(x) for x in (staged_tp_done or [])]
+        except Exception:
+            _tp_done = []
+        for _i, _sp in enumerate(_tp_stages):
+            if (_i + 1) in _tp_done:
+                continue
+            if float(close) >= float(entry_price) * (1.0 + _sp / 100.0):
+                return {
+                    "action": "reduce",
+                    "ratio": _tp_ratios[_i],
+                    "stage": _i + 1,
+                    "new_sl": float(entry_price),
+                    "reason": (f"staged_tp{_i + 1}(close={float(close):.4f}≥entry+{_sp}%,"
+                               f"ratio={_tp_ratios[_i]})"),
+                }
     # [A4] 结构目标减仓：收盘达 L1 结构目标（h60+ATR 投影）→ 减 50%（幂等），其余交给追踪
     if target is not None and close >= target and not target_halve_done:
         return {"action": "reduce", "ratio": 0.5,
-                "reason": f"结构目标达成减半(close={close:.2f}≥target={target:.2f})"}
-    # [A4] 首仓补足：满 24h 且未补足 → 补到 100%（试探仓 50% 的补足腿）
+                "reason": f"结构目标达成减半(close={close:.2f}≥target={target:.2f})"}    # [A4] 首仓补足：满 24h 且未补足 → 补到 100%（试探仓 50% 的补足腿）
     if needs_topup and hold_days is not None and hold_days >= 1.0:
         return {"action": "add", "ratio": round(float(topup_ratio), 4), "topup": True,
                 "reason": f"首仓补足(hold={hold_days:.2f}天, +{float(topup_ratio) * 100:.0f}%)"}
@@ -245,7 +300,7 @@ def decide_long(
     _tighten_why = ""
     if entry_price is not None and peak_pnl_pct is not None and entry_price > 0:
         if peak_pnl_pct >= _LOCK_PROFIT_PEAK_PCT:
-            _tighten_cand = entry_price * (1.0 + peak_pnl_pct * _LOCK_PROFIT_FRAC)
+            _tighten_cand = entry_price * (1.0 + peak_pnl_pct * lock_profit_frac())
             _tighten_why = f"峰值{peak_pnl_pct:.1%}锁利1/3"
         elif peak_pnl_pct >= _BREAKEVEN_PEAK_PCT:
             _tighten_cand = entry_price

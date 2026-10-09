@@ -160,8 +160,23 @@ def test_source_does_not_use_entry_gate_for_lane_membership():
 
 def test_trend_lane_skips_intraday_staged_tp():
     assert paper_engine._should_run_unified_staged_tp(_Pos("long", "trend_follow")) is False
-    assert paper_engine._should_run_unified_staged_tp(_Pos("mid", "swing")) is True
     assert paper_engine._should_run_unified_staged_tp(_Pos("short", "scalp")) is True
+
+
+def test_mid_staged_tp_is_off_by_default(monkeypatch):
+    """[2026-09-24 第13轮 · 用户指令「中线按 09-15 后样本验证并落地」] 中线**默认不跑**统一分段止盈。
+
+    依据 `cf_mid_trail_grid.py --days 9`（n=114 中线已平仓，双价源，基线=活体追踪 5.0/2.5）：
+      无分档 +0.733pp(kline)/+0.809pp(agg)；
+      声明档 2.5/4/6×50/25/25 → +0.221/+0.313（后半 −0.240/−0.207）；
+      早档 1.5/2.5/4 → −0.077/−0.019；单档 1.5×50% → +0.043/+0.119（后半均转负）。
+    每一版分档都劣于"不分档"⇒ 默认关闭；回滚 = .env `MID_STAGED_TP_ENABLED=true`。
+    """
+    monkeypatch.delenv("MID_STAGED_TP_ENABLED", raising=False)
+    assert paper_engine._should_run_unified_staged_tp(_Pos("mid", "swing")) is False
+    # 回滚路径：显式置 true 时恢复旧行为（中线跑分档）
+    monkeypatch.setenv("MID_STAGED_TP_ENABLED", "true")
+    assert paper_engine._should_run_unified_staged_tp(_Pos("mid", "swing")) is True
 
 
 def test_ladder_gate_uses_the_helper():

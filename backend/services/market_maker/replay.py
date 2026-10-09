@@ -20,6 +20,14 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# [h490 2026-09-29] **回放不得写生产遥测**。
+# 事故：`persist_exit_probe`（runner 里的出场决策点探针）第一版用墙钟算年龄，
+# 而回放用历史 `opened_ts` ⇒ 产生 age≈42000s 的假事件，且 `pytest -k "mm or lane"`
+# 里的回放用例真的把 10 行写进了**生产的** `logs/mm_exit_probe.jsonl`。
+# 这里在回放模块入口关掉它（默认关；如需回放自己的探针，显式设 0 并配合
+# `MM_EXIT_PROBE_PATH` 指向临时文件）。
+os.environ.setdefault("MM_EXIT_PROBE_DISABLE", "1")
+
 DEFAULT_SYMBOLS = ["BTC", "ETH", "BNB", "XRP", "SOL", "DOGE"]
 DEFAULT_VENUE = "asterdex"
 DEFAULT_EQUITY = float(os.getenv("F59_EQUITY", "5000"))
@@ -27,8 +35,15 @@ FILL_NOTIONAL = float(os.getenv("F59_FILL_NOTIONAL", "100"))   # 每次挂单名
 HOLD_SNAPSHOTS = int(os.getenv("F59_HOLD", "10"))              # 逆选择观察窗（快照数）
 MAX_ONE_SIDE_SNAPSHOTS = int(os.getenv("F59_MAX_ONE_SIDE_SNAPSHOTS", "8"))  # ≈2 分钟
 TAKER_FEE_BP = float(os.getenv("F59_TAKER_FEE_BP", "4"))       # 主动平仓的 taker 成本
-QUEUE_SHARE = float(os.getenv("F59_QUEUE_SHARE", "0.30"))      # 队列份额：我们排在既有做市商之后
-MIN_FILL_NOTIONAL = float(os.getenv("F59_MIN_FILL_NOTIONAL", "10"))  # 低于此不记成交
+# [h621 2026-09-29] 份额与地板随成交源切换重定标（用户指正"高频变零频"后取证）：
+#   tick 源下 `_avail` = **价位真实量**（我们报价在盘口内侧 = 新档队首），
+#   0.30 是桶时代"整桶总量"的保守折扣，套在真实价位量上过度砍腿
+#   （实测平静段价位量 $5~20 × 0.30 ⇒ $1.4~6 < $10 地板 ⇒ 全部静默跳过 = 零成交）。
+#   ⇒ 份额 0.30 → 0.60（仍留 40% 给同档后来者，保守）；地板 $10 → $5
+#   （对齐 Aster 合约真实 minNotional=5，$10 是自设的双重门槛）。
+#   env 覆盖通道保留：F59_QUEUE_SHARE / F59_MIN_FILL_NOTIONAL。
+QUEUE_SHARE = float(os.getenv("F59_QUEUE_SHARE", "0.60"))      # 队列份额（tick 源=价位量口径）
+MIN_FILL_NOTIONAL = float(os.getenv("F59_MIN_FILL_NOTIONAL", "5"))  # 低于此不记成交（=交易所地板）
 PENETRATION_BP = float(os.getenv("F59_PENETRATION_BP", "0.0"))  # 需要「穿过」挂单多少 bp 才成交
 # 相邻快照间隔超过此值视为数据缺口（采集器停更）→ 跳过该区间，避免幻影成交
 MAX_GAP_MS = int(os.getenv("F59_MAX_GAP_MS", "120000"))
@@ -175,6 +190,55 @@ def _load_series(symbol: str, venue: str, start_ts: Optional[int] = None,
     return ots, bb, ba, tts, lo, hi, sv, bv
 
 
+def _load_series_tick(symbol: str, venue: str, start_ts: Optional[int] = None):
+    """[h621 2026-09-29] **tick 级回放数据**（与 runner 的 MM_SEG_SOURCE=tick 同口径）。
+
+    与 `_load_series`（15s 桶）的区别：
+      · 盘口：`asterdex_book_ticker`（top-of-book，p50 36ms）按 15s 网格降采样，
+        而非 `market_orderbook_snapshots`（30s REST 轮询、网格填充率 47.5%）；
+      · 成交：`asterdex_trades` **逐笔**（event 时间、无落库滞后）⇒ 不需要
+        F107 的"落库可见性"过滤（tmk）——那是给"按落库时刻分桶"的补偿。
+
+    返回 `(ots, bb, ba, tts, tpx, tqt, tbm)`：前三个与桶路径同构（15s 网格），
+    后四个是**全分辨率逐笔**数组。覆盖窗口受 asterdex_trades 保留期限制（~4 天）。
+    仅支持 asterdex（book_ticker 是它的原生表）。
+    """
+    from sqlalchemy import text
+
+    from backend.core.tenant import system_identity
+    from backend.database.connection import MarketSessionLocal
+
+    with system_identity():
+        with MarketSessionLocal() as db:
+            args: Dict[str, Any] = {"s": f"{symbol}USDT"}
+            _t0 = ""
+            if start_ts:
+                args["t0"] = int(start_ts)
+                _t0 = " AND event_ts_ms >= :t0"
+            ob = db.execute(text(
+                "SELECT bt, bid_px, ask_px FROM ("
+                "  SELECT (event_ts_ms/15000)*15000 AS bt, bid_px, ask_px,"
+                "    ROW_NUMBER() OVER (PARTITION BY event_ts_ms/15000"
+                "      ORDER BY event_ts_ms DESC) AS rn"
+                "  FROM asterdex_book_ticker"
+                "  WHERE symbol=:s AND bid_px>0 AND ask_px>bid_px" + _t0 +
+                ") x WHERE rn=1 ORDER BY bt"
+            ), args).all()
+            tr = db.execute(text(
+                "SELECT event_ts_ms, price, qty, is_buyer_maker FROM asterdex_trades"
+                " WHERE symbol=:s" + _t0 + " ORDER BY event_ts_ms"
+            ), args).all()
+
+    ots = np.array([int(r[0]) for r in ob], dtype=np.int64)
+    bb = np.array([float(r[1]) for r in ob])
+    ba = np.array([float(r[2]) for r in ob])
+    tts = np.array([int(r[0]) for r in tr], dtype=np.int64)
+    tpx = np.array([float(r[1]) for r in tr])
+    tqt = np.array([float(r[2]) for r in tr])
+    tbm = np.array([bool(r[3]) for r in tr])
+    return ots, bb, ba, tts, tpx, tqt, tbm
+
+
 def replay_symbol(
     symbol: str,
     *,
@@ -188,6 +252,9 @@ def replay_symbol(
     series: Optional[Tuple[Any, ...]] = None,
     fill_notional: Optional[float] = None,
     return_fills: bool = False,
+    # [h621 2026-09-29] tick 级数据源：None + env MM_SEG_SOURCE=tick ⇒ 自动加载；
+    # 显式传入（ots,bb,ba,tts,tpx,tqt,tbm）⇒ 单测可注入。桶路径完全不受影响 ✓
+    tick_series: Optional[Tuple[Any, ...]] = None,
 ) -> SymbolResult:
     """回放单个币的做市影子期。
 
@@ -195,12 +262,16 @@ def replay_symbol(
         series: 预先加载的 `_load_series()` 结果（参数扫描时复用，避免反复读库）。
         fill_notional: 每笔挂单名义（默认取模块常量）。
         return_fills: 是否记录逐笔日志（组合级回撤/对冲分析用）。
+        tick_series: [h621] tick 级数据（`_load_series_tick` 的输出）。提供它或
+            env `MM_SEG_SOURCE=tick` 时，成交判定走**逐笔 exact-hit 口径**
+            （`aggregate_trades` + `tick_fill_legs`，与实盘 runner 同一实现）。
     """
     fill_notional = float(fill_notional if fill_notional is not None else FILL_NOTIONAL)
     from backend.services.market_maker.core import (
         InventoryBook, QuoteParams, LaneRiskLimits, check_side_allowed,
         compute_quote, fill_side, sigma_norm_from_ranges,
         realized_vol_bp, should_stop_loss, trend_blocked_side,
+        aggregate_trades, tick_fill_legs,
     )
 
     params = params or QuoteParams()
@@ -210,7 +281,20 @@ def replay_symbol(
         limits = LaneRiskLimits(max_one_side_seconds=MAX_ONE_SIDE_SNAPSHOTS * 14.0)
     res = SymbolResult(symbol=symbol)
 
-    ots, bb, ba, tts, lo, hi, sv, bv = series if series is not None else _load_series(symbol, venue, start_ts)
+    # [h621] tick 级数据源（与 runner 的 MM_SEG_SOURCE 同名同语义；默认 tick=与实盘同口径，
+    # bucket 为回退通道——历史参数扫描脚本里显式设 env 的不受影响）
+    _tick = (tick_series is not None
+             or (os.getenv("MM_SEG_SOURCE", "tick") or "tick").strip().lower() == "tick")
+    if _tick and str(venue or "").lower() != "asterdex":
+        logging.warning("[h621] tick 源仅支持 asterdex（book_ticker 是它的原生表），"
+                        "venue=%s 回退桶路径", venue)
+        _tick = False
+    if _tick:
+        ots, bb, ba, tts, tpx, tqt, tbm = (tick_series if tick_series is not None
+                                           else _load_series_tick(symbol, venue, start_ts))
+        lo = hi = sv = bv = None
+    else:
+        ots, bb, ba, tts, lo, hi, sv, bv = series if series is not None else _load_series(symbol, venue, start_ts)
     n = len(ots)
     if n < 100 or len(tts) < 50:
         res.skipped["no_data"] = 1
@@ -224,6 +308,8 @@ def replay_symbol(
         res.covered_days = round(float(d[d < 300_000].sum()) / 86400_000.0, 3)
 
     book = InventoryBook()
+    # [h527 2026-09-29] 逐币规模必须与实盘一致（否则重演 F189：模型以为挂 X、
+    # 实盘挂 Y）。下方按币取分母；缺失时与旧行为逐字一致 ✓。
     limit_notional = equity * limits.max_net_directional_ratio
     hold_snaps = 0
     cycles = 0
@@ -327,11 +413,29 @@ def replay_symbol(
                          reason="stop_loss" if stop else "timeout")
 
         # ② 报价（库存偏斜 + [F204] 趋势反向偏斜）
-        inv_ratio = book.inv_ratio(symbol, mid, limit_notional)
+        # [h527] 分母按币取（与 runner.plan_tick 同一函数），缺失 ⇒ 全局值 ✓
+        from backend.services.market_maker.core import symbol_lookup as _slk
+        inv_ratio = book.inv_ratio(
+            symbol, mid,
+            equity * _slk(getattr(limits, "per_symbol_max_notional_ratio", None),
+                          symbol, limits.max_net_directional_ratio))
         from backend.services.market_maker.core import trend_move_bp as _tmb
         _trend_bp = _tmb(mid_hist, int(getattr(params, "trend_skew_lookback", 60) or 60))
+        # [h432] 持仓逆向漂移（bp，正=水下）——喂给 compute_quote 的 exit_skew_k 偏斜消融
+        _adv = 0.0
+        _pos_now = book.positions.get(symbol)
+        if _pos_now is not None and abs(q_sym) > 1e-12 \
+                and float(getattr(_pos_now, "avg_mid", 0.0) or 0.0) > 0:
+            _drift = (mid - float(_pos_now.avg_mid)) / float(_pos_now.avg_mid) * 1e4
+            _adv = max(0.0, -_drift if q_sym > 0 else _drift)
         q = compute_quote(symbol=symbol, mid=mid, sigma_norm=sigma,
-                          inv_ratio=inv_ratio, trend_bp=_trend_bp, params=params)
+                          inv_ratio=inv_ratio, trend_bp=_trend_bp, params=params,
+                          adverse_bp=_adv,
+                          # [h432] 把真实价差喂进回放（与实盘 spread 模式同口径）——
+                          # 否则 vol_spread_k 在回放中不可见 ✗
+                          spread_bp=((float(ba[i]) - float(bb[i])) / mid * 1e4)
+                          if mid > 0 and float(ba[i]) > float(bb[i]) > 0 else 0.0,
+                          best_bid=float(bb[i]), best_ask=float(ba[i]))
         if q is not None:
             # [F205b] 报价分支计数（与实盘同口径：只统计真正产出报价的决策 ✓）
             _m = getattr(q, "mode", "") or "unknown"
@@ -370,31 +474,49 @@ def replay_symbol(
             book.positions.pop(symbol, None)     # 丢弃缺口前的库存与挂单语义
             res.skipped["data_gap"] = res.skipped.get("data_gap", 0) + 1
             continue
-        j0 = int(np.searchsorted(tts, ots[i], "left"))
-        j1 = int(np.searchsorted(tts, ots[i + 1], "right"))
-        if j1 <= j0:
-            continue
-        seg_low = float(lo[j0:j1].min())
-        seg_high = float(hi[j0:j1].max())
-        seg_sell = float(sv[j0:j1].sum())
-        seg_buy = float(bv[j0:j1].sum())
+        if _tick:
+            # [h621] **逐笔 exact-hit 口径**（与实盘 plan_tick 的 tick_fill 分支同一实现）：
+            # 发生率=价位真实量>0（消灭幻影）、数量=价位量×QUEUE_SHARE（不再整桶外推）。
+            k0 = int(np.searchsorted(tts, ots[i], "right"))
+            k1 = int(np.searchsorted(tts, ots[i + 1], "left"))
+            if k1 <= k0:
+                continue
+            _agg = aggregate_trades(tts[k0:k1], tpx[k0:k1], tqt[k0:k1], tbm[k0:k1],
+                                    quote_bid=float(q.bid), quote_ask=float(q.ask))
+            _lt = tick_fill_legs(_agg, quote_bid=float(q.bid), quote_ask=float(q.ask),
+                                 allow_buy=allow_buy, allow_sell=allow_sell,
+                                 queue_share=QUEUE_SHARE)
+            qty = fill_notional / mid
+            legs = [(sd, (q.bid if sd == "buy" else q.ask), _lt[sd]) for sd in _lt]
+            if not legs:
+                res.skipped["leg_blocked"] = res.skipped.get("leg_blocked", 0) + 1
+                continue
+        else:
+            j0 = int(np.searchsorted(tts, ots[i], "left"))
+            j1 = int(np.searchsorted(tts, ots[i + 1], "right"))
+            if j1 <= j0:
+                continue
+            seg_low = float(lo[j0:j1].min())
+            seg_high = float(hi[j0:j1].max())
+            seg_sell = float(sv[j0:j1].sum())
+            seg_buy = float(bv[j0:j1].sum())
 
-        side = fill_side(bid=q.bid, ask=q.ask, seg_low=seg_low, seg_high=seg_high,
-                         seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
-                         penetration_bp=PENETRATION_BP)
-        if side is None:
-            continue
+            side = fill_side(bid=q.bid, ask=q.ask, seg_low=seg_low, seg_high=seg_high,
+                             seg_taker_sell=seg_sell, seg_taker_buy=seg_buy,
+                             penetration_bp=PENETRATION_BP)
+            if side is None:
+                continue
 
-        qty = fill_notional / mid
-        legs: List[Tuple[str, float, float]] = []
-        # 队列份额约束：我们排在既有做市商之后，只能吃到区间成交量的一部分
-        if side in ("buy", "both") and allow_buy:
-            legs.append(("buy", q.bid, seg_sell * QUEUE_SHARE))
-        if side in ("sell", "both") and allow_sell:
-            legs.append(("sell", q.ask, seg_buy * QUEUE_SHARE))
-        if not legs:
-            res.skipped["leg_blocked"] = res.skipped.get("leg_blocked", 0) + 1
-            continue
+            qty = fill_notional / mid
+            legs: List[Tuple[str, float, float]] = []
+            # 队列份额约束：我们排在既有做市商之后，只能吃到区间成交量的一部分
+            if side in ("buy", "both") and allow_buy:
+                legs.append(("buy", q.bid, seg_sell * QUEUE_SHARE))
+            if side in ("sell", "both") and allow_sell:
+                legs.append(("sell", q.ask, seg_buy * QUEUE_SHARE))
+            if not legs:
+                res.skipped["leg_blocked"] = res.skipped.get("leg_blocked", 0) + 1
+                continue
 
         for leg_side, px, avail_qty in legs:
             # [F91 2026-09-14] 减仓腿**精确平仓**（与实盘 `plan_tick` 同口径）：

@@ -32,9 +32,12 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 # bucket → (runtime_tuning 键, 旧 env 键, 兜底默认)
+# [P5 大轮回 2026-09-27] 按设计 §13.2 分车道：日内(mid) 6/天、趋势(long) 2/天；
+# 原「trend=非 scalp 全部」口径拆分，mid 独立成桶。
 _BUCKETS: Dict[str, tuple] = {
     "scalp": ("scalp_daily_cap", "SCALP_DAILY_OPEN_CAP", 20),
-    "trend": ("trend_daily_cap", "TREND_DAILY_OPEN_CAP", 6),
+    "mid": ("mid_daily_cap", "MID_DAILY_OPEN_CAP", 6),
+    "trend": ("trend_daily_cap", "TREND_DAILY_OPEN_CAP", 2),
     "total": ("max_daily_trades", "V5_MAX_DAILY_TRADES_PAPER", 10),
     "live": ("live_daily_cap", "LIVE_DAILY_OPEN_CAP", 6),
 }
@@ -44,12 +47,18 @@ _seeded: Dict[str, bool] = {}
 
 
 def bucket_for(tier: Optional[str], trade_nature: Optional[str]) -> str:
-    """把 (timeframe_tier, trade_nature) 归到配额桶：scalp / trend。"""
+    """把 (timeframe_tier, trade_nature) 归到配额桶：scalp / mid / trend。
+
+    [P5 §6.3] 车道分治：long tier 与 trend_follow/position → trend；
+    short tier 与 scalp → scalp；其余（mid/swing/intraday）→ mid。
+    """
     n = str(trade_nature or "").strip().lower()
     t = str(tier or "").strip().lower()
     if n == "scalp" or (not n and t == "short"):
         return "scalp"
-    return "trend"
+    if t == "long" or n in ("trend_follow", "position"):
+        return "trend"
+    return "mid"
 
 
 def _file_value_is_schema_default(key: str) -> bool:
@@ -122,14 +131,22 @@ def utc_day_start() -> datetime:
 
 
 def opens_today(db, account_id: int, bucket: str = "total") -> int:
-    """统一计数：今日（UTC）该账户已开仓数。scalp=trade_nature='scalp'；trend=其余；total=全部。"""
+    """统一计数：今日（UTC）该账户已开仓数。
+
+    [P5] 分桶口径：scalp=trade_nature='scalp'；trend=long tier 或 trend_follow/position；
+    mid=其余（swing/intraday/mid tier）；total=全部。
+    """
     from sqlalchemy import text
     b = str(bucket or "total").lower()
     cond = ""
     if b == "scalp":
         cond = " AND trade_nature = 'scalp'"
+    elif b == "mid":
+        cond = (" AND (trade_nature IN ('swing','intraday')"
+                " OR (trade_nature IS NULL AND timeframe_tier IN ('mid','short')))")
     elif b == "trend":
-        cond = " AND (trade_nature IS NULL OR trade_nature <> 'scalp')"
+        cond = (" AND (trade_nature IN ('trend_follow','position')"
+                " OR (trade_nature IS NULL AND timeframe_tier = 'long'))")
     day_start = utc_day_start().replace(tzinfo=None)
     row = db.execute(
         text(
@@ -219,6 +236,7 @@ def status(db, account_id: int) -> Dict[str, Any]:
         "caps": caps,
         "used": {
             "scalp": opens_today(db, account_id, "scalp"),
+            "mid": opens_today(db, account_id, "mid"),
             "trend": opens_today(db, account_id, "trend"),
             "total": opens_today(db, account_id, "total"),
         },

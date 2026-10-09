@@ -1,0 +1,92 @@
+{
+  "era_since": "2026-09-28T05:00:00+00:00",
+  "now": "2026-09-29T02:29:21.766295+00:00",
+  "subs": {
+    "h426": {
+      "stop": {
+        "n": 48,
+        "mean_bp": -48.17769375000003,
+        "min_bp": -112.8545
+      },
+      "stops_and_sudden": {
+        "stop_legs": 48,
+        "stop_net_bp": -48.178,
+        "sudden_move_legs": 101,
+        "sudden_move_net_bp": -9.911
+      }
+    },
+    "h429": {
+      "stops_and_sudden": {
+        "stop_legs": 48,
+        "stop_net_bp": -48.178,
+        "sudden_move_legs": 101,
+        "sudden_move_net_bp": -9.911
+      }
+    },
+    "h432": {
+      "force_exit_mix": {
+        "ofi_flatten_legs": 114,
+        "taker_legs": 246,
+        "fee_usd": -11.006,
+        "taker_fee_usd": -11.006,
+        "fee_share_of_net": 0.5778
+      }
+    },
+    "h440": {
+      "trend_alignment_proxy": {
+        "legs": 1103,
+        "neg_price_legs": 311,
+        "neg_price_share": 0.282,
+        "price_bp_mean": -0.77,
+        "price_bp_mean_neg": -14.898,
+        "note": "替代口径：账本无顺势/逆势标记 ⇒ 用 price_bp<0 的占比代理"
+      }
+    }
+  },
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "exit_path_dist": {
+    "": 848,
+    "ofi_flatten_taker": 105,
+    "timeout_hard_taker": 62,
+    "stop_loss_taker": 48,
+    "trail_lock_taker": 14,
+    "reversal_decay_taker": 13,
+    "ofi_flatten_maker": 9,
+    "take_profit_taker": 4
+  },
+  "meta_keys": {
+    "fill_px": 1103,
+    "qty": 1103,
+    "exit_action": 1103,
+    "px_exact_hit": 1103,
+    "source": 1103,
+    "side": 1103,
+    "seg_high": 1103,
+    "exit_path": 1103,
+    "flatten": 1103,
+    "notional": 1103,
+    "seg_low": 1103,
+    "mid_px": 1103,
+    "price_usd": 1103,
+    "exit_reason": 1103,
+    "quote_ts": 1103
+  },
+  "flatten_key_dist": [
+    {
+      "value": "false",
+      "legs": 879,
+      "ofi_flatten_legs": 22
+    },
+    {
+      "value": "true",
+      "legs": 224,
+      "ofi_flatten_legs": 92
+    }
+  ]
+}

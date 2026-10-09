@@ -1,0 +1,42 @@
+[
+  {
+    "ts": "2026-09-28 13:00:10.569068+08:00",
+    "symbol": "ETH",
+    "side": "sell",
+    "exit_path": "",
+    "source": "F60_shadow",
+    "exit_action": "quote",
+    "net_usd": 0.0,
+    "notional": 288.8
+  },
+  {
+    "ts": "2026-09-28 13:00:10.569068+08:00",
+    "symbol": "DOGE",
+    "side": "sell",
+    "exit_path": "",
+    "source": "F60_shadow",
+    "exit_action": "pause",
+    "net_usd": 0.009,
+    "notional": 18.0
+  },
+  {
+    "ts": "2026-09-28 13:00:26.071095+08:00",
+    "symbol": "BTC",
+    "side": "sell",
+    "exit_path": "",
+    "source": "F60_shadow",
+    "exit_action": "pause",
+    "net_usd": 0.152,
+    "notional": 289.1
+  },
+  {
+    "ts": "2026-09-28 13:00:56.696093+08:00",
+    "symbol": "ETH",
+    "side": "buy",
+    "exit_path": "orphan_taker(orphan_flatten)",
+    "source": "F60_shadow",
+    "exit_action": "flatten",
+    "net_usd": -0.252,
+    "notional": 289.0
+  }
+]

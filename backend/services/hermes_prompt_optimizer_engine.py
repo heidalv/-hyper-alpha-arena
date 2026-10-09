@@ -658,6 +658,46 @@ class PromptOptimizerEngine:
         elif qb["improved_rate"] > qa["improved_rate"] + 0.05:
             winner = "B"
 
+        # [2026-10-03 用户指令「补齐」· 面板⑥"无 A/B 实验在跑（版本只增不验，闭环缺失）"根因]
+        # 实测：4 个 A/B **全部 concluded 且 proposals_a=0 / proposals_b=0**（零样本结案，
+        # winner=tie）⇒ 新版永远拿不到验证、旧版继续 active，闭环空转。
+        # 修：**样本不足不结案**（继续跑，等真实流量），只在超过 `HERMES_AB_MAX_DAYS`
+        # （默认 7 天）仍无样本时才以 `inconclusive` 收尾，避免僵尸测试。
+        # 回滚：HERMES_AB_MIN_SAMPLES=0（回到旧的"随时结案"）。
+        _min_samples = int(os.getenv("HERMES_AB_MIN_SAMPLES", "5") or 0)
+        _max_days = float(os.getenv("HERMES_AB_MAX_DAYS", "7") or 7)
+        _total = int(qa.get("total", 0)) + int(qb.get("total", 0))
+        if _min_samples > 0 and _total < _min_samples:
+            _age_days = 0.0
+            try:
+                from datetime import datetime as _dt
+
+                _st = str(test.get("started_at") or "")
+                if _st:
+                    _age_days = (_dt.now() - _dt.fromisoformat(_st.replace("Z", ""))).total_seconds() / 86400.0
+            except Exception:
+                _age_days = 0.0
+            if _age_days < _max_days:
+                logger.info(
+                    "[Hermes:L2] A/B %d 样本不足（%d/%d，已 %.1f 天）→ 继续运行，不结案",
+                    ab_test_id, _total, _min_samples, _age_days,
+                )
+                return {
+                    "status": "running", "ab_test_id": ab_test_id,
+                    "samples": _total, "min_samples": _min_samples,
+                    "age_days": round(_age_days, 2),
+                    "note": "样本不足，继续运行（零样本结案会让新提示词永远无法验证）",
+                }
+            logger.warning("[Hermes:L2] A/B %d 超过 %.0f 天仍无样本 → 以 inconclusive 收尾",
+                           ab_test_id, _max_days)
+            hermes_execute(
+                "UPDATE prompt_ab_tests SET winner='inconclusive', status='concluded', "
+                "concluded_at=datetime('now') WHERE id=?",
+                (ab_test_id,),
+            )
+            return {"status": "concluded", "winner": "inconclusive", "ab_test_id": ab_test_id,
+                    "samples": _total, "note": "超期无样本，标记 inconclusive（不误判胜者）"}
+
         hermes_execute(
             """UPDATE prompt_ab_tests
                SET proposals_a=?, proposals_b=?,
@@ -931,13 +971,12 @@ class PromptOptimizerEngine:
     ) -> Dict[str, Any]:
         """调用 LLM 进行分析。"""
         try:
-            from backend.services.opencode_bridge import (
-                collect_http_agent_stream_text,
-                _agent_plan,
-                _model,
-                _extract_json,
-            )
-            raw, err = collect_http_agent_stream_text(
+            # [2026-10-03 用户指令] 不再强制 OpenCode sidecar：默认直连项目内 LLM 配置
+            # （DeepSeek Flash / tier 由 HERMES_LLM_TIER 决定）；driver 选择见 hermes_llm_driver。
+            from backend.services.hermes_llm_driver import collect_hermes_text
+            from backend.services.opencode_bridge import _agent_plan, _model, _extract_json
+
+            raw, err = collect_hermes_text(
                 system_prompt=system_prompt,
                 user_text=user_text,
                 agent=_agent_plan(),

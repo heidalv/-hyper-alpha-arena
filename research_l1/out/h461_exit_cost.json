@@ -1,0 +1,46 @@
+{
+  "n_pairs": 1271,
+  "by_path": {
+    "round": {
+      "n": 961,
+      "mean": 0.627
+    },
+    "timeout_hard_taker": {
+      "n": 89,
+      "mean": 7.938
+    },
+    "jump_exit_taker": {
+      "n": 82,
+      "mean": -31.911
+    },
+    "reversal_decay_taker": {
+      "n": 13,
+      "mean": -21.769
+    },
+    "orphan_taker(orphan_flatten)": {
+      "n": 1,
+      "mean": -8.719
+    },
+    "stop_loss_taker": {
+      "n": 31,
+      "mean": -55.674
+    },
+    "ofi_flatten_taker": {
+      "n": 77,
+      "mean": 0.612
+    },
+    "take_profit_taker": {
+      "n": 10,
+      "mean": 66.137
+    },
+    "trail_lock_taker": {
+      "n": 7,
+      "mean": -3.06
+    }
+  },
+  "best_hold_window": [
+    "180-300s",
+    4.153,
+    108
+  ]
+}

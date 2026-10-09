@@ -225,5 +225,12 @@ def scan_and_promote(candidates: List[PromotionMetrics]) -> List[PromotionDecisi
         d = evaluate_promotion(m)
         if d.approved:
             submit_to_runtime_governor(d, patch_keys={"domain": m.domain})
+        else:
+            # [F339 2026-09-18 复查修复] 拒晋原因此前**不落任何日志/文件**——`_log_decision`
+            # 只在 `:177` 的"通过"路径被调用 ⇒ `data/promotion_gate_decisions.jsonl` 实测
+            # 27 条全是 approved、0 条 rejected（**选择效应**，不是"没有拒绝"）。
+            # 后果：线上 `[PromotionScan] 候选=2 晋升=0` 无法回答"为什么"，排查只能靠读码推断
+            # （本次复查因此走了三轮弯路）。补一行可检索日志，闭合该观测缺口。
+            logger.info("[PromotionGate] 拒晋 %s: %s", d.candidate_id, d.reason)
         out.append(d)
     return out

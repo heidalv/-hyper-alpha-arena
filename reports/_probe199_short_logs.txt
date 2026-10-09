@@ -1,0 +1,56 @@
+﻿
+① 按日期（tpl_short / short_template_source 命中）
+   2026-08-07: 15
+   2026-08-10: 33
+   2026-08-11: 192
+   2026-08-12: 40
+   2026-08-13: 92
+   2026-08-15: 38
+   2026-08-19: 526
+   2026-08-24: 462
+   2026-08-28: 106
+   2026-08-31: 181
+   2026-09-11: 38
+   2026-09-12: 133
+   2026-09-13: 41
+   2026-09-17: 574
+   2026-09-18: 408
+   2026-09-19: 111
+   2026-09-20: 1747
+   2026-09-21: 2719
+   无时间戳: 1
+
+② 今天（2026-09-21）还有谁在提 short 策略（按模块）
+   strategy_learning_service          1635
+   ?                                  676
+   full_auto.strategy_lifecycle       290
+   symbol_lock_registry               104
+   backtest_insight_compiler          14
+
+③ symbol_lock_registry 的原文（最后 5 条）——持锁是否会影响 mid/long
+   2026-09-17 16:51:31 [INFO] [tr=-] backend.services.symbol_lock_registry:174 - [LockRegistry] LOCK UNI sid=tpl_short_
+range_39e5ae reason=training_rebalance by=training_orch duration=永久 hysteresis=#2
+   2026-09-17 16:31:05 [INFO] [tr=-] backend.services.symbol_lock_registry:174 - [LockRegistry] LOCK XPL sid=tpl_short_
+range_b144c5 reason=training_rebalance by=training_orch duration=永久 hysteresis=#0
+   2026-09-17 16:31:05 [INFO] [tr=-] backend.services.symbol_lock_registry:174 - [LockRegistry] LOCK XRP sid=tpl_short_
+range_b55aa9 reason=training_rebalance by=training_orch duration=永久 hysteresis=#1
+   026-09-17 16:31:05 [INFO] [tr=-] backend.services.symbol_lock_registry:174 - [LockRegistry] LOCK VIRTUAL sid=tpl_sho
+rt_range_48a96c reason=training_rebalance by=training_orch duration=永久 hysteresis=#1
+   2026-09-17 16:31:05 [INFO] [tr=-] backend.services.symbol_lock_registry:174 - [LockRegistry] LOCK UNI sid=tpl_short_
+range_39e5ae reason=training_rebalance by=training_orch duration=永久 hysteresis=#2
+
+④ 今天 lifecycle/learning 对 short 策略做了什么（最后 6 条）
+   21 00:34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 XPL/tpl_short_range_b
+144c5: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=90% | regime=accumulation→止损×0.8
+   00:34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 BNB/tpl_short_range_f3d4
+58: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=70% | regime=high_volatility→止损×0.8
+   0:34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 VIRTUAL/tpl_short_range_4
+8a96c: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=70% | regime=accumulation→止损×0.8
+   :34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 ASTER/tpl_short_range_7223
+62: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=90% | regime=high_volatility→止损×0.8
+   00:34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 UNI/tpl_short_range_39e5
+ae: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=90% | regime=high_volatility→止损×0.8
+   00:34:06 [INFO] [tr=-] backend.services.full_auto.strategy_lifecycle:452 - [FullAuto] 策略自适应 ETH/tpl_short_range_982f
+08: 杠杆=10x 仓位=12.0% SL=1.2% TP=1.8% 置信=70% | regime=high_volatility→止损×0.8
+
+

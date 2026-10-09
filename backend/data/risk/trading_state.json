@@ -1,0 +1,27 @@
+{
+  "state": "active",
+  "reason": "修正误判：账户重置≠回撤（2026-10-03 修复后清除）",
+  "source": "ops_fix",
+  "since": 1791021976.4536138,
+  "until": null,
+  "position_scale": 1.0,
+  "max_leverage": null,
+  "no_open_windows": [],
+  "promotion_freeze_until": null,
+  "history": [
+    {
+      "ts": 1790947695.5556648,
+      "from": "active",
+      "reason": "",
+      "source": "",
+      "note": "drawdown:组合回撤 90.0% ≥ 30%"
+    },
+    {
+      "ts": 1791021976.4536138,
+      "from": "reducing",
+      "reason": "组合回撤 90.0% ≥ 30%",
+      "source": "drawdown",
+      "note": "ops_fix:修正误判：账户重置≠回撤（2026-10-03 修复后清除）"
+    }
+  ]
+}

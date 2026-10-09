@@ -1,0 +1,581 @@
+{
+  "hours": 3.0,
+  "rows": [
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.999391647994401,
+      "agg_n": 3,
+      "agg_lo": 4.972,
+      "agg_hi": 4.992,
+      "agg_sv": 1368.0,
+      "agg_bv": 10.0,
+      "agg_span": [
+        1790613165000,
+        1790613195000
+      ],
+      "tape_n": 11,
+      "tape_lo": 4.986,
+      "tape_hi": 4.998,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 770.2175,
+      "agg_n": 1,
+      "agg_lo": 769.83,
+      "agg_hi": 769.83,
+      "agg_sv": 0.1,
+      "agg_bv": 2.22,
+      "agg_span": [
+        1790613210000,
+        1790613210000
+      ],
+      "tape_n": 1,
+      "tape_lo": 769.83,
+      "tape_hi": 769.83,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 770.2524999999999,
+      "agg_n": 1,
+      "agg_lo": 769.83,
+      "agg_hi": 769.83,
+      "agg_sv": 0.1,
+      "agg_bv": 2.22,
+      "agg_span": [
+        1790613210000,
+        1790613210000
+      ],
+      "tape_n": 1,
+      "tape_lo": 769.83,
+      "tape_hi": 769.83,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 769.7375,
+      "agg_n": 1,
+      "agg_lo": 769.83,
+      "agg_hi": 769.83,
+      "agg_sv": 0.1,
+      "agg_bv": 2.22,
+      "agg_span": [
+        1790613210000,
+        1790613210000
+      ],
+      "tape_n": 2,
+      "tape_lo": 769.83,
+      "tape_hi": 769.83,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 769.5819999999999,
+      "agg_n": 2,
+      "agg_lo": 769.72,
+      "agg_hi": 770.12,
+      "agg_sv": 0.01,
+      "agg_bv": 4.46,
+      "agg_span": [
+        1790613240000,
+        1790613255000
+      ],
+      "tape_n": 5,
+      "tape_lo": 769.72,
+      "tape_hi": 770.12,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.95625,
+      "agg_n": 3,
+      "agg_lo": 4.956,
+      "agg_hi": 4.974,
+      "agg_sv": 475.0,
+      "agg_bv": 6.0,
+      "agg_span": [
+        1790613255000,
+        1790613285000
+      ],
+      "tape_n": 6,
+      "tape_lo": 4.964,
+      "tape_hi": 4.974,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 769.6979992106008,
+      "agg_n": 2,
+      "agg_lo": 769.6,
+      "agg_hi": 769.94,
+      "agg_sv": 3.1,
+      "agg_bv": 0.0,
+      "agg_span": [
+        1790613285000,
+        1790613300000
+      ],
+      "tape_n": 2,
+      "tape_lo": 769.6,
+      "tape_hi": 769.94,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.95625,
+      "agg_n": 3,
+      "agg_lo": 4.956,
+      "agg_hi": 4.972,
+      "agg_sv": 479.0,
+      "agg_bv": 10.0,
+      "agg_span": [
+        1790613270000,
+        1790613300000
+      ],
+      "tape_n": 12,
+      "tape_lo": 4.956,
+      "tape_hi": 4.97,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "ENA",
+      "side": "sell",
+      "px": 0.26078250000000003,
+      "agg_n": 2,
+      "agg_lo": 0.26088,
+      "agg_hi": 0.26113,
+      "agg_sv": 28673.0,
+      "agg_bv": 798.0,
+      "agg_span": [
+        1790613285000,
+        1790613300000
+      ],
+      "tape_n": 5,
+      "tape_lo": 0.26088,
+      "tape_hi": 0.26113,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 769.6550000000001,
+      "agg_n": 1,
+      "agg_lo": 769.54,
+      "agg_hi": 769.56,
+      "agg_sv": 0.0,
+      "agg_bv": 4.6,
+      "agg_span": [
+        1790613345000,
+        1790613345000
+      ],
+      "tape_n": 2,
+      "tape_lo": 769.54,
+      "tape_hi": 769.56,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "ENA",
+      "side": "buy",
+      "px": 0.26092046328063856,
+      "agg_n": 1,
+      "agg_lo": 0.26112,
+      "agg_hi": 0.26136,
+      "agg_sv": 0.0,
+      "agg_bv": 44.0,
+      "agg_span": [
+        1790613330000,
+        1790613330000
+      ],
+      "tape_n": 2,
+      "tape_lo": 0.26112,
+      "tape_hi": 0.26136,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "ENA",
+      "side": "sell",
+      "px": 0.2609609265112315,
+      "agg_n": 1,
+      "agg_lo": 0.26112,
+      "agg_hi": 0.26136,
+      "agg_sv": 0.0,
+      "agg_bv": 44.0,
+      "agg_span": [
+        1790613330000,
+        1790613330000
+      ],
+      "tape_n": 2,
+      "tape_lo": 0.26112,
+      "tape_hi": 0.26136,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.97725,
+      "agg_n": 1,
+      "agg_lo": 4.962,
+      "agg_hi": 4.966,
+      "agg_sv": 6.0,
+      "agg_bv": 0.0,
+      "agg_span": [
+        1790613390000,
+        1790613390000
+      ],
+      "tape_n": 3,
+      "tape_lo": 4.966,
+      "tape_hi": 4.968,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 768.0174999999999,
+      "agg_n": 2,
+      "agg_lo": 767.87,
+      "agg_hi": 768.01,
+      "agg_sv": 4.75,
+      "agg_bv": 0.0,
+      "agg_span": [
+        1790613660000,
+        1790613675000
+      ],
+      "tape_n": 5,
+      "tape_lo": 767.87,
+      "tape_hi": 768.01,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 767.922,
+      "agg_n": 2,
+      "agg_lo": 767.32,
+      "agg_hi": 767.6,
+      "agg_sv": 0.57,
+      "agg_bv": 1.77,
+      "agg_span": [
+        1790613705000,
+        1790613720000
+      ],
+      "tape_n": 10,
+      "tape_lo": 767.32,
+      "tape_hi": 767.84,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "XRP",
+      "side": "sell",
+      "px": 1.5030750000000002,
+      "agg_n": 2,
+      "agg_lo": 1.5006,
+      "agg_hi": 1.5018,
+      "agg_sv": 70.4,
+      "agg_bv": 4658.3,
+      "agg_span": [
+        1790613705000,
+        1790613720000
+      ],
+      "tape_n": 12,
+      "tape_lo": 1.5006,
+      "tape_hi": 1.503,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "XRP",
+      "side": "sell",
+      "px": 1.5030750000000002,
+      "agg_n": 2,
+      "agg_lo": 1.4997,
+      "agg_hi": 1.5012,
+      "agg_sv": 1680.2,
+      "agg_bv": 3078.6,
+      "agg_span": [
+        1790613720000,
+        1790613735000
+      ],
+      "tape_n": 11,
+      "tape_lo": 1.4997,
+      "tape_hi": 1.5012,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 767.2475,
+      "agg_n": 0,
+      "agg_lo": null,
+      "agg_hi": null,
+      "agg_sv": 0.0,
+      "agg_bv": 0.0,
+      "agg_span": [
+        null,
+        null
+      ],
+      "tape_n": 2,
+      "tape_lo": 767.6,
+      "tape_hi": 767.64,
+      "agg_crosses": false,
+      "tape_crosses": true
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.9342500000000005,
+      "agg_n": 1,
+      "agg_lo": 4.932,
+      "agg_hi": 4.938,
+      "agg_sv": 2.0,
+      "agg_bv": 44.0,
+      "agg_span": [
+        1790613825000,
+        1790613825000
+      ],
+      "tape_n": 7,
+      "tape_lo": 4.93,
+      "tape_hi": 4.938,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "ARB",
+      "side": "buy",
+      "px": 0.205185,
+      "agg_n": 1,
+      "agg_lo": 0.2054,
+      "agg_hi": 0.2054,
+      "agg_sv": 0.0,
+      "agg_bv": 26.8,
+      "agg_span": [
+        1790614560000,
+        1790614560000
+      ],
+      "tape_n": 1,
+      "tape_lo": 0.2054,
+      "tape_hi": 0.2054,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "NEAR",
+      "side": "sell",
+      "px": 4.927499999999999,
+      "agg_n": 2,
+      "agg_lo": 4.924,
+      "agg_hi": 4.94,
+      "agg_sv": 32.0,
+      "agg_bv": 8.0,
+      "agg_span": [
+        1790615220000,
+        1790615235000
+      ],
+      "tape_n": 6,
+      "tape_lo": 4.924,
+      "tape_hi": 4.94,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "NEAR",
+      "side": "buy",
+      "px": 4.931346305533411,
+      "agg_n": 0,
+      "agg_lo": null,
+      "agg_hi": null,
+      "agg_sv": 0.0,
+      "agg_bv": 0.0,
+      "agg_span": [
+        null,
+        null
+      ],
+      "tape_n": 3,
+      "tape_lo": 4.936,
+      "tape_hi": 4.94,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 765.8475000000001,
+      "agg_n": 1,
+      "agg_lo": 766.08,
+      "agg_hi": 766.08,
+      "agg_sv": 0.0,
+      "agg_bv": 0.86,
+      "agg_span": [
+        1790615385000,
+        1790615385000
+      ],
+      "tape_n": 1,
+      "tape_lo": 766.08,
+      "tape_hi": 766.08,
+      "agg_crosses": true,
+      "tape_crosses": true
+    },
+    {
+      "sym": "ARB",
+      "side": "sell",
+      "px": 0.20288,
+      "agg_n": 3,
+      "agg_lo": 0.20237,
+      "agg_hi": 0.2027,
+      "agg_sv": 2751.0,
+      "agg_bv": 0.0,
+      "agg_span": [
+        1790615370000,
+        1790615400000
+      ],
+      "tape_n": 6,
+      "tape_lo": 0.20237,
+      "tape_hi": 0.2027,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "ARB",
+      "side": "buy",
+      "px": 0.2023945209293571,
+      "agg_n": 1,
+      "agg_lo": 0.2028,
+      "agg_hi": 0.2028,
+      "agg_sv": 0.0,
+      "agg_bv": 27.2,
+      "agg_span": [
+        1790615445000,
+        1790615445000
+      ],
+      "tape_n": 0,
+      "tape_lo": null,
+      "tape_hi": null,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "ARB",
+      "side": "buy",
+      "px": 0.2023945209293571,
+      "agg_n": 2,
+      "agg_lo": 0.2028,
+      "agg_hi": 0.20288,
+      "agg_sv": 0.0,
+      "agg_bv": 527.2,
+      "agg_span": [
+        1790615445000,
+        1790615460000
+      ],
+      "tape_n": 1,
+      "tape_lo": 0.2028,
+      "tape_hi": 0.2028,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 769.2699999999999,
+      "agg_n": 3,
+      "agg_lo": 769.82,
+      "agg_hi": 772.4,
+      "agg_sv": 1.15,
+      "agg_bv": 28.4,
+      "agg_span": [
+        1790615565000,
+        1790615595000
+      ],
+      "tape_n": 27,
+      "tape_lo": 769.2,
+      "tape_hi": 771.04,
+      "agg_crosses": false,
+      "tape_crosses": true
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 769.51,
+      "agg_n": 3,
+      "agg_lo": 770.61,
+      "agg_hi": 772.91,
+      "agg_sv": 1.15,
+      "agg_bv": 19.45,
+      "agg_span": [
+        1790615580000,
+        1790615610000
+      ],
+      "tape_n": 43,
+      "tape_lo": 770.61,
+      "tape_hi": 772.91,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "buy",
+      "px": 771.0425,
+      "agg_n": 3,
+      "agg_lo": 772.54,
+      "agg_hi": 773.6,
+      "agg_sv": 29.03,
+      "agg_bv": 1.67,
+      "agg_span": [
+        1790615610000,
+        1790615640000
+      ],
+      "tape_n": 20,
+      "tape_lo": 772.54,
+      "tape_hi": 773.2,
+      "agg_crosses": false,
+      "tape_crosses": false
+    },
+    {
+      "sym": "BNB",
+      "side": "sell",
+      "px": 772.1059947648744,
+      "agg_n": 3,
+      "agg_lo": 772.72,
+      "agg_hi": 773.6,
+      "agg_sv": 29.0,
+      "agg_bv": 0.98,
+      "agg_span": [
+        1790615625000,
+        1790615655000
+      ],
+      "tape_n": 13,
+      "tape_lo": 772.72,
+      "tape_hi": 773.6,
+      "agg_crosses": true,
+      "tape_crosses": true
+    }
+  ],
+  "agg_only": 0,
+  "both": 13,
+  "tape_only": 2,
+  "neither": 15,
+  "empty_agg": 2,
+  "verdict": "两表大体一致 ⇒ h487 的『幽灵』判定偏严（窗口/方向口径），需要修的是审计口径而不是引擎；但注意：一致 ≠ 我们一定排得到队"
+}

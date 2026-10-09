@@ -1,0 +1,37 @@
+轮130: 牛熊研究员对抗辩论接线到活主脑 + 明确周期（日内/中期/长期趋势）
+
+用户指令两段：
+1) 架构：「五分析师 → 牛熊研究员对抗辩论 → 风控官（有否决权）→ 交易员；分析师每日 thesis
+   数值化后作为一等 alpha 信号进混合打分」；
+2) 追加：「牛熊分析需要明确周期，日内中期 和长期趋势」。
+
+审计现状（轮129 实测）：mlto/debate_layer.py 是完整实现（牛/熊 + 3 风险角色 + 裁决
+proceed/reduce/reject），但**唯一调用者是 mlto/orchestrator.py**，而该模块全 backend 生产
+调用点=0（旧 MLTO 主脑 2026-09-05 下线）⇒ mlto_debate_log 0 行，辩论层从未在活链路跑过。
+
+本轮改动：
+- 新增 backend/services/mlto/brain_debate.py：把辩论接到活主脑 brain.py::refresh_thesis
+  （OWM 调整之后、accepted/recommend_open 定型之前），证据取自 context_pack 的
+  市场/资金流/因子/**六分析师信号**层。
+- **周期维度（本次指令核心）**：HORIZONS = 日内(intraday)/中期(swing)/长期趋势(trend)，
+  每个周期各自的证据范围与裁决；LLM prompt 追加"周期契约"（缺周期视为无效回答）；
+  容错解析（模型 JSON 嵌未转义引号时按局部正则抢救，避免退化成文本启发式）；
+  单侧未按周期作答且文本抽不出 ⇒ 该周期判 insufficient，**不产生裁决、不生效**（禁止半盲比较）。
+- 车道→主周期：mid→日内，long→长期趋势；conviction 生效只看**主周期**裁决
+  （否则"日内看空、长期看多"会被平均成什么都没说）。reject×0.6 / reduce×0.85，下限 10。
+- 成本闸：MIDLONG_DEBATE_ENABLED/LLM/LLM_RISK/APPLY/MAX_ROUNDS/COOLDOWN_S/HOURLY_CAP/
+  TRANSPORT/MAX_OUTPUT_TOKENS/TIMEOUT_S（风控角色默认规则裁决 ⇒ 每轮 2 次 LLM 而非 5 次；
+  同标的冷却 1800s + 全局 6 次/小时）。配额类登记 mlto_debate=light。
+- 证据**按周期配额**（每周期 ≤4 条）：修掉全局 [:12] 截断把"长期趋势"证据整段挤掉的问题
+  （实测牛方因此抱怨"缺乏距EMA200/宏观证据"）。
+- 顺带修 debate_layer._rule_risk_turn 的措辞 bug（负荷 0.05 也写"偏高"）。
+- 裁决随论题事件落库（含 primary_horizon/primary_verdict/horizon_verdicts/horizon_conflict）。
+
+实测（真实 LLM，minimax）：
+  裁决 reduce；主周期=日内(reject)、中期(reduce)、长期(reduce)、冲突=True；
+  牛=0.30(neutral)/熊=0.70(short) 于日内，双方各自引用该周期证据；
+  mlto_debate_log 由 0 行 → 54 行。
+测试：backend/tests/unit/test_brain_debate_wiring_20260920.py（19 项）+ 分析师层 10 项 = 28 passed。
+
+回滚：MIDLONG_DEBATE_ENABLED=false（完全不跑）；MIDLONG_DEBATE_APPLY=false（只记录不生效）；
+或 git revert 本提交。

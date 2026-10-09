@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AlphaArena · Android 样式设计 V4（高频▸实盘/模拟 · 交易▸实盘/模拟）</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   AlphaArena Mobile · 样式设计 V4
+   层级（唯一权威）：
+     底部导航  仪表盘 │ 高频 │ 交易
+     高频  ▸  实盘 / 模拟        （模块内两级切换）
+     交易  ▸  实盘 / 模拟
+   纯静态零依赖；数值为 mockup 示意。
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:10 14 23; --card:17 24 39; --card-2:22 30 46; --border:31 41 55;
+  --profit:0 220 130; --live:239 68 68; --paper:139 92 246; --primary:59 130 246;
+  --muted:107 114 128; --text:249 250 251; --warning:245 158 11;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Roboto,sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+  --W:390px; --H:844px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(1100px 620px at 50% -160px, rgb(var(--primary) / .10), transparent 62%), rgb(var(--bg));
+  color:rgb(var(--text));font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+
+/* ── 手机 ── */
+.phone{width:var(--W);height:var(--H);background:rgb(var(--bg));display:flex;flex-direction:column;position:relative;overflow:hidden;border-radius:18px}
+.sysbar{flex:0 0 auto;height:30px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:rgb(var(--text) / .82);position:relative;z-index:7}
+.sysbar .right{display:flex;align-items:center;gap:7px}
+.netstrip{flex:0 0 auto;margin:0 13px 7px;min-height:28px;border-radius:9px;display:flex;align-items:center;gap:7px;padding:0 10px;
+  background:rgb(var(--card) / .75);border:1px solid rgb(var(--border) / .7);font-size:11px;position:relative;z-index:6}
+.netstrip .src{color:rgb(var(--muted));font-family:var(--mono);font-size:10px}
+.netstrip .age{margin-left:auto;font-family:var(--mono)}
+.pausebtn{padding:2px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border));color:rgb(var(--text) / .8);font-size:10.5px;font-weight:600}
+
+/* App 栏 */
+.appbar{flex:0 0 auto;padding:0 14px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:6}
+.appbar .title{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.appbar .sub{font-size:11px;color:rgb(var(--muted));margin-top:1px}
+.iconbtn{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:rgb(var(--text) / .75);background:rgb(var(--card) / .8);border:1px solid rgb(var(--border) / .7)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:rgb(var(--profit));animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ★ 环境切换控件：模块内的第二级（实盘 / 模拟） */
+.envtabs{flex:0 0 auto;margin:0 13px 9px;display:flex;background:rgb(var(--card-2) / .85);border:1px solid rgb(var(--border) / .8);border-radius:11px;padding:3px;position:relative;z-index:6}
+.envtabs button{flex:1;min-height:44px;border:0;background:none;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:rgb(var(--muted));font-family:var(--font);cursor:pointer}
+.envtabs button .t{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:5px}
+.envtabs button .m{font-size:9px;font-family:var(--mono);opacity:.85}
+.envtabs button[data-env="live"].on{background:rgb(var(--live) / .16);color:rgb(var(--live));box-shadow:inset 0 0 0 1px rgb(var(--live) / .45)}
+.envtabs button[data-env="paper"].on{background:rgb(var(--paper) / .16);color:rgb(var(--paper));box-shadow:inset 0 0 0 1px rgb(var(--paper) / .45)}
+.envtabs .sep{width:1px;background:rgb(var(--border) / .9);margin:6px 0}
+
+.screen{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:0 13px 16px;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen > * + *{margin-top:11px}
+
+/* 底部导航：3 个业务模块 */
+.tabbar{flex:0 0 auto;display:flex;background:rgb(13 18 30 / .96);border-top:1px solid rgb(var(--border) / .8);padding-bottom:7px}
+.tabbar button{flex:1;min-height:50px;background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgb(var(--muted));font-family:var(--font);font-size:10.5px;font-weight:500;padding:6px 0 0}
+.tabbar button.on{color:rgb(var(--primary));font-weight:650}
+.gesture{flex:0 0 auto;height:21px;display:grid;place-items:center;background:rgb(13 18 30 / .96)}
+.gesture i{width:112px;height:4px;border-radius:99px;background:rgb(var(--text) / .30)}
+
+/* ── 组件 ── */
+.card{background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);border-radius:12px;padding:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.row.tight{gap:6px}
+.stack{display:flex;flex-direction:column}
+.muted{color:rgb(var(--muted))} .dim{color:rgb(var(--text) / .66)}
+.profit{color:rgb(var(--profit))} .loss{color:rgb(var(--live))} .warn{color:rgb(var(--warning))} .vio{color:rgb(var(--paper))}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.h1{font-size:27px;font-weight:700;letter-spacing:-1px;line-height:1.15}
+.h2{font-size:20px;font-weight:680;letter-spacing:-.4px}
+.h3{font-size:15px;font-weight:650}
+.tiny{font-size:10.5px} .sm{font-size:12px}
+.lbl{font-size:11px;color:rgb(var(--muted))}
+.hr{height:1px;background:rgb(var(--border) / .8);margin:10px -12px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2.5px 7px;border-radius:5px;background:rgb(var(--muted) / .16);color:rgb(var(--muted));white-space:nowrap}
+.badge.p{background:rgb(var(--profit) / .15);color:rgb(var(--profit))}
+.badge.l{background:rgb(var(--live) / .15);color:rgb(var(--live))}
+.badge.w{background:rgb(var(--warning) / .16);color:rgb(var(--warning))}
+.badge.b{background:rgb(var(--primary) / .16);color:rgb(var(--primary))}
+.badge.v{background:rgb(var(--paper) / .18);color:rgb(var(--paper))}
+.badge.solid-l{background:rgb(var(--live));color:#fff}
+.badge.solid-v{background:rgb(var(--paper));color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.p{background:rgb(var(--profit));box-shadow:0 0 8px rgb(var(--profit) / .7)}
+.dot.l{background:rgb(var(--live))} .dot.w{background:rgb(var(--warning))} .dot.m{background:rgb(var(--muted))}
+.dot.b{background:rgb(var(--primary))} .dot.v{background:rgb(var(--paper))}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.stat{background:rgb(var(--card-2) / .7);border:1px solid rgb(var(--border) / .6);border-radius:9px;padding:8px 9px}
+.stat .k{font-size:10.5px;color:rgb(var(--muted));white-space:nowrap}
+.stat .v{font-size:15px;font-weight:650;margin-top:1px}
+.bar{height:5px;border-radius:99px;background:rgb(var(--border) / .9);overflow:hidden;display:flex}
+.bar > i{display:block;height:100%}
+.bar > i.p{background:rgb(var(--profit))} .bar > i.w{background:rgb(var(--warning))} .bar > i.l{background:rgb(var(--live))}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;background:rgb(var(--card-2));border:1px solid rgb(var(--border) / .7);color:rgb(var(--text) / .8);white-space:nowrap}
+.chip.on{background:rgb(var(--primary) / .16);border-color:rgb(var(--primary) / .45);color:rgb(var(--primary))}
+.kv{display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4.5px 0}
+/* 账户总览 / 成本：V5 新增（截图反馈「只有净收益、没有账户总体情况、余额、手续费」） */
+.v6{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.v6 > div{background:rgb(var(--bg) / .45);border-radius:8px;padding:7px 8px}
+.v6 .k{font-size:10px;color:rgb(var(--muted));white-space:nowrap}
+.v6 .v{font-size:14.5px;font-weight:650;margin-top:1px;font-variant-numeric:tabular-nums}
+.v6 .u{font-size:9.5px;color:rgb(var(--muted));font-weight:500}
+.srcnote{display:flex;gap:5px;align-items:center;font-size:9.5px;color:rgb(var(--muted));margin-top:7px;line-height:1.4}
+.btn{min-height:44px;border-radius:8px;border:0;font-family:var(--font);font-size:14px;font-weight:650;width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn.primary{background:rgb(var(--primary));color:#fff}
+.btn.danger{background:rgb(var(--live));color:#fff}
+.btn.success{background:rgb(var(--profit));color:#04170e}
+.btn.ghost{background:transparent;border:1px solid rgb(var(--border));color:rgb(var(--text))}
+.btn.sm{min-height:36px;font-size:12.5px}
+.banner{border-radius:11px;padding:10px 11px;display:flex;gap:9px;align-items:flex-start;border:1px solid rgb(var(--live) / .38);background:linear-gradient(180deg,rgb(var(--live) / .16),rgb(var(--live) / .05))}
+.banner.ok{border-color:rgb(var(--profit) / .34);background:linear-gradient(180deg,rgb(var(--profit) / .14),rgb(var(--profit) / .04))}
+.banner.wr{border-color:rgb(var(--warning) / .38);background:linear-gradient(180deg,rgb(var(--warning) / .17),rgb(var(--warning) / .05))}
+.banner.vio{border-color:rgb(var(--paper) / .38);background:linear-gradient(180deg,rgb(var(--paper) / .16),rgb(var(--paper) / .05))}
+.banner .ic{width:27px;height:27px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;background:rgb(var(--live) / .22);color:rgb(var(--live))}
+.banner.ok .ic{background:rgb(var(--profit) / .2);color:rgb(var(--profit))}
+.banner.wr .ic{background:rgb(var(--warning) / .22);color:rgb(var(--warning))}
+.banner.vio .ic{background:rgb(var(--paper) / .22);color:rgb(var(--paper))}
+
+/* 环境徽标条（贴在内容顶部的身份提示） */
+.envhead{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:10px;font-size:11.5px;font-weight:600}
+.envhead.live{background:rgb(var(--live) / .12);border:1px solid rgb(var(--live) / .35);color:rgb(var(--live))}
+.envhead.paper{background:rgb(var(--paper) / .12);border:1px solid rgb(var(--paper) / .35);color:rgb(var(--paper))}
+.envhead .r{margin-left:auto;font-weight:500;color:rgb(var(--text) / .6);font-size:10.5px}
+
+/* 持仓行 + 单条平仓（兜底能力） */
+.posrow{display:grid;grid-template-columns:1fr auto auto;gap:9px;align-items:center;padding:9px 0}
+.posrow + .posrow{border-top:1px solid rgb(var(--border) / .65)}
+.posrow .sym{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:6px;min-width:0}
+.posrow .sym .q{font-size:9.5px;color:rgb(var(--muted));font-weight:500}
+.posrow .pnl{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right}
+.closebtn{min-height:28px;padding:0 10px;border-radius:7px;background:rgb(var(--live) / .13);border:1px solid rgb(var(--live) / .45);color:rgb(var(--live));font-size:11px;font-weight:650}
+.closebtn.paper{background:rgb(var(--paper) / .13);border-color:rgb(var(--paper) / .45);color:rgb(var(--paper))}
+.scrim{position:absolute;inset:0;background:rgb(0 0 0 / .64);z-index:20}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;z-index:21;background:rgb(var(--card));border:1px solid rgb(var(--border));border-radius:16px;padding:14px}
+.sheet.warnbox{border-color:rgb(var(--live) / .45);box-shadow:0 0 0 1px rgb(var(--live) / .18)}
+.sheetic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;margin-bottom:10px;background:rgb(var(--live) / .18);color:rgb(var(--live))}
+.sheetic.v{background:rgb(var(--paper) / .18);color:rgb(var(--paper))}
+.sheetlist{background:rgb(var(--bg) / .5);border-radius:9px;padding:9px 11px;margin-top:11px}
+.sheetlist .r{display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0}
+.sheetlist .r.tot{border-top:1px solid rgb(var(--border) / .7);margin-top:5px;padding-top:6px;font-weight:650}
+.cd{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:rgb(var(--warning))}
+.cd i{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid rgb(var(--warning) / .35);border-top-color:rgb(var(--warning))}
+.btn.live{background:rgb(var(--live));border-color:rgb(var(--live));color:#fff}
+.btn.paperbtn{background:rgb(var(--paper));border-color:rgb(var(--paper));color:#fff}
+.btn:disabled{opacity:.45}
+
+/* 节点四态 */
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.node{border-radius:9px;padding:7px 8px;background:rgb(var(--card-2) / .6);border:1px solid rgb(var(--border) / .7)}
+.node .nm{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:5px}
+.node .mt{font-size:9.5px;color:rgb(var(--muted));margin-top:3px;font-family:var(--mono)}
+.node.ok{border-left:2px solid rgb(var(--profit))}
+.node.stale{border-left:2px solid rgb(var(--warning))}
+.node.dead{border-left:2px solid rgb(var(--live));background:rgb(var(--live) / .09)}
+.node.disabled{border-left:2px solid rgb(var(--border));opacity:.55}
+
+/* 关系条（Agent Wall 无画布方案） */
+.relwrap{margin-top:8px;overflow-x:auto;overflow-y:hidden;padding-bottom:3px;scrollbar-width:none}
+.relwrap::-webkit-scrollbar{display:none}
+.rel{display:flex;align-items:stretch;min-width:min-content}
+.rel .box{flex:0 0 auto;width:98px;border-radius:9px;padding:6px 7px;background:rgb(var(--card-2) / .75);border:1px solid rgb(var(--border) / .8)}
+.rel .box.sel{width:112px;border-color:rgb(var(--primary) / .6);background:rgb(var(--primary) / .10)}
+.rel .box .n{font-size:10.5px;font-weight:650;display:flex;align-items:center;gap:4px;line-height:1.3}
+.rel .box .s{font-family:var(--mono);font-size:9px;color:rgb(var(--muted));margin-top:2px}
+.rel .box.ok{border-left:2px solid rgb(var(--profit))}
+.rel .box.stale{border-left:2px solid rgb(var(--warning))}
+.rel .box.dead{border-left:2px solid rgb(var(--live))}
+.rel .box.disabled{border-left:2px solid rgb(var(--border));opacity:.6}
+.rel .edge{flex:0 0 42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px}
+.rel .edge .track{position:relative;width:100%;height:2px;background:rgb(var(--border));border-radius:2px;overflow:hidden}
+.rel .edge .track i{position:absolute;top:-2px;width:6px;height:6px;border-radius:50%;background:rgb(var(--primary));box-shadow:0 0 7px rgb(var(--primary) / .9);animation:flow 2.1s linear infinite}
+.rel .edge .track i.c{background:rgb(var(--profit));box-shadow:0 0 7px rgb(var(--profit) / .9)}
+@keyframes flow{0%{left:-8%}100%{left:100%}}
+.rel .edge .el{font-size:8.5px;color:rgb(var(--muted));text-align:center;line-height:1.25;max-width:42px}
+.rel .edge.broken .track{background:repeating-linear-gradient(90deg,rgb(var(--live)) 0 4px,transparent 4px 8px)}
+.rel .edge.broken .track i{display:none}
+.rel .edge.ineff .track{background:repeating-linear-gradient(90deg,rgb(var(--warning) / .8) 0 3px,transparent 3px 7px)}
+.rel .edge.ineff .track i{display:none}
+
+/* 链路透镜 */
+.path .pstep{display:grid;grid-template-columns:20px 1fr;gap:9px;position:relative}
+.path .pstep:not(:last-child)::before{content:"";position:absolute;left:9px;top:26px;bottom:-4px;width:2px;background:rgb(var(--border));border-radius:2px}
+.path .pstep .dotc{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgb(var(--card-2));border:2px solid rgb(var(--border));font-size:9px;font-weight:700;color:rgb(var(--muted));position:relative;z-index:2;margin-top:2px}
+.path .pstep.ok .dotc{border-color:rgb(var(--profit));color:rgb(var(--profit))}
+.path .pstep.stale .dotc{border-color:rgb(var(--warning));color:rgb(var(--warning))}
+.path .pstep .pbody{padding-bottom:9px;min-width:0}
+.path .plabel{font-size:10.5px;color:rgb(var(--muted));margin-bottom:5px}
+.path .prow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.path .prow::-webkit-scrollbar{display:none}
+.path .pnode{flex:0 0 auto;border-radius:8px;padding:6px 8px;background:rgb(var(--card));border:1px solid rgb(var(--border) / .85);min-width:86px}
+.path .pnode .n{font-size:10.5px;font-weight:650;display:flex;align-items:center;gap:4px}
+.path .pnode .s{font-family:var(--mono);font-size:9px;color:rgb(var(--muted));margin-top:2px}
+.path .pnode.ok{border-left:2px solid rgb(var(--profit))}
+.path .pnode.stale{border-left:2px solid rgb(var(--warning))}
+.path .pnode.dead{border-left:2px solid rgb(var(--live));background:rgb(var(--live) / .10)}
+.path .pnode.disabled{border-left:2px solid rgb(var(--border));opacity:.55}
+
+/* 流式日志渲染器 */
+.stream{background:rgb(12 17 27);border:1px solid rgb(var(--border) / .85);border-radius:11px;overflow:hidden}
+.stream .shead{display:flex;align-items:center;gap:7px;padding:8px 10px;background:rgb(var(--card-2) / .7);border-bottom:1px solid rgb(var(--border) / .7)}
+.stream .sbody{max-height:290px;overflow-y:auto;padding:4px 0;scrollbar-width:none}
+.stream .sbody::-webkit-scrollbar{display:none}
+.ln{display:grid;grid-template-columns:42px 1fr;gap:7px;padding:5px 10px;font-size:11px;line-height:1.5;border-left:2px solid transparent}
+.ln .t{font-family:var(--mono);font-size:9.5px;color:rgb(var(--muted));padding-top:2px}
+.ln .x{color:rgb(var(--text) / .9);word-break:break-word}
+.ln .x .src{color:rgb(var(--primary));font-weight:600}
+.ln.k-crit{border-left-color:rgb(var(--live));background:rgb(var(--live) / .07)}
+.ln.k-warn{border-left-color:rgb(var(--warning));background:rgb(var(--warning) / .06)}
+.ln.k-ok{border-left-color:rgb(var(--profit) / .6)}
+.ln.k-new{animation:flash .9s ease-out}
+@keyframes flash{from{background:rgb(var(--primary) / .24)}to{background:transparent}}
+.sfoot{display:flex;align-items:center;gap:7px;padding:6px 10px;border-top:1px solid rgb(var(--border) / .7);background:rgb(var(--card-2) / .5);font-size:9.5px;color:rgb(var(--muted))}
+.sfoot .rt{margin-left:auto;font-family:var(--mono)}
+.frozen{position:relative}
+.frozen::after{content:"已冻结 · 上新不自动滚动";position:absolute;left:0;right:0;bottom:0;padding:5px 10px;font-size:9.5px;color:rgb(var(--warning));background:rgb(12 17 27 / .96);border-top:1px solid rgb(var(--warning) / .35)}
+
+/* ── 展厅 ── */
+.booth{max-width:1760px;margin:0 auto;padding:26px 22px 90px}
+.booth-head h1{font-size:23px;margin:0 0 6px;letter-spacing:-.4px}
+.booth-head p{margin:0;color:rgb(var(--muted));font-size:12.5px;max-width:900px}
+.tree{margin:16px 0 8px;border-radius:12px;padding:13px 15px;border:1px solid rgb(var(--primary) / .3);background:linear-gradient(180deg,rgb(var(--primary) / .10),rgb(var(--primary) / .02));font-size:12.5px;line-height:2}
+.tree b{color:rgb(var(--primary))}
+.tree code{font-family:var(--mono);background:rgb(var(--card));padding:1px 5px;border-radius:4px;color:rgb(var(--text) / .82)}
+.correction{margin:14px 0 6px;border-radius:12px;padding:12px 15px;border:1px solid rgb(var(--warning) / .35);background:linear-gradient(180deg,rgb(var(--warning) / .11),rgb(var(--warning) / .02));font-size:12.5px;line-height:1.75}
+.correction b{color:rgb(var(--warning))}
+.legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:11.5px;color:rgb(var(--muted));margin-top:14px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block;vertical-align:-2px;margin-right:5px}
+.section{margin-top:32px}
+.section-head{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+.section-head h2{font-size:16px;margin:0;font-weight:650}
+.section-head .idx{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:rgb(var(--primary) / .16);color:rgb(var(--primary));font-size:11.5px;font-weight:700}
+.section-desc{color:rgb(var(--muted));font-size:12px;margin:0 0 15px 32px}
+.grid{display:flex;gap:24px;flex-wrap:wrap}
+.frame{display:flex;flex-direction:column;gap:9px}
+.frame .cap{display:flex;align-items:center;justify-content:space-between;gap:10px;width:var(--W)}
+.frame .cap .t{font-size:12.5px;font-weight:600}
+.frame .cap .n{font-size:10.5px;color:rgb(var(--muted));font-family:var(--mono)}
+.bezel{width:calc(var(--W) + 20px);height:calc(var(--H) + 20px);border-radius:30px;padding:10px;background:#0b0f18;border:1px solid rgb(var(--border) / .9);box-shadow:0 26px 60px -26px rgb(0 0 0 / .95),inset 0 1px 0 rgb(255 255 255 / .04);position:relative}
+.bezel .phone{border-radius:22px}
+.bezel .cam{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:9px;height:9px;border-radius:50%;background:#05070c;border:1px solid rgb(var(--border))}
+.frame .hint{width:var(--W);font-size:11px;color:rgb(var(--muted));line-height:1.55}
+.frame .hint b{color:rgb(var(--text) / .78);font-weight:600}
+.footnote{margin-top:38px;color:rgb(var(--muted));font-size:11.5px;line-height:1.8;border-top:1px solid rgb(var(--border) / .7);padding-top:16px}
+.footnote code{font-family:var(--mono);background:rgb(var(--card));padding:1px 5px;border-radius:4px;color:rgb(var(--text) / .78)}
+@media (max-width:900px){ :root{--W:340px;--H:736px} .booth{padding:18px 12px 90px} }
+</style>
+</head>
+<body>
+<div class="booth">
+
+  <header class="booth-head">
+    <h1>AlphaArena · Android 移动端样式设计 <span class="badge b" style="vertical-align:4px">V4</span>
+      <span class="badge w" style="vertical-align:4px">全自动 · Agent 流式监控</span></h1>
+    <p>数值为 mockup 示意。层级见下，V4 只按这一份层级组织，不再有别的分法。</p>
+    <div class="tree">
+      <b>底部导航（业务模块，3 个）</b><br/>
+      　├── <b>仪表盘</b> — 2 × 2 总览：高频(实盘/模拟) + 交易(实盘/模拟)<br/>
+      　├── <b>高频</b> — 模块内第二级：<code>实盘</code> / <code>模拟</code><br/>
+      　└── <b>交易</b> — 模块内第二级：<code>实盘</code> / <code>模拟</code><br/>
+      <span style="color:rgb(var(--muted));font-size:11.5px">
+        第二级用 App 栏正下方的「环境切换控件」表达，切换时该控件自身变色（红=实盘 / 紫=模拟），
+        并同时显示两个环境的权益简值 —— 切之前就知道另一边什么情况。
+      </span>
+    </div>
+    <div class="legend">
+      <span><i style="background:#ef4444"></i>实盘（真实资金）</span>
+      <span><i style="background:#8b5cf6"></i>模拟（虚拟资金）</span>
+      <span><i style="background:#00dc82"></i>ok / 盈利</span>
+      <span><i style="background:#f59e0b"></i>stale / 未生效</span>
+      <span><i style="background:#3b82f6"></i>正在流 / 交互</span>
+    </div>
+  </header>
+
+  <div class="correction">
+    <b>层级纠偏（V4）</b>：上一稿把模拟/实盘做成了顶部 Tab 的两个独立模块、又试过 5 Tab，都不对。
+    正确结构是<b>两级</b>——<b>高频</b>是模块，它下面分<b>实盘 / 模拟</b>；<b>交易</b>是模块，它下面同样分<b>实盘 / 模拟</b>。
+    高频与交易是<b>并列</b>的两个业务线，不是包含关系。
+  </div>
+
+  <!-- ══════════════ 1 · 仪表盘 ══════════════ -->
+  <section class="section">
+    <div class="section-head"><span class="idx">1</span><h2>仪表盘 · 2 × 2 总览</h2><span class="badge">高频(实盘/模拟) + 交易(实盘/模拟)</span></div>
+    <p class="section-desc">一个模块一行、一行里两张环境卡。首屏仍先答「自动化还在转吗」，再给四条线的状态。</p>
+    <div class="grid">
+
+      <!-- 1.1 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.1 仪表盘 · 链路健康 + 四线</span><span class="n">dashboard</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip"><span class="dot p"></span><span>ws 已连</span><span class="src">learning_events</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">仪表盘</div><div class="sub"><span class="live-dot" style="display:inline-block;vertical-align:1px"></span> 全自动 · 会话 fa_c8f0899147</div></div>
+            <div class="iconbtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+          </div>
+          <div class="screen">
+            <div class="card" style="padding:11px;border-color:rgb(var(--warning) / .45)">
+              <div class="row"><span class="h3">链路健康</span><span class="badge w">2 处需看</span></div>
+              <div class="g4" style="margin-top:8px">
+                <div><div class="lbl">ok</div><div class="mono h3 profit">31</div></div>
+                <div><div class="lbl">stale</div><div class="mono h3 warn">2</div></div>
+                <div><div class="lbl">dead</div><div class="mono h3 loss">1</div></div>
+                <div><div class="lbl">停用</div><div class="mono h3 muted">7</div></div>
+              </div>
+              <div class="bar" style="margin-top:9px"><i class="p" style="width:76%"></i><i class="w" style="width:5%"></i><i class="l" style="width:2.5%"></i></div>
+              <div class="row tiny muted" style="margin-top:5px"><span>38 节点 · 96 条边</span><span class="loss">1 条断链</span></div>
+            </div>
+
+            <div class="row" style="margin-top:12px"><span class="h3">高频</span><span class="tiny muted">mm_asterdex</span></div>
+            <div class="g2">
+              <div class="card" style="padding:10px;border-color:rgb(var(--live) / .4)">
+                <div class="row"><span class="badge solid-l">实盘</span><span class="mono sm profit">+$286</span></div>
+                <div class="mono" style="font-size:18px;font-weight:700;margin-top:6px">$24.3k</div>
+                <div class="tiny muted" style="margin-top:4px">1,284 往返 · +0.31bp/腿</div>
+                <div class="bar" style="margin-top:6px"><i class="p" style="width:78%"></i></div>
+                <div class="tiny muted" style="margin-top:5px">成交率 16.4% · 快照 2.1s</div>
+              </div>
+              <div class="card" style="padding:10px;border-color:rgb(var(--paper) / .4)">
+                <div class="row"><span class="badge solid-v">模拟</span><span class="mono sm profit">+$186</span></div>
+                <div class="mono" style="font-size:18px;font-weight:700;margin-top:6px">$10.2k</div>
+                <div class="tiny muted" style="margin-top:4px">1,284 往返 · +0.38bp/腿</div>
+                <div class="bar" style="margin-top:6px"><i class="p" style="width:86%"></i></div>
+                <div class="tiny muted" style="margin-top:5px">成交率 18.5% · 虚拟撮合</div>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:12px"><span class="h3">交易</span><span class="tiny muted">中长线 · 主循环</span></div>
+            <div class="g2">
+              <div class="card" style="padding:10px;border-color:rgb(var(--live) / .4)">
+                <div class="row"><span class="badge solid-l">实盘</span><span class="mono sm profit">+$412</span></div>
+                <div class="mono" style="font-size:18px;font-weight:700;margin-top:6px">$104.1k</div>
+                <div class="tiny muted" style="margin-top:4px">持仓 4 · 保证金 32%</div>
+                <div class="bar" style="margin-top:6px"><i class="w" style="width:32%"></i></div>
+                <div class="tiny muted" style="margin-top:5px">强平缓冲 3.2x · 12s 前</div>
+              </div>
+              <div class="card" style="padding:10px;border-color:rgb(var(--paper) / .4)">
+                <div class="row"><span class="badge solid-v">模拟</span><span class="mono sm profit">+$186</span></div>
+                <div class="mono" style="font-size:18px;font-weight:700;margin-top:6px">$10.2k</div>
+                <div class="tiny muted" style="margin-top:4px">持仓 3 · 策略 18</div>
+                <div class="bar" style="margin-top:6px"><i class="p" style="width:72%"></i></div>
+                <div class="tiny muted" style="margin-top:5px">回撤 0.8% · 12s 前</div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">流式数据</span><span class="badge p"><span class="live-dot" style="background:rgb(var(--profit))"></span>在流</span></div>
+              <div class="g3" style="margin-top:8px">
+                <div><div class="lbl">事件速率</div><div class="mono h3" style="margin-top:1px">3.2<span class="tiny muted">/s</span></div></div>
+                <div><div class="lbl">订阅 topic</div><div class="mono h3" style="margin-top:1px">6</div></div>
+                <div><div class="lbl">缓冲</div><div class="mono h3" style="margin-top:1px">184<span class="tiny muted">/200</span></div></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>模块一行、环境两卡</b>：高频一行（实盘/模拟），交易一行（实盘/模拟）。层级在版式上直接可见，不需要读文字猜结构。</div>
+      </div>
+
+      <!-- 1.2 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.2 高频 · 实盘（默认环境）</span><span class="n">hft / env=live</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45)"><span class="dot l"></span><span>实盘报价在流</span><span class="src">深度 105ms</span><span class="age warn">运行态 2.1s</span></div>
+          <div class="appbar">
+            <div><div class="title">高频</div><div class="sub mono">mm_asterdex · 全自动双边报价</div></div>
+            <span class="badge solid-l">LIVE</span>
+          </div>
+
+          <!-- ★ 第二级：环境切换 -->
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$24.3k · +1.18%</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +1.86%</span></button>
+          </div>
+
+          <div class="screen">
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="h3">今日表现</span><span class="badge l">真实成交</span></div>
+              <div class="g2" style="margin-top:8px">
+                <div><div class="lbl">今日净收益</div><div class="mono h2 profit" style="margin-top:2px">+$12.3456</div><div class="tiny muted">1,284 往返</div></div>
+                <div><div class="lbl">每腿净 bp</div><div class="mono h2 profit" style="margin-top:2px">+0.31</div><div class="tiny muted">名义加权 · 已扣成本</div></div>
+              </div>
+              <div class="hr" style="margin:11px -12px 9px"></div>
+              <div class="g4">
+                <div class="stat" style="padding:6px 7px"><div class="k">腿速</div><div class="v mono" style="font-size:13px">2.4</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">成交率</div><div class="v mono" style="font-size:13px">16.4%</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">均点差</div><div class="v mono" style="font-size:13px">1.8bp</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">数据龄</div><div class="v mono warn" style="font-size:13px">2.1s</div></div>
+              </div>
+            </div>
+
+            <!-- 账户总览（V5 新增） -->
+            <div class="card" style="padding:12px;border-color:rgb(var(--live) / .35)">
+              <div class="row"><span class="h3">账户总览</span><span class="badge solid-l">实盘账户 #1</span></div>
+              <div class="lbl" style="margin-top:8px">账户总权益</div>
+              <div class="mono h1" style="margin-top:2px">$1,238.4562</div>
+              <div class="row" style="margin-top:5px">
+                <span class="mono profit sm" style="font-weight:650">▲ 今日 +$12.3456</span>
+                <span class="tiny muted" style="margin-left:auto">本期累计 <span class="mono profit">+$28.6140</span></span>
+              </div>
+              <div class="srcnote"><span class="dot l" style="width:5px;height:5px"></span>口径 可用 + 冻结 + 浮盈 · 更新于 2.1s 前</div>
+              <div class="hr" style="margin:10px -12px 4px"></div>
+              <div class="v6">
+                <div><div class="k">可用</div><div class="v">$892.44</div></div>
+                <div><div class="k">持仓价值 <span class="u">3 个</span></div><div class="v">$346.02</div></div>
+                <div><div class="k">已实现盈亏</div><div class="v profit">+$8.9012</div></div>
+                <div><div class="k">未实现盈亏 <span class="u">浮盈</span></div><div class="v profit">+$3.4444</div></div>
+              </div>
+            </div>
+
+            <!-- 成本（V5 新增） -->
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="h3">成本 · 本期</span><span class="badge w">手续费是第一成本项</span></div>
+              <div class="v6">
+                <div><div class="k">累计手续费 <span class="u">taker 312 笔</span></div><div class="v loss">-$4.2180</div>
+                  <div class="tiny muted" style="margin-top:3px">按 stats_since 裁剪 · 与上方同一时代</div></div>
+                <div><div class="k">资金费</div><div class="v loss">-$0.8412</div>
+                  <div class="tiny muted" style="margin-top:3px">结算周期按交易所</div></div>
+                <div><div class="k">滑点</div><div class="v loss">-$1.2044</div>
+                  <div class="tiny muted" style="margin-top:3px">含逆选择 price_bp</div></div>
+                <div><div class="k">净额</div><div class="v profit">+$12.3456</div>
+                  <div class="tiny muted" style="margin-top:3px">逐行折算求和</div></div>
+              </div>
+              <div class="srcnote" style="margin-top:9px"><span>全历史审计：手续费 <span class="mono loss">-$51.2860</span> · taker 917 笔</span></div>
+              <div class="tiny muted" style="margin-top:6px">若全按 taker 计会是 <span class="mono loss">-$9.7340</span> —— maker 免费才让这条线成立。<b>「全历史」与「本期」不是一个时代，不能相加。</b></div>
+            </div>
+
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">实盘报价与成交流</span><span class="badge p"><span class="live-dot" style="background:rgb(var(--profit))"></span>在流</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:170px;overflow:hidden">
+                <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">报价｜</span>BTC bid=101,418.0 ask=101,447.5 挂宽 0.9bp</span></div>
+                <div class="ln k-ok"><span class="t">09:41:05</span><span class="x"><span class="src">成交｜</span>BUY 0.42 @101,418.0 队列前方 6.4k</span></div>
+                <div class="ln k-warn"><span class="t">09:40:58</span><span class="x"><span class="src">闸门｜</span>ETH 跳过 点差 2.1bp &lt; 成本 2.6bp</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">机器两腿</span><span class="badge w">快照 2.1s</span></div>
+              <div class="stack" style="margin-top:8px;gap:8px">
+                <div class="row sm"><span class="badge p">BID</span><span class="mono">101,418.0</span><span class="muted tiny">0.42</span><span class="mono tiny">队列 34%</span></div>
+                <div class="row sm"><span class="badge l">ASK</span><span class="mono">101,447.5</span><span class="muted tiny">0.42</span><span class="mono tiny">队列 51%</span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>环境切换控件</b>就在 App 栏下方：左实盘（红）、右模拟（紫），<b>每个按钮都带自己的权益简值与涨跌</b>——切换前就知道另一边怎么样，避免来回横跳。</div>
+      </div>
+
+      <!-- 1.3 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.3 高频 · 模拟</span><span class="n">hft / env=paper</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--paper) / .45)"><span class="dot v"></span><span>模拟报价在流</span><span class="src">虚拟撮合</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">高频</div><div class="sub mono">mm_asterdex_paper · 同一套逻辑</div></div>
+            <span class="badge solid-v">PAPER</span>
+          </div>
+
+          <div class="envtabs">
+            <button data-env="live"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$24.3k · +1.18%</span></button>
+            <div class="sep"></div>
+            <button data-env="paper" class="on"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +1.86%</span></button>
+          </div>
+
+          <div class="screen">
+            <div class="banner vio">
+              <div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M11 3 8 9l4 12 4-12-3-6"/><path d="M2 9h20"/></svg></div>
+              <div><div class="sm" style="font-weight:650;color:rgb(var(--paper))">虚拟资金 · 不影响真实账户</div>
+                <div class="tiny dim" style="margin-top:2px">同一套报价逻辑与闸门，只把成交落到虚拟账本。</div></div>
+            </div>
+
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="h3">今日表现</span><span class="badge v">虚拟成交</span></div>
+              <div class="g2" style="margin-top:8px">
+                <div><div class="lbl">今日净收益</div><div class="mono h2 profit" style="margin-top:2px">+$18.6400</div><div class="tiny muted">1,284 往返</div></div>
+                <div><div class="lbl">每腿净 bp</div><div class="mono h2 profit" style="margin-top:2px">+0.38</div><div class="tiny muted">虚拟成本模型</div></div>
+              </div>
+              <div class="hr" style="margin:11px -12px 9px"></div>
+              <div class="g4">
+                <div class="stat" style="padding:6px 7px"><div class="k">腿速</div><div class="v mono" style="font-size:13px">2.4</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">成交率</div><div class="v mono" style="font-size:13px">18.5%</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">均点差</div><div class="v mono" style="font-size:13px">1.8bp</div></div>
+                <div class="stat" style="padding:6px 7px"><div class="k">延迟假设</div><div class="v mono" style="font-size:13px">105ms</div></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:12px;border-color:rgb(var(--paper) / .35)">
+              <div class="row"><span class="h3">账户总览</span><span class="badge solid-v">模拟账户 #14</span></div>
+              <div class="lbl" style="margin-top:8px">账户总权益</div>
+              <div class="mono h1 profit" style="margin-top:2px">$1,186.4000</div>
+              <div class="row" style="margin-top:5px">
+                <span class="mono profit sm" style="font-weight:650">▲ 今日 +$18.6400</span>
+                <span class="tiny muted" style="margin-left:auto">本期累计 <span class="mono profit">+$186.4000</span></span>
+              </div>
+              <div class="srcnote"><span class="dot v" style="width:5px;height:5px"></span>口径 可用 + 冻结 + 浮盈（虚拟）· 更新于 0.4s 前</div>
+              <div class="hr" style="margin:10px -12px 4px"></div>
+              <div class="v6">
+                <div><div class="k">可用</div><div class="v">$962.10</div></div>
+                <div><div class="k">持仓价值 <span class="u">2 个</span></div><div class="v">$224.30</div></div>
+                <div><div class="k">已实现盈亏</div><div class="v profit">+$15.2200</div></div>
+                <div><div class="k">未实现盈亏 <span class="u">浮盈</span></div><div class="v profit">+$3.4200</div></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="h3">成本 · 本期</span><span class="badge w">虚拟成本模型</span></div>
+              <div class="v6">
+                <div><div class="k">累计手续费 <span class="u">taker 180 笔</span></div><div class="v loss">-$2.1040</div>
+                  <div class="tiny muted" style="margin-top:3px">与上方同处一个时代</div></div>
+                <div><div class="k">资金费</div><div class="v loss">-$0.4120</div>
+                  <div class="tiny muted" style="margin-top:3px">按交易所结算周期</div></div>
+                <div><div class="k">滑点</div><div class="v loss">-$0.6820</div>
+                  <div class="tiny muted" style="margin-top:3px">恒定 105ms 假设</div></div>
+                <div><div class="k">净额</div><div class="v profit">+$18.6400</div>
+                  <div class="tiny muted" style="margin-top:3px">逐行折算求和</div></div>
+              </div>
+              <div class="tiny muted" style="margin-top:8px">模拟的手续费按同一费率表计算，所以两侧成本结构可直接对照。</div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">与实盘的偏差</span><span class="badge w">模拟偏乐观</span></div>
+              <div class="stack" style="margin-top:8px;gap:6px">
+                <div class="row sm"><span class="dim">往返数是否一致</span><span class="badge p">1,284 = 1,284</span></div>
+                <div class="row sm"><span class="dim">每腿 net 差</span><span class="mono warn">+0.07bp（模拟更优）</span></div>
+                <div class="row sm"><span class="dim">成交率差</span><span class="mono warn">+2.1pp</span></div>
+                <div class="row sm"><span class="dim">手续费差</span><span class="mono warn">-$2.11（模拟更少）</span></div>
+                <div class="row sm"><span class="dim">同决策命中率</span><span class="mono profit">94.2%</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">模拟报价与成交流</span><span class="badge p">在流</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:140px;overflow:hidden">
+                <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">报价｜</span>BTC bid=101,418.0 ask=101,447.5</span></div>
+                <div class="ln"><span class="t">09:41:05</span><span class="x"><span class="src">虚拟成交｜</span>BUY 0.31 @101,418.0</span></div>
+                <div class="ln k-ok"><span class="t">09:41:00</span><span class="x"><span class="src">虚拟平仓｜</span>tp_vwap net +2.6bp</span></div>
+                <div class="ln k-warn"><span class="t">09:40:58</span><span class="x"><span class="src">闸门｜</span>ETH 跳过 点差不足</span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>同一页面、换环境</b>：布局、指标、流的形态全部一致，只换身份色、文案与可用动作。</div>
+      </div>
+
+      <!-- 1.4 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.4 高频 · 盘口（环境无关视图）</span><span class="n">hft / board</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip"><span class="dot p"></span><span>深度在流</span><span class="src">asterdex_depth_snapshots</span><span class="age profit">105ms</span></div>
+          <div class="appbar">
+            <div><div class="title">高频 · 盘口</div><div class="sub">BTC · 机器正在这个盘口双边报价</div></div>
+            <span class="badge p">我方挂单 2</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">挂单 0.42 / 0.42</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">挂单 0.31 / 0.31</span></button>
+          </div>
+          <div class="screen">
+            <div class="card" style="padding:11px">
+              <div class="row"><div><div class="lbl">中间价</div><div class="mono h2" style="margin-top:1px">101,432.5</div></div>
+                <div style="text-align:right"><div class="lbl">点差 / 成本</div><div class="mono h3" style="margin-top:1px"><span class="profit">1.8</span> <span class="muted">/ 1.4bp</span></div></div></div>
+            </div>
+            <div class="card" style="padding:11px">
+              <div style="display:grid;gap:3px">
+                <div style="display:grid;grid-template-columns:32px 1fr 58px 58px 1fr 32px;gap:6px;align-items:center;font-size:11px">
+                  <span class="mono" style="text-align:right;color:rgb(var(--text) / .8)">18.4k</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:74%;background:rgb(var(--profit) / .3);border-radius:3px"></i></span>
+                  <span class="mono profit" style="text-align:center;font-weight:600">101,423.0</span>
+                  <span class="mono loss" style="text-align:center;font-weight:600">101,441.0</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:52%;background:rgb(var(--live) / .3);border-radius:3px"></i></span>
+                  <span class="mono" style="color:rgb(var(--text) / .8)">12.9k</span>
+                </div>
+                <div style="display:grid;grid-template-columns:32px 1fr 58px 58px 1fr 32px;gap:6px;align-items:center;font-size:11px">
+                  <span class="mono" style="text-align:right;color:rgb(var(--text) / .8)">9.1k</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:37%;background:rgb(var(--profit) / .3);border-radius:3px"></i></span>
+                  <span class="mono profit" style="text-align:center;font-weight:600">101,420.5</span>
+                  <span class="mono loss" style="text-align:center;font-weight:600">101,444.0</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:88%;background:rgb(var(--live) / .3);border-radius:3px"></i></span>
+                  <span class="mono" style="color:rgb(var(--text) / .8)">22.0k</span>
+                </div>
+                <div style="display:grid;grid-template-columns:32px 1fr 58px 58px 1fr 32px;gap:6px;align-items:center;font-size:11px;outline:1px solid rgb(var(--primary) / .5);border-radius:5px">
+                  <span class="mono" style="text-align:right;color:rgb(var(--primary))">6.4k</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:26%;background:rgb(var(--primary) / .45);border-radius:3px"></i></span>
+                  <span class="mono profit" style="text-align:center;font-weight:600">101,418.0</span>
+                  <span class="mono loss" style="text-align:center;font-weight:600">101,447.5</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:44%;background:rgb(var(--live) / .3);border-radius:3px"></i></span>
+                  <span class="mono" style="color:rgb(var(--text) / .8)">10.8k</span>
+                </div>
+                <div style="display:grid;grid-template-columns:32px 1fr 58px 58px 1fr 32px;gap:6px;align-items:center;font-size:11px">
+                  <span class="mono" style="text-align:right;color:rgb(var(--text) / .8)">12.2k</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:49%;background:rgb(var(--profit) / .3);border-radius:3px"></i></span>
+                  <span class="mono profit" style="text-align:center;font-weight:600">101,415.5</span>
+                  <span class="mono loss" style="text-align:center;font-weight:600">101,450.0</span>
+                  <span style="height:16px;border-radius:3px;background:rgb(var(--border) / .28);position:relative;overflow:hidden"><i style="position:absolute;inset:0 auto 0 0;width:67%;background:rgb(var(--live) / .3);border-radius:3px"></i></span>
+                  <span class="mono" style="color:rgb(var(--text) / .8)">16.6k</span>
+                </div>
+              </div>
+              <div class="row tiny muted" style="margin-top:8px;justify-content:center;gap:7px"><span class="dot" style="background:rgb(var(--primary))"></span><span>蓝框 = 机器挂单所在档</span></div>
+            </div>
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">报价决策依据（自动）</span><span class="badge p">当前挂宽 0.9bp ✓</span></div>
+              <div class="stack" style="margin-top:8px;gap:6px">
+                <div class="row sm"><span class="dim">目标挂宽</span><span class="mono">0.8 – 1.2 bp</span></div>
+                <div class="row sm"><span class="dim">波动闸</span><span class="badge p">通过</span></div>
+                <div class="row sm"><span class="dim">库存偏斜</span><span class="mono">0.00（已对冲）</span></div>
+                <div class="row sm"><span class="dim">超时平仓</span><span class="mono">900s</span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>盘口是环境无关视图</b>：市场行情对两侧一样，只有「我方挂单量 / 队列占比」随环境变。所以这里的环境切换控件只显示挂单简值，不显示权益。</div>
+      </div>
+
+      <!-- 1.5 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.5 交易 · 实盘</span><span class="n">trade / env=live</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45)"><span class="dot l"></span><span>实盘 · 自动执行中</span><span class="src">主账户 #1</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">交易</div><div class="sub">中长线全自动 · 人只做监督</div></div>
+            <span class="badge solid-l">LIVE</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$104.1k · +$413</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +$186</span></button>
+          </div>
+          <div class="screen">
+            <div class="banner">
+              <div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+              <div><div class="sm" style="font-weight:650;color:rgb(var(--live))">真实资金 · 自动化正在下单</div>
+                <div class="tiny dim" style="margin-top:2px">今日开 14 / 平 11 / 被否决 6 / 人工干预 0</div></div>
+            </div>
+
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="lbl">账户权益</span><span class="badge w">全仓</span></div>
+              <div class="mono h1" style="margin-top:4px">$104,132<span class="muted" style="font-size:16px">.13</span></div>
+              <div class="row" style="margin-top:6px"><span class="mono profit sm" style="font-weight:650">▲ +$412.60</span><span class="mono profit tiny">+0.28%</span><span class="tiny muted" style="margin-left:auto">累计 +$4,132</span></div>
+              <div class="hr" style="margin:11px -12px 9px"></div>
+              <div class="g3">
+                <div><div class="lbl">可用</div><div class="mono h3" style="margin-top:1px">$71.2k</div></div>
+                <div><div class="lbl">持仓名义</div><div class="mono h3" style="margin-top:1px">$32.9k</div></div>
+                <div><div class="lbl">维持保证金率</div><div class="mono h3 profit" style="margin-top:1px">312%</div></div>
+              </div>
+              <div class="bar" style="margin-top:9px"><i class="w" style="width:32%"></i></div>
+              <div class="row tiny muted" style="margin-top:5px"><span>保证金占用 32%</span><span>强平缓冲 3.2x</span></div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">自动仓位 · 4</span><span class="tiny muted">由链路开仓 · 只可兜底平</span></div>
+              <div style="margin-top:2px">
+                <div class="posrow"><span class="sym"><span class="dot p"></span>BTC <span class="badge p">多 3x</span><span class="q">0.0098 BTC</span></span><span class="pnl profit">+$318.40</span><button class="closebtn">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot l"></span>SOL <span class="badge l">空 2x</span><span class="q">6.20 SOL</span></span><span class="pnl loss">-$94.20</span><button class="closebtn">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot p"></span>ETH <span class="badge p">多 2x</span><span class="q">0.184 ETH</span></span><span class="pnl profit">+$182.10</span><button class="closebtn">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot p"></span>XRP <span class="badge p">多 4x</span><span class="q">412 XRP</span></span><span class="pnl profit">+$6.30</span><button class="closebtn">平仓</button></div>
+              </div>
+              <div class="tiny muted" style="margin-top:9px">单条平仓 = 市价全平该仓位，走二次确认。自动化卡住时这是唯一的脱身路径，所以按钮常驻、不折叠。</div>
+              <button class="btn live" style="margin-top:11px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                一键全平（4 个仓位）
+              </button>
+            </div>
+
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">实盘决策与成交流</span><span class="badge p">在流</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:150px;overflow:hidden">
+                <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">实盘｜</span>开仓 BTC 0.0098 @101,432.5 滑点 0.2bp</span></div>
+                <div class="ln k-ok"><span class="t">09:41:06</span><span class="x"><span class="src">风控官｜</span>放行 · 净敞口 68%</span></div>
+                <div class="ln k-warn"><span class="t">09:40:58</span><span class="x"><span class="src">实盘｜</span>ETH 跳过 点差过宽</span></div>
+                <div class="ln k-ok"><span class="t">09:39:12</span><span class="x"><span class="src">实盘｜</span>SOL 止盈 net +5.6bp</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">兜底手动操作</span><span class="tiny muted">默认折叠 · 异常路径</span></div>
+              <div class="kv" style="margin-top:3px"><span class="dim">强制平掉某仓</span><span class="badge w">二次确认</span></div>
+              <div class="kv"><span class="dim">一键全平</span><span class="badge l">二次确认</span></div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>交易·实盘</b>：红色环境控件 + 危险横幅 + 资金风险 + 自动仓位 + 决策流 + 兜底折叠。没有手动开仓入口。</div>
+      </div>
+
+      <!-- 1.6 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.6 交易 · 模拟</span><span class="n">trade / env=paper</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--paper) / .45)"><span class="dot v"></span><span>模拟 · 自动执行中</span><span class="src">账户 #14</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">交易</div><div class="sub">同一决策链 · 虚拟撮合</div></div>
+            <span class="badge solid-v">PAPER</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$104.1k · +$413</span></button>
+            <div class="sep"></div>
+            <button data-env="paper" class="on"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +$186</span></button>
+          </div>
+          <div class="screen">
+            <div class="banner vio">
+              <div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M11 3 8 9l4 12 4-12-3-6"/><path d="M2 9h20"/></svg></div>
+              <div><div class="sm" style="font-weight:650;color:rgb(var(--paper))">虚拟资金 · 不影响真实账户</div>
+                <div class="tiny dim" style="margin-top:2px">用来验证策略改动值不值得上实盘；同决策命中率 94.2%。</div></div>
+            </div>
+
+            <div class="card" style="padding:12px">
+              <div class="row"><span class="lbl">模拟权益</span><span class="badge p"><span class="live-dot" style="background:rgb(var(--profit))"></span>running</span></div>
+              <div class="mono h1 profit" style="margin-top:4px">$10,186<span style="font-size:16px">.40</span></div>
+              <div class="row" style="margin-top:6px"><span class="mono profit sm" style="font-weight:650">▲ +$186.40</span><span class="mono profit tiny">+1.86%</span><span class="tiny muted" style="margin-left:auto">运行 4h12m</span></div>
+              <div class="hr" style="margin:11px -12px 9px"></div>
+              <div class="g3">
+                <div><div class="lbl">可用</div><div class="mono h3" style="margin-top:1px">$9.8k</div></div>
+                <div><div class="lbl">持仓</div><div class="mono h3" style="margin-top:1px">3</div></div>
+                <div><div class="lbl">影子成交</div><div class="mono h3" style="margin-top:1px">118</div></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">自动仓位（虚拟）· 3</span><span class="tiny muted">由链路开仓 · 只可兜底平</span></div>
+              <div style="margin-top:2px">
+                <div class="posrow"><span class="sym"><span class="dot p"></span>BTC <span class="badge p">多 5x</span><span class="q">0.0049 BTC</span></span><span class="pnl profit">+$142.10</span><button class="closebtn paper">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot l"></span>SOL <span class="badge l">空 3x</span><span class="q">6.20 SOL</span></span><span class="pnl loss">-$44.30</span><button class="closebtn paper">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot p"></span>ETH <span class="badge p">多 2x</span><span class="q">0.184 ETH</span></span><span class="pnl profit">+$88.60</span><button class="closebtn paper">平仓</button></div>
+              </div>
+              <div class="tiny muted" style="margin-top:9px">模拟侧同样给单条与全平，用于演练「自动化卡死时怎么脱身」，且不会碰到真钱。</div>
+              <button class="btn paperbtn" style="margin-top:11px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                一键全平 · 模拟（3 个）
+              </button>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">与实盘的偏差</span><span class="badge w">模拟偏乐观</span></div>
+              <div class="stack" style="margin-top:8px;gap:6px">
+                <div class="row sm"><span class="dim">成交价偏差（中位）</span><span class="mono warn">+0.6bp</span></div>
+                <div class="row sm"><span class="dim">成交率偏差</span><span class="mono warn">+2.1pp</span></div>
+                <div class="row sm"><span class="dim">同决策命中率</span><span class="mono profit">94.2%</span></div>
+                <div class="row sm"><span class="dim">延迟假设 / 实测</span><span class="mono profit">105 / 108ms</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">模拟专属操作</span><span class="tiny muted">破坏性小</span></div>
+              <div class="g2" style="margin-top:8px">
+                <button class="btn ghost sm">重置模拟资金</button>
+                <button class="btn ghost sm">复制配置到实盘</button>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>交易·模拟</b>：与实盘同一套版式（权益 → 仓位 → 偏差 → 操作），紫色身份，多出「重置资金 / 复制配置到实盘」两个安全动作。</div>
+      </div>
+
+      <!-- 1.7 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.7 决策链 · 关系条（Agent Wall）</span><span class="n">chain / node focus</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip"><span class="dot p"></span><span>单节点 tail 在流</span><span class="src">node=midlong_exec</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">决策链</div><div class="sub">38 节点 · 两个环境共用同一条链</div></div>
+            <span class="badge b">关系视图</span>
+          </div>
+          <div class="screen">
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">中线执行 · 上下游</span><span class="tiny muted">← 横滑 →</span></div>
+              <div class="relwrap">
+                <div class="rel">
+                  <div class="box ok"><div class="n"><span class="dot p"></span>论题库</div><div class="s">thesis_store</div></div>
+                  <div class="edge"><div class="el">开仓权威</div><div class="track"><i class="c"></i></div></div>
+                  <div class="box sel"><div class="n"><span class="dot b"></span>中线执行</div><div class="s">12s · ok</div></div>
+                  <div class="edge"><div class="el">持仓管理</div><div class="track"><i></i></div></div>
+                  <div class="box ok"><div class="n"><span class="dot p"></span>持仓管理</div><div class="s">ok</div></div>
+                  <div class="edge"><div class="el">退出触发</div><div class="track"><i></i></div></div>
+                  <div class="box ok"><div class="n"><span class="dot p"></span>中线出场</div><div class="s">ok</div></div>
+                </div>
+              </div>
+              <div class="tiny muted" style="margin-top:6px">连接柱上的流动点 = 这条边正在传数据；红虚线 = 断链；黄虚线 = 未生效。</div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">本链走到哪一步</span><span class="badge p">6/7 步健康</span></div>
+              <div class="path" style="margin-top:8px">
+                <div class="pstep ok"><div class="dotc">1</div><div class="pbody"><div class="plabel">候选池</div>
+                  <div class="prow"><div class="pnode ok"><div class="n">AI 选币</div><div class="s">2m · ok</div></div></div></div></div>
+                <div class="pstep ok"><div class="dotc">2</div><div class="pbody"><div class="plabel">主脑产出论题（两侧共用）</div>
+                  <div class="prow"><div class="pnode ok"><div class="n">中线主脑</div><div class="s">12s</div></div><div class="pnode ok"><div class="n">证据装配</div><div class="s">12s</div></div></div></div></div>
+                <div class="pstep ok"><div class="dotc">3</div><div class="pbody"><div class="plabel">裁决（三路并行）</div>
+                  <div class="prow"><div class="pnode ok"><div class="n">牛熊辩论</div><div class="s">偏多</div></div><div class="pnode ok"><div class="n">风控官</div><div class="s">放行</div></div></div></div></div>
+                <div class="pstep ok"><div class="dotc">4</div><div class="pbody"><div class="plabel">下单 — 两环境在此分叉</div>
+                  <div class="prow">
+                    <div class="pnode ok" style="border-left-color:rgb(var(--paper))"><div class="n"><span class="dot v"></span>模拟</div><div class="s">0.0049</div></div>
+                    <div class="pnode ok" style="border-left-color:rgb(var(--live))"><div class="n"><span class="dot l"></span>实盘</div><div class="s">0.0098</div></div>
+                  </div></div></div>
+                <div class="pstep stale"><div class="dotc">5</div><div class="pbody"><div class="plabel">回灌（未生效）</div>
+                  <div class="prow"><div class="pnode disabled"><div class="n">实验卡推进</div><div class="s">observe 短路</div></div></div></div></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">整链事件流</span><span class="badge p">在流</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:150px;overflow:hidden">
+                <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">④下单｜</span>实盘 BTC opened · 模拟 BTC opened</span></div>
+                <div class="ln"><span class="t">09:41:06</span><span class="x"><span class="src">③风控官｜</span>放行（两侧同源裁决）</span></div>
+                <div class="ln"><span class="t">09:41:05</span><span class="x"><span class="src">③辩论｜</span>裁决=偏多</span></div>
+                <div class="ln k-warn"><span class="t">09:40:58</span><span class="x"><span class="src">审计｜</span>ETH skip 点差过宽</span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>无画布的关系表达</b>：横向关系条替代节点连线，纵向链路透镜替代全局拓扑。<b>分叉点直接画两条落点</b>——模拟与实盘在同一张图里，天然说明"同一条链、两个落点"。</div>
+      </div>
+
+      <!-- 1.8 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.8 决策链 · 节点四态分组</span><span class="n">chain / nodes</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip"><span class="dot p"></span><span>state 轮询</span><span class="src">agent-wall/state</span><span class="age profit">2.8s</span></div>
+          <div class="appbar">
+            <div><div class="title">决策链 · 节点</div><div class="sub">按链路分组 · 38 节点</div></div>
+            <div class="row tight"><span class="badge l">1 dead</span><span class="badge w">2 stale</span></div>
+          </div>
+          <div class="screen">
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">G1 · 决策与论题</span><span class="tiny"><span class="profit">8 ok</span> · <span class="warn">1 stale</span></span></div>
+              <div class="ngrid" style="margin-top:8px">
+                <div class="node ok"><div class="nm"><span class="dot p"></span>中线主脑</div><div class="mt">12s · ok</div></div>
+                <div class="node ok"><div class="nm"><span class="dot p"></span>风控官</div><div class="mt">12s · ok</div></div>
+                <div class="node ok"><div class="nm"><span class="dot p"></span>牛熊辩论</div><div class="mt">12s · ok</div></div>
+                <div class="node stale"><div class="nm"><span class="dot w"></span>K线深度分析师</div><div class="mt">6m · stale</div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">G4 · 执行（分环境落点）</span><span class="tiny muted">模拟 / 实盘</span></div>
+              <div class="ngrid" style="margin-top:8px">
+                <div class="node ok"><div class="nm"><span class="dot p"></span>主循环</div><div class="mt">3s · ok</div></div>
+                <div class="node ok"><div class="nm"><span class="dot p"></span>中线执行</div><div class="mt">12s · ok</div></div>
+                <div class="node ok" style="border-left-color:rgb(var(--paper))"><div class="nm"><span class="dot v"></span>执行·模拟</div><div class="mt">12s · ok</div></div>
+                <div class="node ok" style="border-left-color:rgb(var(--live))"><div class="nm"><span class="dot l"></span>执行·实盘</div><div class="mt">12s · ok</div></div>
+                <div class="node ok"><div class="nm"><span class="dot p"></span>中线出场</div><div class="mt">12s · ok</div></div>
+                <div class="node disabled"><div class="nm"><span class="dot m"></span>短线车道</div><div class="mt">已按决策关停</div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:11px;border-color:rgb(var(--live) / .45)">
+              <div class="row"><span class="h3">断链</span><span class="badge l">1</span></div>
+              <div class="row sm" style="margin-top:7px"><span class="row tight" style="gap:6px"><span class="dot l"></span>timing → 实验卡推进</span><span class="badge l">生产端 dead</span></div>
+              <div class="tiny muted" style="margin-top:6px">断链 / 未生效 / 已停用是三种不同事实，配色与文案不许混用。</div>
+            </div>
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">实时日志流</span><span class="badge">184 行</span><span class="pausebtn" style="margin-left:auto">暂停</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:160px;overflow:hidden">
+                <div class="ln k-new"><span class="t">09:41:07</span><span class="x"><span class="src">实盘｜</span>开仓 BTC 0.0098</span></div>
+                <div class="ln"><span class="t">09:41:07</span><span class="x"><span class="src">模拟｜</span>开仓 BTC 0.0049</span></div>
+                <div class="ln k-ok"><span class="t">09:41:06</span><span class="x"><span class="src">风控官｜</span>放行</span></div>
+                <div class="ln k-crit"><span class="t">09:40:31</span><span class="x"><span class="src">执行体检｜</span>1 笔成交价异常 · observe</span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>执行组里显式列出两个落点节点</b>（执行·模拟 / 执行·实盘），因为这两个环境在链路上的分叉是真实存在的节点，画布上会画成两条边。</div>
+      </div>
+
+      <!-- 1.9 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.9 高频 · 实盘（成本桥）</span><span class="n">hft / fills</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45)"><span class="dot l"></span><span>实盘成交在流</span><span class="src">lane_ledger</span><span class="age profit">1.2s</span></div>
+          <div class="appbar">
+            <div><div class="title">高频 · 成交归因</div><div class="sub">实盘 · 近 24h</div></div>
+            <span class="badge solid-l">LIVE</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">+0.31bp/腿</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">+0.38bp/腿</span></button>
+          </div>
+          <div class="screen">
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">每条腿净 bp 分解</span><span class="badge p">+0.31 净</span></div>
+              <svg viewBox="0 0 320 80" style="width:100%;height:80px;margin-top:8px" preserveAspectRatio="none">
+                <line x1="0" y1="40" x2="320" y2="40" stroke="rgb(31 41 55)"/>
+                <rect x="18" y="19" width="26" height="21" rx="3" fill="#00dc82" opacity=".85"/>
+                <rect x="70" y="40" width="26" height="15" rx="3" fill="#ef4444" opacity=".85"/>
+                <rect x="122" y="40" width="26" height="9" rx="3" fill="#ef4444" opacity=".7"/>
+                <rect x="174" y="40" width="26" height="6" rx="3" fill="#ef4444" opacity=".6"/>
+                <rect x="226" y="40" width="26" height="4" rx="3" fill="#ef4444" opacity=".5"/>
+                <rect x="278" y="22" width="26" height="18" rx="3" fill="#00dc82"/>
+                <text x="31" y="14" fill="#8b97a8" font-size="9" text-anchor="middle" font-family="monospace">+1.22</text>
+                <text x="83" y="67" fill="#8b97a8" font-size="9" text-anchor="middle" font-family="monospace">-0.42</text>
+                <text x="135" y="61" fill="#8b97a8" font-size="9" text-anchor="middle" font-family="monospace">-0.24</text>
+                <text x="187" y="58" fill="#8b97a8" font-size="9" text-anchor="middle" font-family="monospace">-0.16</text>
+                <text x="239" y="56" fill="#8b97a8" font-size="9" text-anchor="middle" font-family="monospace">-0.06</text>
+                <text x="291" y="16" fill="#00dc82" font-size="9" text-anchor="middle" font-family="monospace">+0.31</text>
+              </svg>
+              <div class="row tiny muted" style="margin-top:2px"><span>毛边</span><span>手续费</span><span>逆选择</span><span>滑点</span><span>尾损</span><span class="profit">净</span></div>
+            </div>
+            <div class="g2">
+              <div class="stat"><div class="k">盈利往返占比</div><div class="v mono profit">58.9%</div><div class="bar" style="margin-top:6px"><i class="p" style="width:59%"></i></div></div>
+              <div class="stat"><div class="k">中位往返耗时</div><div class="v mono">3.4<span class="tiny muted">min</span></div><div class="tiny muted" style="margin-top:4px">p90 12.1min</div></div>
+            </div>
+            <div class="card" style="padding:0">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">逐笔成交</span><span class="tiny muted">最新在上</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:140px;overflow:hidden">
+                <div class="ln"><span class="t">09:40:52</span><span class="x"><span class="src">B</span> BTC 101,418.0 <span class="profit">+3.1bp</span></span></div>
+                <div class="ln"><span class="t">09:40:49</span><span class="x"><span class="src">S</span> BTC 101,447.5 <span class="profit">+2.4bp</span></span></div>
+                <div class="ln"><span class="t">09:40:31</span><span class="x"><span class="src">B</span> ETH 3,182.40 <span class="loss">-1.2bp</span></span></div>
+                <div class="ln"><span class="t">09:39:58</span><span class="x"><span class="src">B</span> PUMP 0.004182 <span class="loss">-8.4bp</span></span></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>成本桥是高频的核心读数</b>：净 bp 从 +1.22 毛边被吃到 +0.31。实盘与模拟的差别主要就在这条桥上，所以环境切换控件直接显示两边的 bp/腿。</div>
+      </div>
+
+      <!-- 1.10 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.10 交易 · 断流态</span><span class="n">trade / stalled</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45);background:rgb(var(--live) / .10)"><span class="dot l"></span><span class="loss" style="font-weight:600">两侧流均已断</span><span class="src">ws 断开 42s</span><span class="age loss">42s</span></div>
+          <div class="appbar">
+            <div><div class="title">交易</div><div class="sub loss">数据不再更新 · 最后已知状态</div></div>
+            <span class="badge b">离线</span>
+          </div>
+          <div class="envtabs" style="opacity:.7">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">42s 陈旧</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">42s 陈旧</span></button>
+          </div>
+          <div class="screen">
+            <div class="banner">
+              <div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+              <div><div class="sm" style="font-weight:650;color:rgb(var(--live))">流式数据已断 42s</div>
+                <div class="tiny dim" style="margin-top:2px">「自动执行中」是最后已知状态。后端可能仍在自动下单，两侧持仓都可能已变化。</div></div>
+            </div>
+
+            <div class="card" style="padding:12px;opacity:.65">
+              <div class="row"><span class="lbl">实盘权益</span><span class="badge l">42s 陈旧</span></div>
+              <div class="mono h1" style="margin-top:4px">$104,132<span class="muted" style="font-size:16px">.13</span></div>
+              <div class="g3" style="margin-top:9px">
+                <div><div class="lbl">持仓</div><div class="mono h3" style="margin-top:1px">4</div></div>
+                <div><div class="lbl">保证金</div><div class="mono h3 warn" style="margin-top:1px">32%</div></div>
+                <div><div class="lbl">缓冲</div><div class="mono h3 profit" style="margin-top:1px">3.2x</div></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0;opacity:.65">
+              <div class="row" style="padding:10px 11px 7px"><span class="h3">决策与成交流</span><span class="badge w">已冻结</span></div>
+              <div class="hr" style="margin:0"></div>
+              <div style="max-height:130px;overflow:hidden">
+                <div class="ln"><span class="t">09:40:31</span><span class="x"><span class="src">执行体检｜</span>1 笔成交价异常 · observe</span></div>
+                <div class="ln k-ok"><span class="t">09:39:12</span><span class="x"><span class="src">实盘｜</span>SOL 止盈 net +5.6bp</span></div>
+                <div class="ln"><span class="t">09:38:44</span><span class="x"><span class="src">风控官｜</span>放行 · 净敞口 66%</span></div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">断线时的兜底</span></div>
+              <div class="stack" style="margin-top:8px;gap:6px">
+                <div class="kv"><span class="dim">自动重连</span><span class="badge b">3s 退避 · 第 14 次</span></div>
+                <div class="kv"><span class="dim">重连后动作</span><span class="badge p">重新拉 snapshot 对账</span></div>
+                <div class="kv"><span class="dim">服务端是否仍在交易</span><span class="badge w">未知 · 需核对</span></div>
+              </div>
+              <div class="tiny muted" style="margin-top:8px">断线 ≠ 停机。界面只能说「我不知道」，不能说「停着」。</div>
+            </div>
+            <button class="btn ghost sm">立即重连并重新对账</button>
+          </div>
+          <nav class="tabbar">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture"><i></i></div>
+        </div></div>
+        <div class="hint"><b>断流时环境切换控件也一起降饱和</b>：因为流断了对两个环境都不可信。两个按钮的简值都标成「42s 陈旧」，不给任何一边假装新鲜。</div>
+      </div>
+
+      <!-- 1.11 单条精准平仓确认 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.11 交易 · 单条精准平仓确认</span><span class="n">trade / close one</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45);background:rgb(var(--live) / .07)"><span class="dot l"></span><span>实盘 · 自动执行中</span><span class="src">主账户 #1</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">交易</div><div class="sub">中长线全自动 · 人只做监督</div></div>
+            <span class="badge solid-l">LIVE</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$104.1k · +$413</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +$186</span></button>
+          </div>
+          <div class="screen" style="opacity:.42">
+            <div class="card" style="padding:11px">
+              <div class="row"><span class="h3">自动仓位 · 4</span><span class="tiny muted">由链路开仓</span></div>
+              <div style="margin-top:2px">
+                <div class="posrow"><span class="sym"><span class="dot p"></span>BTC <span class="badge p">多 3x</span></span><span class="pnl profit">+$318.40</span><button class="closebtn">平仓</button></div>
+                <div class="posrow"><span class="sym"><span class="dot l"></span>SOL <span class="badge l">空 2x</span></span><span class="pnl loss">-$94.20</span><button class="closebtn">平仓</button></div>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar" style="opacity:.4">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture" style="opacity:.4"><i></i></div>
+
+          <div class="scrim"></div>
+          <div class="sheet warnbox">
+            <div class="sheetic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            </div>
+            <div class="h2" style="font-size:18px">确认平仓 · SOL</div>
+            <div class="sm muted" style="margin-top:6px">
+              将以<b style="color:rgb(var(--text))">市价全平</b> SOL 空 2x 的 <span class="mono">6.20 SOL</span>，
+              立即成交，<b style="color:rgb(var(--live))">不可撤销</b>。
+            </div>
+            <div class="sheetlist">
+              <div class="r"><span class="muted">当前未实现盈亏</span><span class="mono loss">-$94.20</span></div>
+              <div class="r"><span class="muted">预估平仓手续费</span><span class="mono">-$0.61</span></div>
+              <div class="r"><span class="muted">平仓后保证金占用</span><span class="mono">21%</span></div>
+            </div>
+            <div class="g2" style="margin-top:13px">
+              <button class="btn">取消</button>
+              <button class="btn live">确认平仓</button>
+            </div>
+            <div class="tiny muted" style="text-align:center;margin-top:8px">平仓为市价单，实际成交价可能与显示略有偏差</div>
+          </div>
+        </div></div>
+        <div class="hint"><b>单条精准平仓</b>：每行持仓常驻一个「平仓」键（实盘红 / 模拟紫），点开是这个确认窗。按钮不做折叠——自动化卡死时它是唯一脱身路径。窗内必须给出<b>仓位全称、未实现盈亏、预估手续费、平仓后的保证金占用</b>。</div>
+      </div>
+
+      <!-- 1.12 一键全平确认 -->
+      <div class="frame">
+        <div class="cap"><span class="t">1.12 交易 · 一键全平二次确认</span><span class="n">trade / close all</span></div>
+        <div class="bezel"><div class="cam"></div><div class="phone">
+          <div class="sysbar"><span>09:41</span><span class="right">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="7" width="2" height="4" rx=".6"/><rect x="3.5" y="5" width="2" height="6" rx=".6"/><rect x="7" y="2.5" width="2" height="8.5" rx=".6"/><rect x="10.5" width="2" height="11" rx=".6"/></svg>
+            <svg width="20" height="11" viewBox="0 0 20 11" fill="none"><rect x=".6" y=".6" width="16.5" height="9.8" rx="2.6" stroke="currentColor" opacity=".5"/><rect x="2.2" y="2.2" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><path d="M18.4 4v3" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+          </span></div>
+          <div class="netstrip" style="border-color:rgb(var(--live) / .45);background:rgb(var(--live) / .07)"><span class="dot l"></span><span>实盘 · 自动执行中</span><span class="src">主账户 #1</span><span class="age profit">0.4s</span></div>
+          <div class="appbar">
+            <div><div class="title">交易</div><div class="sub">中长线全自动 · 人只做监督</div></div>
+            <span class="badge solid-l">LIVE</span>
+          </div>
+          <div class="envtabs">
+            <button data-env="live" class="on"><span class="t"><span class="dot l"></span>实盘</span><span class="m">$104.1k · +$413</span></button>
+            <div class="sep"></div>
+            <button data-env="paper"><span class="t"><span class="dot v"></span>模拟</span><span class="m">$10.2k · +$186</span></button>
+          </div>
+          <div class="screen" style="opacity:.42">
+            <div class="card" style="padding:11px">
+              <button class="btn live">一键全平（4 个仓位）</button>
+            </div>
+          </div>
+          <nav class="tabbar" style="opacity:.4">
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>仪表盘</button>
+            <button><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>高频</button>
+            <button class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>交易</button>
+          </nav>
+          <div class="gesture" style="opacity:.4"><i></i></div>
+
+          <div class="scrim"></div>
+          <div class="sheet warnbox">
+            <div class="sheetic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            </div>
+            <div class="h2" style="font-size:18px">一键全平 · 4 个仓位</div>
+            <div class="sm muted" style="margin-top:6px">
+              将对 <b style="color:rgb(var(--text))">4 个仓位全部市价平仓</b>，名义约 <span class="mono" style="color:rgb(var(--text))">$32,891</span>。
+              真实资金操作，<b style="color:rgb(var(--live))">不可撤销</b>；平仓后不再有新仓位产生，直到你恢复自动开仓。
+            </div>
+            <div class="sheetlist">
+              <div class="r"><span class="muted">BTC 多 3x <span class="mono tiny">0.0098 BTC</span></span><span class="mono profit">+$318.40</span></div>
+              <div class="r"><span class="muted">SOL 空 2x <span class="mono tiny">6.20 SOL</span></span><span class="mono loss">-$94.20</span></div>
+              <div class="r"><span class="muted">ETH 多 2x <span class="mono tiny">0.184 ETH</span></span><span class="mono profit">+$182.10</span></div>
+              <div class="r"><span class="muted">XRP 多 4x <span class="mono tiny">412 XRP</span></span><span class="mono profit">+$6.30</span></div>
+              <div class="r tot"><span>合计未实现盈亏</span><span class="mono profit">+$412.60</span></div>
+              <div class="r"><span class="muted">预估总手续费</span><span class="mono">-$2.41</span></div>
+              <div class="r"><span class="muted">平仓后保证金占用</span><span class="mono profit">0%</span></div>
+            </div>
+            <div class="g2" style="margin-top:13px">
+              <button class="btn">取消</button>
+              <button class="btn live" disabled><span class="cd"><i></i>3s 后可确认</span></button>
+            </div>
+            <div class="tiny muted" style="text-align:center;margin-top:8px">真实资金：确认按钮有 3 秒冷静期，防止误触（模拟侧 2 秒）</div>
+          </div>
+        </div></div>
+        <div class="hint"><b>一键全平的三重保护</b>：① 必须点按钮才弹窗；② 弹窗列清全部仓位与合计，写明明义与不可撤销；③ 确认键带<b>冷静期</b>（实盘 3s / 模拟 2s）才可点。执行后会在决策流里留一条「人工干预」记录。</div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="footnote">
+    <b>V5 结构与规范</b><br/>
+    · <b>层级（唯一权威）</b>：底部导航 <code>仪表盘 │ 高频 │ 交易</code>；<b>高频</b> 下分 <code>实盘/模拟</code>，<b>交易</b> 下分 <code>实盘/模拟</code>。<br/>
+    · <b>环境切换控件</b>（<code>.envtabs</code>）：App 栏正下方，44dp 高，两段式，中缝 1px 分隔；<b>每个按钮内自带该环境的权益简值与涨跌</b>，切换前即可比较。<br/>
+    · <b>身份色</b>：实盘 = <code>#ef4444</code> 红；模拟 = <code>#8b5cf6</code> 紫。切换控件、状态条、徽标、横幅、危险按钮<b>全部同色</b>，形成强条件反射。<br/>
+    · <b>同一套页面结构复用</b>：高频(实盘/模拟) 与 交易(实盘/模拟) 各自是同一布局换环境变量；落地时由 <code>env</code> 参数驱动，不写两套组件。<br/>
+    · <b>Agent 决策链中立</b>：它被两个环境共用，因此不放在任何一个环境下，放在「交易」模块内的关系视图（1.7 / 1.8），并在分叉点画出两个落点。<br/>
+    · <b>流式渲染压力策略</b>：缓冲上限 200 行、100ms 合帧、自动滚动 + 上滑冻结、点击行看 raw 原文。<br/>
+    · 数值为 mockup 示意；节点名/分组/四态/边健康取自 <code>backend/services/agent_wall.py</code>，接口 <code>/api/agent-wall/state|tail</code>。
+  </div>
+</div>
+</body>
+</html>

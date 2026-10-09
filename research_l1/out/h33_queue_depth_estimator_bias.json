@@ -1,0 +1,89 @@
+{
+  "hours": 72.0,
+  "rows": [
+    {
+      "symbol": "BTC",
+      "n_matched": 17240,
+      "n_buckets": 17255,
+      "la_real_med": 0.278,
+      "la_real_usd_med": 22010.623499999998,
+      "top5_over5_med": 38429.75102,
+      "ratio_usd_p25": 0.3248963965396218,
+      "ratio_usd_med": 1.318542150203195,
+      "ratio_usd_p75": 6.989875649511134,
+      "ratio_raw_med": 104597.26350988244
+    },
+    {
+      "symbol": "ETH",
+      "n_matched": 17216,
+      "n_buckets": 17232,
+      "la_real_med": 2.527,
+      "la_real_usd_med": 6479.400775,
+      "top5_over5_med": 15456.253224999999,
+      "ratio_usd_p25": 0.48589433883455385,
+      "ratio_usd_med": 2.295269981749172,
+      "ratio_usd_p75": 10.798804831349537,
+      "ratio_raw_med": 5886.13392014316
+    },
+    {
+      "symbol": "BNB",
+      "n_matched": 1372,
+      "n_buckets": 17244,
+      "la_real_med": 0.3,
+      "la_real_usd_med": 224.75099999999998,
+      "top5_over5_med": 11559.07364,
+      "ratio_usd_p25": 3.5124157300962002,
+      "ratio_usd_med": 24.139383666984543,
+      "ratio_usd_p75": 169.77012632406385,
+      "ratio_raw_med": 18158.246965801358
+    },
+    {
+      "symbol": "SOL",
+      "n_matched": 17263,
+      "n_buckets": 17278,
+      "la_real_med": 479.89,
+      "la_real_usd_med": 51447.2795,
+      "top5_over5_med": 105549.67779999999,
+      "ratio_usd_p25": 1.1597562171111484,
+      "ratio_usd_med": 1.8820552095581653,
+      "ratio_usd_p75": 9.516555579923875,
+      "ratio_raw_med": 205.47696751536435
+    },
+    {
+      "symbol": "DOGE",
+      "n_matched": 1369,
+      "n_buckets": 17235,
+      "la_real_med": 116623.0,
+      "la_real_usd_med": 9912.3058,
+      "top5_over5_med": 45014.920678,
+      "ratio_usd_p25": 1.0900898724484678,
+      "ratio_usd_med": 4.3416252072039105,
+      "ratio_usd_p75": 117.77815215847995,
+      "ratio_raw_med": 0.3694723051330528
+    },
+    {
+      "symbol": "XRP",
+      "n_matched": 17258,
+      "n_buckets": 17271,
+      "la_real_med": 10252.099999999999,
+      "la_real_usd_med": 14230.597600000001,
+      "top5_over5_med": 28160.099905,
+      "ratio_usd_p25": 0.6962570081313583,
+      "ratio_usd_med": 1.9550610891904698,
+      "ratio_usd_p75": 13.121556670435531,
+      "ratio_raw_med": 2.6724851984684284
+    },
+    {
+      "symbol": "ASTER",
+      "n_matched": 17196,
+      "n_buckets": 17226,
+      "la_real_med": 9653.24,
+      "la_real_usd_med": 7314.0382935,
+      "top5_over5_med": 15140.7700773,
+      "ratio_usd_p25": 1.3660980405681222,
+      "ratio_usd_med": 1.821962585314598,
+      "ratio_usd_p75": 3.66023644774148,
+      "ratio_raw_med": 1.3717345253485784
+    }
+  ]
+}

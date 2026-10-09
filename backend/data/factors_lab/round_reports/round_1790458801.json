@@ -1,0 +1,171 @@
+{
+  "ok": true,
+  "round_ts": 1790458801.3061717,
+  "iso": "2026-09-26T21:40:01.306171+00:00",
+  "stages": {
+    "literature": {
+      "ok": false,
+      "fetched": 0,
+      "fed": 0,
+      "error": "HTTP Error 406: Not Acceptable"
+    },
+    "hypothesize": {
+      "ok": true,
+      "accepted": 4,
+      "rejected": 0
+    },
+    "engineer": {
+      "candidates": 7,
+      "unit_pass": 1
+    },
+    "backtest": {
+      "evaluated": 1,
+      "best_ic": 0.00422
+    },
+    "feedback": {
+      "stats": {
+        "pass": 0,
+        "reject": 1,
+        "fail": 6
+      },
+      "guidance": "按当前假设池分布自由探索，注意与近 30 天假设的异质性。"
+    }
+  },
+  "timeout_sec": 900.0,
+  "results": [
+    {
+      "cand_id": "c1790458813194_0",
+      "expr_id": "e8daa9c559a844d8",
+      "hyp": "h1790458811848_0",
+      "note": "20日收益乘20日路径效率(净收益/绝对日收益和)",
+      "unit": "unit_pass",
+      "ok": true,
+      "mean_rank_ic": 0.00422,
+      "icir": 0.0155,
+      "quantile_spread": 0.002087,
+      "turnover": 0.0774,
+      "ic_half_life_bars": 2,
+      "reason": null,
+      "verdict": {
+        "verdict": "reject",
+        "mode": "weak_ic",
+        "reason": "|RankIC|=0.0042 < 0.02"
+      }
+    },
+    {
+      "cand_id": "c1790458836231_0",
+      "expr_id": "298b74ae56e28222",
+      "hyp": "h1790458811857_1",
+      "note": "近5日量能/前20日量能，比值越低衰减越高",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790458836253_1",
+      "expr_id": "5a2cb11f76f8528b",
+      "hyp": "h1790458811857_1",
+      "note": "1-量能比，直接刻画5日衰减率，越高越强",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790458839772_0",
+      "expr_id": "ae585ce8f7a1d766",
+      "hyp": "h1790458811864_2",
+      "note": "20日收盘在高低区间分位数的1减标准差，衡量集中度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790458842077_1",
+      "expr_id": "7914920015dd9cee",
+      "hyp": "h1790458811864_2",
+      "note": "用20日高低点位置构造价格分位，取1减标准差作为集中度",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790458846505_0",
+      "expr_id": "05c448b512bd8917",
+      "hyp": "h1790458811879_3",
+      "note": "20日高点回撤幅度最大位置作修复天数代理，取倒数做多修复快",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    },
+    {
+      "cand_id": "c1790458846536_1",
+      "expr_id": "0e18436fc1a7a0c2",
+      "hyp": "h1790458811879_3",
+      "note": "回撤最深点越靠后修复越慢，1减归一化位置做多修复快",
+      "unit": "unit_fail",
+      "ok": false,
+      "mean_rank_ic": null,
+      "icir": null,
+      "quantile_spread": null,
+      "turnover": null,
+      "ic_half_life_bars": null,
+      "reason": "candidate_not_testable(unit_fail)",
+      "verdict": {
+        "verdict": "fail",
+        "reason": "candidate_not_testable(unit_fail)",
+        "mode": "backtest_fail"
+      }
+    }
+  ],
+  "elapsed_sec": 47.6
+}

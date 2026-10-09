@@ -1,5 +1,5 @@
 {
-  "ts_ms": 1789445564167,
+  "ts_ms": 1791562771822,
   "switches": {
     "v3_statistical_arb": {
       "env_enabled": true,
@@ -10,9 +10,9 @@
     "rebate_points_arb": {
       "paper_mode": true,
       "auto_execute": false,
-      "scan_runnable": true,
+      "scan_runnable": false,
       "auto_open": false,
-      "note": "Paper 下恒可扫描/模拟；auto_execute 才会自动开仓"
+      "note": "需 ARBITRAGE_CENTER_ENABLED=true 才可扫描/模拟；auto_execute=true 才会自动开仓"
     },
     "live_trading": {
       "enabled": false,

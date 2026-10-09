@@ -136,6 +136,15 @@ def score_rows(
     max_vol = max((float(r.get("volume_24h") or 0) for r in items), default=0.0) or 1.0
     pref_idx = {s: i for i, s in enumerate(_LIQUID_PREF)}
 
+    # [2026-09-17] 流动性改「池内成交量分位」：原 vol/max_vol 在混合来源
+    # （本所 ticker poller vs 全所 universe adv_usd）下除最大量币外全员塌成 ~0
+    # （实测 UNI=0.002 → 看板流动性门槛把 23 个候选全灭，只剩 BTC/ETH）。
+    # 分位口径与 cs_momentum 同构；现有阈值语义变为「池内相对流动性」：
+    # 0.35=高于池内 35% 分位（看板门槛）、0.5=高于中位（中线AI门槛）、
+    # 0.25=最低四分位（trap 判定）。
+    vols = [float(r.get("volume_24h") or 0) for r in items]
+    vol_pcts = _percentile_ranks(vols)
+
     abs_chgs = [abs(float(r.get("change_24h") or 0)) for r in items]
     cs_ranks = _percentile_ranks(abs_chgs)
 
@@ -150,7 +159,7 @@ def score_rows(
         explain: List[str] = []
 
         if has_volume:
-            liq = _clip01(vol / max_vol)
+            liq = _clip01(vol_pcts[i] if i < len(vol_pcts) else (vol / max_vol))
         else:
             liq = _clip01(max(0.25, 1.0 - pref_idx.get(sym, 80) / 80.0))
             explain.append("no_volume_pref")

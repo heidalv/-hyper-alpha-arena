@@ -1,0 +1,1055 @@
+{
+  "suspicious": [
+    {
+      "line": 12,
+      "key": "SCALP_OPEN_DISABLED",
+      "value": "true",
+      "text": "#   短线车道已停（SCALP_OPEN_DISABLED=true / lane_registry 永久关闭 / 30 �?853 笔净 -201.55�?"
+    },
+    {
+      "line": 66,
+      "key": "ASTERDEX_API_KEY",
+      "value": "",
+      "text": "# ASTERDEX_API_KEY="
+    },
+    {
+      "line": 67,
+      "key": "ASTERDEX_API_SECRET",
+      "value": "",
+      "text": "# ASTERDEX_API_SECRET="
+    },
+    {
+      "line": 73,
+      "key": "LLM_HTTP_PROXY",
+      "value": "http://127.0.0.1:1080",
+      "text": "# LLM_HTTP_PROXY=http://127.0.0.1:1080"
+    },
+    {
+      "line": 74,
+      "key": "LLM_HTTPS_PROXY",
+      "value": "http://127.0.0.1:1080",
+      "text": "# LLM_HTTPS_PROXY=http://127.0.0.1:1080"
+    },
+    {
+      "line": 103,
+      "key": "ARBITRAGE_CENTER_ENABLED",
+      "value": "false",
+      "text": "# 恢复套利中心：改�?true 并重启后端（同时把车�?status 改回 active、起 mm_lane_worker）�?ARBITRAGE_CENTER_ENABLED=false"
+    },
+    {
+      "line": 191,
+      "key": "LIVE_ORCHESTRATOR_HARD_GATE",
+      "value": "false",
+      "text": "# 不再硬拦实盘（改软缩仓，�?paper 同口径）。回�?true�?LIVE_ORCHESTRATOR_HARD_GATE=false"
+    },
+    {
+      "line": 193,
+      "key": "LIVE_DIRECTION_COHERENCE_MODE",
+      "value": "audit",
+      "text": "# 方向冲突只审计不拦单）。回�?enforce�?LIVE_DIRECTION_COHERENCE_MODE=audit"
+    },
+    {
+      "line": 201,
+      "key": "LIVE_SUB_POSITION_TRACKING",
+      "value": "false",
+      "text": "#   并让 GET /api/live/readiness 的第 3 �?sub_position_tracking 变绿�?LIVE_SUB_POSITION_TRACKING=false"
+    },
+    {
+      "line": 445,
+      "key": "MIDLONG_EV_ENFORCE_MID",
+      "value": "false",
+      "text": "# （记录判定不拦截），�?long 车道同口径；回滚=true（恢复硬拦）�?MIDLONG_EV_ENFORCE_MID=false"
+    },
+    {
+      "line": 450,
+      "key": "MIDLONG_EV_ENFORCE_LONG",
+      "value": "false",
+      "text": "# live 仍按校准硬拦。true 才允�?paper 下硬拦。打破「EV 负→硬拦→零样本→校准恒旧」死亡螺旋�?MIDLONG_EV_ENFORCE_LONG=false"
+    },
+    {
+      "line": 451,
+      "key": "MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW",
+      "value": "true",
+      "text": "# [M1 2026-09-14] paper �?long 车道 EV 影子放行（true）；false=旧口径（paper long 也硬拦）�?MIDLONG_EV_ENFORCE_LONG_PAPER_ALLOW=true"
+    },
+    {
+      "line": 457,
+      "key": "TREND_CALIBRATOR_MIN_TS",
+      "value": "1789093140",
+      "text": "# 样本不足 25 时自动回退冷启动线性映射。回滚：改回 0�?TREND_CALIBRATOR_MIN_TS=1789093140"
+    },
+    {
+      "line": 620,
+      "key": "MIDLONG_ATR_SL_MULT",
+      "value": "1.5",
+      "text": "#   抬升仍受 MIDLONG_ATR_FLOOR_MAX_LIFT(2.0x) 封顶，不会无限放宽�?MIDLONG_ATR_SL_MULT=1.5"
+    },
+    {
+      "line": 633,
+      "key": "MIDLONG_MAX_SL_PCT_MID",
+      "value": "0.03",
+      "text": "# 依据�?L2092 段（09-15 后样�?n=114 双价源：SL×2.0 最优、尾部最好）�?MIDLONG_MAX_SL_PCT_MID=0.03"
+    },
+    {
+      "line": 651,
+      "key": "MIDLONG_MAX_SL_PCT_LONG",
+      "value": "0.08",
+      "text": "#   回滚：两个键都改�?0.03（备�?logs\\_archive\\env_backup_*.env）�?MIDLONG_MAX_SL_PCT_LONG=0.08"
+    },
+    {
+      "line": 679,
+      "key": "MIDLONG_CORR_CLUSTER_MAX_LONG",
+      "value": "3",
+      "text": "# mid 车道仍受 MAX=2 约束�?=关闭长车道簇帽�?MIDLONG_CORR_CLUSTER_MAX_LONG=3"
+    },
+    {
+      "line": 740,
+      "key": "KLINE_BACKFILL_DAYS",
+      "value": "0",
+      "text": "# KLINE_BACKFILL_DAYS=0 ?????????????????????2019-01-01 ????????????????????????????????????????????????????????????????????????????????????????????????????????"
+    },
+    {
+      "line": 742,
+      "key": "MIN_1H_CANDLES",
+      "value": "8760",
+      "text": "# MIN_1H_CANDLES=8760 ??1h ?????????????????????????????????65 ?????????????????????????????????????????????????????????????????????????????????????????????????"
+    },
+    {
+      "line": 851,
+      "key": "V5_TREND_MIN_RR",
+      "value": "1.6",
+      "text": "# 不再「实盘永远比模拟盘严」）。回�?1.8�?V5_TREND_MIN_RR=1.6"
+    },
+    {
+      "line": 914,
+      "key": "AI_GOVERNED_WEIGHT_CONFIRMED",
+      "value": "1",
+      "text": "# gate: >=0.60 requires AI_GOVERNED_WEIGHT_CONFIRMED=1 (calibration done / manual approval)"
+    },
+    {
+      "line": 915,
+      "key": "MLTO_AI_GOVERNED",
+      "value": "0",
+      "text": "# rollback: set MLTO_AI_GOVERNED=0 or MLTO_AI_GOVERNED_WEIGHT=0.40 + CONFIRMED=0"
+    },
+    {
+      "line": 915,
+      "key": "MLTO_AI_GOVERNED_WEIGHT",
+      "value": "0.40",
+      "text": "# rollback: set MLTO_AI_GOVERNED=0 or MLTO_AI_GOVERNED_WEIGHT=0.40 + CONFIRMED=0"
+    },
+    {
+      "line": 915,
+      "key": "CONFIRMED",
+      "value": "0",
+      "text": "# rollback: set MLTO_AI_GOVERNED=0 or MLTO_AI_GOVERNED_WEIGHT=0.40 + CONFIRMED=0"
+    },
+    {
+      "line": 924,
+      "key": "LTO_LLM_DIRECTION_REQUIRE_FW_AGREE",
+      "value": "false",
+      "text": "# 鍥炴粴锛歁LTO_LLM_DIRECTION_REQUIRE_FW_AGREE=false"
+    },
+    {
+      "line": 928,
+      "key": "MLTO_OWM_INTO_BRAIN",
+      "value": "true",
+      "text": "# false=回滚 write-only 旧行为�?MLTO_OWM_INTO_BRAIN=true"
+    },
+    {
+      "line": 941,
+      "key": "MLTO_OWM_INTO_BRAIN_MODE",
+      "value": "shadow",
+      "text": "# 回滚：改�?conviction�? 原行为）�?MLTO_OWM_INTO_BRAIN_MODE=shadow"
+    },
+    {
+      "line": 949,
+      "key": "MLTO_LEARNING_THESIS_FALLBACK",
+      "value": "false������������������?false������?MLTO_LEARNING_THESIS_FALLBACK=true",
+      "text": "# 回滚：MLTO_LEARNING_THESIS_FALLBACK=false（非法值也�?false）�?MLTO_LEARNING_THESIS_FALLBACK=true"
+    },
+    {
+      "line": 955,
+      "key": "MIDLONG_BRAIN_FEATURE_TABLE",
+      "value": "true",
+      "text": "# 生产验证：feature_table 注入 chars=827~829（mid+long）；kline_block 注入 chars=2527（DOGE mid）�?MIDLONG_BRAIN_FEATURE_TABLE=true"
+    },
+    {
+      "line": 990,
+      "key": "FACTOR_EVO_BUDGET_MAX_SEC",
+      "value": "1800",
+      "text": "# FACTOR_EVO_BUDGET_MAX_SEC=1800"
+    },
+    {
+      "line": 1060,
+      "key": "MIDLONG_MID_FACTOR_ROUTE_AB",
+      "value": "false",
+      "text": "# 回滚方式：置 true 并重启（代码默认 true，见 midlong_executor.py:165 / mlto_cycle.py:232）�?MIDLONG_MID_FACTOR_ROUTE_AB=false"
+    },
+    {
+      "line": 1106,
+      "key": "FUSION_MODE",
+      "value": "hybrid",
+      "text": "# FUSION_MODE=hybrid ??? LLM????????????actor=??????8/23 ???????????lm=??LLM ???"
+    },
+    {
+      "line": 1125,
+      "key": "V5_MAX_DAILY_TRADES_LIVE",
+      "value": "12������������������������������?15",
+      "text": "# 寮€浠撲笂闄?V5_MAX_DAILY_TRADES_LIVE=12锛岀瓑浜庢瘡澶╂渶澶?15 绗旇礋鏈熸湜鎴愪氦銆?"
+    },
+    {
+      "line": 1143,
+      "key": "FUSION_PROBE_DAILY_QUOTA_LIVE",
+      "value": "60",
+      "text": "# 探针�?0.25 缩仓；不�?0 配额禁探针）。回�?0�?FUSION_PROBE_DAILY_QUOTA_LIVE=60"
+    },
+    {
+      "line": 1166,
+      "key": "USION_PWIN_TIERED",
+      "value": "false",
+      "text": "# ?????????????????????????USION_PWIN_TIERED=false ???? v1 ???????"
+    },
+    {
+      "line": 1206,
+      "key": "UNUSABLE_MODE",
+      "value": "hold������������������������������������������������������������������?explore_quota���?",
+      "text": "# 锛圕9 �?UNUSABLE_MODE=hold锛屾湰閰嶉涓嶅啀鐢熸晥锛涗繚鐣欎互渚垮洖�?explore_quota�?"
+    },
+    {
+      "line": 1220,
+      "key": "MIDLONG_SHORT_MODE",
+      "value": "regime_gated",
+      "text": "# 姝よ涓烘棭鏈熼噸澶嶉厤缃紝淇濈暀鍙拷婧€с€傜敓鏁堝€间互鏂囦欢鍚庨儴�?MIDLONG_SHORT_MODE=regime_gated 涓哄噯锛?"
+    },
+    {
+      "line": 1221,
+      "key": "MIDLONG_SHORT_MODE",
+      "value": "conditional",
+      "text": "# MIDLONG_SHORT_MODE=conditional"
+    },
+    {
+      "line": 1235,
+      "key": "REENTRY_SL_COOLDOWN_SEC_MID",
+      "value": "1800",
+      "text": "# 回滚：改�?7200。生效需重启后端�?REENTRY_SL_COOLDOWN_SEC_MID=1800"
+    },
+    {
+      "line": 1239,
+      "key": "REENTRY_COOLDOWN_SECONDS",
+      "value": "60`������������������������������?",
+      "text": "# [P18 鎵ц 2026-09-10 / 缂洪�?#56] 姝ゅ鍘熶负 `REENTRY_COOLDOWN_SECONDS=60`锛堟洿鏃╂槸杩戝悕閿?"
+    },
+    {
+      "line": 1242,
+      "key": "IER_SHORT_COOLDOWN_SEC",
+      "value": "14400������������id=30min������ong=240min",
+      "text": "#   short=240min锛圱IER_SHORT_COOLDOWN_SEC=14400锛夈€乵id=30min銆乴ong=240min"
+    },
+    {
+      "line": 1263,
+      "key": "ACTOR_SCORER_COST_SOURCE",
+      "value": "fixed",
+      "text": "# 鍥炴粴锛欶ACTOR_SCORER_COST_SOURCE=fixed"
+    },
+    {
+      "line": 1271,
+      "key": "KLINE_P0_REQ_RETRY",
+      "value": "1",
+      "text": "# [2026-09-25 新目标·采�?A/B] 单请求超�?6s�?0s（默�?6；KLINE_P0_REQ_RETRY=1 �?2 次尝试）�?"
+    },
+    {
+      "line": 1274,
+      "key": "KLINE_P0_REQ_TIMEOUT_S",
+      "value": "10",
+      "text": "# 预写死判据（同前）：成功率中�?�?8% �?0ok <1% 记为有效；不达标回滚（删本行即回 6s）�?KLINE_P0_REQ_TIMEOUT_S=10"
+    },
+    {
+      "line": 1277,
+      "key": "KLINE_COLLECTOR_MAX_WORKERS",
+      "value": "12",
+      "text": "#   KLINE_COLLECTOR_MAX_WORKERS=12 个线程、单请求超时 KLINE_P0_REQ_TIMEOUT_S=6s"
+    },
+    {
+      "line": 1277,
+      "key": "KLINE_P0_REQ_TIMEOUT_S",
+      "value": "6s",
+      "text": "#   KLINE_COLLECTOR_MAX_WORKERS=12 个线程、单请求超时 KLINE_P0_REQ_TIMEOUT_S=6s"
+    },
+    {
+      "line": 1286,
+      "key": "KLINE_P0_PERIOD_ALIGN",
+      "value": "true",
+      "text": "# 回滚：置 false（或删除本行）并重启后端。配套单测：test_p0_period_align_20260924.py�? passed）�?KLINE_P0_PERIOD_ALIGN=true"
+    },
+    {
+      "line": 1295,
+      "key": "SCALP_EV_MIN_PCT",
+      "value": "+0.03%)??",
+      "text": "# ??????????????????live ??????(??SCALP_EV_MIN_PCT=+0.03%)??"
+    },
+    {
+      "line": 1438,
+      "key": "V5_MAX_DAILY_TRADES_LIVE",
+      "value": "12??lashVeto??????/???????????",
+      "text": "#   - V5_MAX_DAILY_TRADES_LIVE=12??lashVeto??????/???????????"
+    },
+    {
+      "line": 1509,
+      "key": "SCALP_MASTER_HARD_BLOCK",
+      "value": "true",
+      "text": "# F1b 涓绘帶涓嶅緱寮€鐭嚎浠擄紙榛樿宸?true锛屾樉寮忕櫥璁帮�?SCALP_MASTER_HARD_BLOCK=true"
+    },
+    {
+      "line": 1515,
+      "key": "MIDLONG_DOWN_SHORT_MODE",
+      "value": "learned",
+      "text": "# down 空头按 MIDLONG_DOWN_SHORT_MODE=learned 三条件准入，paper 侧 learned 否决降级 ×0.25 探针）。"
+    },
+    {
+      "line": 1541,
+      "key": "IDLONG_AI_MIN_CONF_LONG",
+      "value": "0.70��������������������������������2���������?",
+      "text": "# 闀跨嚎鍊欓€夊鐢?midlong 鐪嬫�?approve锛屼絾缃俊闂ㄦ鏇撮珮锛圡IDLONG_AI_MIN_CONF_LONG=0.70锛夈€佹Ы浣嶆洿灏戯紙2锛夈�?"
+    },
+    {
+      "line": 1548,
+      "key": "INTRADAY_LLM_ENABLED",
+      "value": "true������hort/��������������������������������������������������������������������������������������������������������?true",
+      "text": "# INTRADAY_LLM_ENABLED=true锛歴hort/鏃ュ唴娉㈡杞﹂亾浠庤皟搴﹁疆杞Щ闄わ紙涓嶅啀寮€鏂颁粨锛夈€傛敼�?true 閲嶅惎鍙仮澶嶃�?"
+    },
+    {
+      "line": 1550,
+      "key": "FEE_BUDGET_DAILY_PCT",
+      "value": "0.3",
+      "text": "# F2b 璐︽埛绾ф棩鎵嬬画璐归绠楋紙鏉冪泭鐧惧垎姣旓級锛氳秴棰勭畻鍙嫤鏂板�?鍔犱�?FEE_BUDGET_DAILY_PCT=0.3"
+    },
+    {
+      "line": 1627,
+      "key": "ZAI_CODING_PLAN_API_KEY",
+      "value": "e34d0cf13ffa4e3b83c73ee2b9655d58.BiueyMfYa9dAAhdv",
+      "text": "# GLM Coding Plan锛氬彧缁?OpenCode sidecar锛坥pencode.json �?zai-coding-plan provider锛夛紱Key �?Claude Code 鍏辩�?ZAI_CODING_PLAN_API_KEY=e34d0cf13ffa4e3b83c73ee2b9655d58"
+    },
+    {
+      "line": 1676,
+      "key": "ANALYSIS_TASKS_ENABLED",
+      "value": "true",
+      "text": "# 鈹€鈹€ [p1-deep-analysis] 鍙屾ā鍨嬩换鍔℃棌锛堟棩绠€鎶?07:00 / 鍛ㄥ鐩樺懆涓€ 04:00 / 鎷╂椂鍛ㄤ竴 05:00 / 浜嬩欢鎵弿 30min锛夆攢鈹�?ANALYSIS_TASKS_ENABLED=true"
+    },
+    {
+      "line": 1705,
+      "key": "TIER_MID_COOLDOWN_SEC",
+      "value": "7200",
+      "text": "#     TIER_MID_COOLDOWN_SEC=7200 等），本闸并非唯一防线�?"
+    },
+    {
+      "line": 1706,
+      "key": "MIDLONG_CHART_GATE_ENABLED",
+      "value": "true������������������������������?",
+      "text": "# 回滚：删除本键，或改�?MIDLONG_CHART_GATE_ENABLED=true（恢复三规则全开）�?"
+    },
+    {
+      "line": 1708,
+      "key": "MIDLONG_CHART_GATE_ENABLED",
+      "value": "false",
+      "text": "#     若将来该源复盘的命中率转正且 95% 下界 > 0，应整闸重新评估而非只恢复其中一条�?MIDLONG_CHART_GATE_ENABLED=false"
+    },
+    {
+      "line": 1715,
+      "key": "MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE",
+      "value": "false������������������������������?",
+      "text": "# 回滚：MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE=false（恢复符号盲阻断）�?"
+    },
+    {
+      "line": 1716,
+      "key": "MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE",
+      "value": "true",
+      "text": "# 单测：backend/tests/unit/test_event_shock_sign_aware_20260924.py�? 条）�?MIDLONG_BRAIN_EVENT_SHOCK_SIGN_AWARE=true"
+    },
+    {
+      "line": 1725,
+      "key": "SIGNAL_FACTOR_INJECT_MAX_AGE_MIN",
+      "value": "45",
+      "text": "# 回滚：设�?0（恢�?只要过期就不�?的旧口径）�?SIGNAL_FACTOR_INJECT_MAX_AGE_MIN=45"
+    },
+    {
+      "line": 1734,
+      "key": "V3_FACTOR_ROTATE_ENABLED",
+      "value": "false���������������������������?",
+      "text": "# 回滚：V3_FACTOR_ROTATE_ENABLED=false（恢复固定顺序）�?"
+    },
+    {
+      "line": 1735,
+      "key": "V3_FACTOR_MAX_SECONDS",
+      "value": "45������������������������?V3_FACTOR_ROTATE_ENABLED=true",
+      "text": "#       V3_FACTOR_MAX_SECONDS=45（恢复旧预算）�?V3_FACTOR_ROTATE_ENABLED=true"
+    },
+    {
+      "line": 1749,
+      "key": "MLTO_LEARNING_TRACE",
+      "value": "false���������������������?MLTO_LEARNING_TRACE=true",
+      "text": "# 回滚：MLTO_LEARNING_TRACE=false（恢复静默）�?MLTO_LEARNING_TRACE=true"
+    },
+    {
+      "line": 1758,
+      "key": "MLTO_OWM_UNKNOWN_ATTRIB",
+      "value": "llm",
+      "text": "# 回滚：删除本行即可（默认�?llm）�?MLTO_OWM_UNKNOWN_ATTRIB=llm"
+    },
+    {
+      "line": 1771,
+      "key": "MLTO_OWM_SPLIT_DEDUPE",
+      "value": "false������������������������",
+      "text": "# 回滚：MLTO_OWM_SPLIT_DEDUPE=false（退回旧行为：有 postmortem 即不�?bump）�?MLTO_OWM_SPLIT_DEDUPE=true"
+    },
+    {
+      "line": 1771,
+      "key": "MLTO_OWM_SPLIT_DEDUPE",
+      "value": "true",
+      "text": "# 回滚：MLTO_OWM_SPLIT_DEDUPE=false（退回旧行为：有 postmortem 即不�?bump）�?MLTO_OWM_SPLIT_DEDUPE=true"
+    },
+    {
+      "line": 1780,
+      "key": "FACTOR_ZERO_SHADOW_ENABLED",
+      "value": "false������������������?FACTOR_ZERO_SHADOW_ENABLED=true",
+      "text": "# 回滚：FACTOR_ZERO_SHADOW_ENABLED=false（或删键）�?FACTOR_ZERO_SHADOW_ENABLED=true"
+    },
+    {
+      "line": 1795,
+      "key": "CASHFLOW_IDLE_EARN_LIVE",
+      "value": "true���?",
+      "text": "# 闂茬�?USDT �?Binance Simple Earn 娲绘湡锛堥粯�?dry锛涚湡鐢宠喘�?CASHFLOW_IDLE_EARN_LIVE=true�?"
+    },
+    {
+      "line": 1798,
+      "key": "CASHFLOW_IDLE_EARN_ACCOUNT_IDS",
+      "value": "12",
+      "text": "# CASHFLOW_IDLE_EARN_ACCOUNT_IDS=12"
+    },
+    {
+      "line": 1802,
+      "key": "CASHFLOW_CARRY_SMALL_ENABLED",
+      "value": "true",
+      "text": "# 鈹€鈹€ [v3 鏂瑰�? p2-arb-infra] carry 灏忚祫閲戯紙鐮旂┒妗?~5%锛涜�?scorecard 闂紱榛樿�?Paper锛夆攢鈹�?CASHFLOW_CARRY_SMALL_ENABLED=true"
+    },
+    {
+      "line": 1820,
+      "key": "AGENT_MODE_SIGNAL_REVIEW",
+      "value": "observe",
+      "text": "# AGENT_MODE_SIGNAL_REVIEW=observe   # observe | advise锛圥hase 1 涓嶇�?act�?"
+    },
+    {
+      "line": 1821,
+      "key": "AGENT_MODE_ANOMALY",
+      "value": "observe",
+      "text": "# AGENT_MODE_ANOMALY=observe"
+    },
+    {
+      "line": 1822,
+      "key": "AGENT_MODE_TIMING",
+      "value": "observe",
+      "text": "# AGENT_MODE_TIMING=observe"
+    },
+    {
+      "line": 1826,
+      "key": "AGENT_SIGNAL_REVIEW_DAYS",
+      "value": "30",
+      "text": "# 鈹€鈹€ SignalReview锛堟瘡鏃?BJ 08:00锛夆攢鈹�?AGENT_SIGNAL_REVIEW_DAYS=30"
+    },
+    {
+      "line": 1853,
+      "key": "REFRESH",
+      "value": "true",
+      "text": "# REFRESH=true 浼氱幇绠楀叏閲忎簨浠剁爺绌讹紙鍒嗛挓绾с€佸�?DB锛夛紝鍙湪浜哄伐鎺掓煡鏃跺紑銆?"
+    },
+    {
+      "line": 1889,
+      "key": "OMS_RECORD_ORDERS",
+      "value": "true������������?live",
+      "text": "# OMS_RECORD_ORDERS=true锛氱幇鏈?live 璺緞涓嬪崟鍓嶈�?intent銆佹�?client_order_id銆佹垚浜ゅ悗鍐欑粓鎬併€?"
+    },
+    {
+      "line": 1890,
+      "key": "EXEC_ALGO_ENABLED",
+      "value": "false������������������������������������������������?maker",
+      "text": "# EXEC_ALGO_ENABLED=false锛氫笉鎺ョ涓嬪崟銆傝鐪熸璧?maker 杩戒环蹇呴』鏄惧紡鎵撳紑锛屼笖寤鸿鍏?OMS_SHADOW=true 楠岃瘉銆?"
+    },
+    {
+      "line": 1890,
+      "key": "OMS_SHADOW",
+      "value": "true",
+      "text": "# EXEC_ALGO_ENABLED=false锛氫笉鎺ョ涓嬪崟銆傝鐪熸璧?maker 杩戒环蹇呴』鏄惧紡鎵撳紑锛屼笖寤鸿鍏?OMS_SHADOW=true 楠岃瘉銆?"
+    },
+    {
+      "line": 1891,
+      "key": "OMS_RECONCILE_AUTO_FIX",
+      "value": "false���������������������������������������������������������������������������?",
+      "text": "# OMS_RECONCILE_AUTO_FIX=false锛氭棩瀵硅处鍙姤鍛婏紝涓嶈嚜鍔ㄦ敼鍐欑姸鎬佹満�?"
+    },
+    {
+      "line": 1913,
+      "key": "FUND_TRANSFER_ENABLED",
+      "value": "false",
+      "text": "# FundTransferService锛堚�?cross_market_transfer 鐭ヨ瘑杩佺Щ锛夛紱鍙屽叧榛樿鍏筹紝鐪熷垝杞渶涓や釜閮藉�?FUND_TRANSFER_ENABLED=false"
+    },
+    {
+      "line": 1990,
+      "key": "TREND_RISK_PER_TRADE_PCT",
+      "value": "0.0075",
+      "text": "# 鏂规鍘熸枃 0.75% 瀵瑰�?A2锛欳AGR 16.8% / MDD �?0%锛岃�?TREND_RISK_PER_TRADE_PCT=0.0075 鍗冲垏鎹紝0=鍏抽棴璇ュ附�?"
+    },
+    {
+      "line": 1999,
+      "key": "TREND_E1_ENABLED",
+      "value": "true",
+      "text": "# TREND_E1_ENABLED=true 鎵嶇湡涓嬪崟锛涜处鎴?14 = 鍞竴娲昏穬妯℃嫙鐩橈紙瓒嬪娍妗?60% 鏉冪泭锛�? 涓夋�?60/30/10锛夈�?"
+    },
+    {
+      "line": 2008,
+      "key": "TREND_DRIFT_MAX_LEVERAGE",
+      "value": "5.0",
+      "text": "# [M2 2026-09-14] drift 杠杆违规阈值（=币种杠杆权威表上�?BTC/ETH 5x；旧硬编�?3.0 会误判全�?E1 仓位�?TREND_DRIFT_MAX_LEVERAGE=5.0"
+    },
+    {
+      "line": 2014,
+      "key": "LIVE_LEVERAGE_FAIL_CLOSE",
+      "value": "true",
+      "text": "# 瀹炵洏涓嬪崟�?set_leverage 鏈‘璁ゆ垚�?�?鎷掔粷寮€浠擄紙鍑忎�?骞充粨涓嶅彈褰卞搷锛岄伩鍏嶅崱浣忔鎹燂�?LIVE_LEVERAGE_FAIL_CLOSE=true"
+    },
+    {
+      "line": 2031,
+      "key": "PC_MAX_WEIGHT_PER_SYMBOL_LONG",
+      "value": "0.10",
+      "text": "#   回滚：删除本键或改回 0.35�?PC_MAX_WEIGHT_PER_SYMBOL_LONG=0.10"
+    },
+    {
+      "line": 2040,
+      "key": "PC_MAX_WEIGHT_PER_SYMBOL_MID",
+      "value": "0.15",
+      "text": "#   回滚：删除本键或改回 0.35�?PC_MAX_WEIGHT_PER_SYMBOL_MID=0.15"
+    },
+    {
+      "line": 2045,
+      "key": "PC_RISK_PER_TRADE_PCT_LONG",
+      "value": "0.0125",
+      "text": "# �?weight_drift 永久 >0.10 �?F4 门卡死在权重偏差项。回滚：改回 0.0075�?PC_RISK_PER_TRADE_PCT_LONG=0.0125"
+    },
+    {
+      "line": 2064,
+      "key": "EXIT_POLICY_MID_TRAILING_ACTIVATION_PCT",
+      "value": "5.0",
+      "text": "# 回滚：改�?2.5 / 1.2（备�?logs\\_archive\\env_backup_*.env）�?EXIT_POLICY_MID_TRAILING_ACTIVATION_PCT=5.0"
+    },
+    {
+      "line": 2085,
+      "key": "TIER_MID_MAX_HOLD_SEC",
+      "value": "172800",
+      "text": "#   改后不会强平任何在册仓位（当时在册的 3 笔均 <2.1h）�?TIER_MID_MAX_HOLD_SEC=172800"
+    },
+    {
+      "line": 2087,
+      "key": "MIDLONG_LOCATION_GATE_ENABLED",
+      "value": "true",
+      "text": "# 瀹炴祴锛?0-100% 鍒嗕綅鍏ュ満 24h 鍧囧�?-3.89%/鑳滅�?0.152�?-20% 鍒嗕�?+1.86%/0.857�?1% 寮€浠撹惤鍦ㄤ笂鍗婂�?MIDLONG_LOCATION_GATE_ENABLED=true"
+    },
+    {
+      "line": 2093,
+      "key": "PAPER_SHRINK_CEILING",
+      "value": "70",
+      "text": "#   回滚：改�?60（paper 侧另�?PAPER_SHRINK_CEILING=70 的天花板）�?MIDLONG_LOCATION_MIN_PCT_SHORT=60"
+    },
+    {
+      "line": 2093,
+      "key": "MIDLONG_LOCATION_MIN_PCT_SHORT",
+      "value": "60",
+      "text": "#   回滚：改�?60（paper 侧另�?PAPER_SHRINK_CEILING=70 的天花板）�?MIDLONG_LOCATION_MIN_PCT_SHORT=60"
+    },
+    {
+      "line": 2102,
+      "key": "MIDLONG_LOCATION_MAX_ADVERSE_24H_PCT",
+      "value": "5",
+      "text": "#   回滚：改�?40�?MIDLONG_LOCATION_MAX_ADVERSE_24H_PCT=5"
+    },
+    {
+      "line": 2108,
+      "key": "MIDLONG_LOCATION_CHG24_ABS_MAX",
+      "value": "60",
+      "text": "# 回滚：把 MIDLONG_LOCATION_CHG24_LEGACY_FRAC 改为 true（恢复旧�?×100 猜测口径）�?MIDLONG_LOCATION_CHG24_ABS_MAX=60"
+    },
+    {
+      "line": 2114,
+      "key": "MIDLONG_LOCATION_PAPER_SHRINK_ENABLED",
+      "value": "true",
+      "text": "# false=回滚旧口径（paper 也硬 veto）�?MIDLONG_LOCATION_PAPER_SHRINK_ENABLED=true"
+    },
+    {
+      "line": 2123,
+      "key": "MIDLONG_LOCATION_PAPER_SHRINK_CEILING",
+      "value": "0",
+      "text": "#   回滚：改�?70（或任一 >0 的值）。生效需重启后端（env 在进程启动时载入）�?MIDLONG_LOCATION_PAPER_SHRINK_CEILING=0"
+    },
+    {
+      "line": 2126,
+      "key": "MIDLONG_LEARNED_PAPER_PROBE",
+      "value": "true",
+      "text": "# false=回滚旧口径（paper �?hold）�?MIDLONG_LEARNED_PAPER_PROBE=true"
+    },
+    {
+      "line": 2142,
+      "key": "MIDLONG_REGIME_TTL_S",
+      "value": "600",
+      "text": "# 回滚：改�?1800（或删除本键）�?MIDLONG_REGIME_TTL_S=600"
+    },
+    {
+      "line": 2154,
+      "key": "MACRO_EVENT_GUARD_ENABLED",
+      "value": "false������",
+      "text": "# 回滚：MACRO_EVENT_GUARD_ENABLED=false（或 MACRO_EVENT_KINDS 置空）�?MACRO_EVENT_GUARD_ENABLED=true"
+    },
+    {
+      "line": 2154,
+      "key": "MACRO_EVENT_GUARD_ENABLED",
+      "value": "true",
+      "text": "# 回滚：MACRO_EVENT_GUARD_ENABLED=false（或 MACRO_EVENT_KINDS 置空）�?MACRO_EVENT_GUARD_ENABLED=true"
+    },
+    {
+      "line": 2159,
+      "key": "MACRO_EVENT_VETO",
+      "value": "false",
+      "text": "# 硬拦开关（默认 false = 只缩仓不拦；true = 直接否决�?MACRO_EVENT_VETO=false"
+    },
+    {
+      "line": 2164,
+      "key": "MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS",
+      "value": "3.0",
+      "text": "# 0 = 鍏抽棴锛堝洖婊氾�?MIDLONG_TREND_BROKEN_MIN_PRICE_LOSS=3.0"
+    },
+    {
+      "line": 2174,
+      "key": "IDLONG_SHORT_MODE",
+      "value": "off���������������������������/",
+      "text": "# 鍥炴粴锛歁IDLONG_SHORT_MODE=off锛堟満姊板叏鍋滐級/ conditional锛堟棫鍙ｅ緞�?"
+    },
+    {
+      "line": 2189,
+      "key": "MIDLONG_LONG_MODE",
+      "value": "learned",
+      "text": "#   鏁版嵁涓嶈冻 fail-open锛堝澶存槸鍞竴鍋ュ悍渚э紝闃茶繃搴﹂樆姝�?MIDLONG_LONG_MODE=learned"
+    },
+    {
+      "line": 2206,
+      "key": "LIVE_NATIVE_TRAILING_STOP",
+      "value": "false",
+      "text": "# live �?trailing 婵€娲绘椂浼樺厛鎸備氦鏄撴墍鍘熺�?TRAILING_STOP_MARKET锛圔inance/Aster锛夛紱榛樿鍏筹紝杞欢 tighten_sl 鍏滃�?LIVE_NATIVE_TRAILING_STOP=false"
+    },
+    {
+      "line": 2225,
+      "key": "M_W_BASE_BP",
+      "value": "8",
+      "text": "# 鏇翠繚瀹堬紙bp 鏇撮珮浣嗙瑪鏁板噺鍗婏級锛歁M_W_BASE_BP=8 �?+0.985bp"
+    },
+    {
+      "line": 2226,
+      "key": "M_K_INV",
+      "value": "0.3������M_STOP_LOSS_BP=25",
+      "text": "# 鍥炴粴锛歁M_K_INV=0.3銆丮M_STOP_LOSS_BP=25"
+    },
+    {
+      "line": 2236,
+      "key": "BREAKER_EVIDENCE_STALE_DAYS",
+      "value": "7",
+      "text": "# [�?4 鎵ц 2026-09-11 / 鍐崇�?P27-A] 鐔旀柇璇佹嵁鏂伴矞搴︼紙澶╋級锛氳繃鏈熻瘉鎹彧璁板綍涓嶆姂鍒讹�?=鍏抽�?BREAKER_EVIDENCE_STALE_DAYS=7"
+    },
+    {
+      "line": 2237,
+      "key": "MIDLONG_SL_MAX_PCT_LONG",
+      "value": "0.08",
+      "text": "# [�?8 鎵ц 2026-09-11 / 鍐崇�?P29-A] long �?SL 璺濈涓婇檺锛埪?7 瀹¤锛歋L 6.52% vs MAE 1.41%锛夛�?=鍏抽�?MIDLONG_SL_MAX_PCT_LONG=0.08"
+    },
+    {
+      "line": 2246,
+      "key": "MIDLONG_SL_MAX_PCT_LONG",
+      "value": "0.08",
+      "text": "#   回滚：本键与提案�?`MIDLONG_MAX_SL_PCT_LONG` 同步改回 0.03�?MIDLONG_SL_MAX_PCT_LONG=0.08"
+    },
+    {
+      "line": 2267,
+      "key": "MIDLONG_SL_MAX_PCT_MID",
+      "value": "0.03",
+      "text": "#   回滚：改�?0.015（备�?logs\\_archive\\env_backup_*.env）�?MIDLONG_SL_MAX_PCT_MID=0.03"
+    },
+    {
+      "line": 2274,
+      "key": "MIDLONG_AI_AUTOCREATE_STRATEGY",
+      "value": "false������",
+      "text": "#   回滚：MIDLONG_AI_AUTOCREATE_STRATEGY=false（或 MAX_PER_DAY=0）�?MIDLONG_AI_AUTOCREATE_STRATEGY=true"
+    },
+    {
+      "line": 2274,
+      "key": "MAX_PER_DAY",
+      "value": "0������?MIDLONG_AI_AUTOCREATE_STRATEGY=true",
+      "text": "#   回滚：MIDLONG_AI_AUTOCREATE_STRATEGY=false（或 MAX_PER_DAY=0）�?MIDLONG_AI_AUTOCREATE_STRATEGY=true"
+    },
+    {
+      "line": 2282,
+      "key": "HEALTH_TEMPLATE_REUSE_GUARD",
+      "value": "false���?HEALTH_TEMPLATE_REUSE_GUARD=true",
+      "text": "#   回滚：HEALTH_TEMPLATE_REUSE_GUARD=false�?HEALTH_TEMPLATE_REUSE_GUARD=true"
+    },
+    {
+      "line": 2285,
+      "key": "MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED",
+      "value": "true",
+      "text": "# [2026-09-12 F39] 论题 should_close 反转确认闸：无价格确�?未满 min_hold/非紧急亏�?�?不平仓（回滚=false�?MIDLONG_THESIS_CLOSE_CONFIRM_ENABLED=true"
+    },
+    {
+      "line": 2294,
+      "key": "MIDLONG_THESIS_INV_REQUIRE_CLOSE",
+      "value": "false���������������������������������?MIDLONG_THESIS_INV_REQUIRE_CLOSE=true",
+      "text": "#   回滚：MIDLONG_THESIS_INV_REQUIRE_CLOSE=false（回到「触碰即平」）�?MIDLONG_THESIS_INV_REQUIRE_CLOSE=true"
+    },
+    {
+      "line": 2303,
+      "key": "MIDLONG_PULLBACK_ENTRY_ENABLED",
+      "value": "false������",
+      "text": "#   回滚：MIDLONG_PULLBACK_ENTRY_ENABLED=false（或 PCT=0）�?"
+    },
+    {
+      "line": 2313,
+      "key": "MIDLONG_PULLBACK_ENTRY_ENABLED",
+      "value": "false",
+      "text": "#     「成交后结果」，不能据此上线。代码与开关保留，待补结果建模后再评估�?MIDLONG_PULLBACK_ENTRY_ENABLED=false"
+    },
+    {
+      "line": 2321,
+      "key": "MIDLONG_CONTROLLED_DCA_ENABLED",
+      "value": "true",
+      "text": "# [2026-09-12 F40] 受控逆势补仓（行情未反转时替代小亏全平；回滚=false�?MIDLONG_CONTROLLED_DCA_ENABLED=true"
+    },
+    {
+      "line": 2350,
+      "key": "MM_AUTO_EVOLVE",
+      "value": "0",
+      "text": "# 车道参数�?mm_apply_params 审计路径人工变更，需要自动调参时再显式打开�?MM_AUTO_EVOLVE=0"
+    },
+    {
+      "line": 2355,
+      "key": "MM_AUTO_EVOLVE",
+      "value": "1`",
+      "text": "# 不显著），�?`MM_AUTO_EVOLVE=1` 会把那个偏差直接变成真实配置变更 ✗�?"
+    },
+    {
+      "line": 2358,
+      "key": "MM_EVOLUTION_SINCE",
+      "value": "2026-09-15T12:10:00+08:00",
+      "text": "# �?短期内自进化只会�?拒绝\"，不会乱�?✓�?MM_EVOLUTION_SINCE=2026-09-15T12:10:00+08:00"
+    },
+    {
+      "line": 2364,
+      "key": "EXIT_POLICY_REFRESH_OPEN",
+      "value": "true",
+      "text": "# �?min_roi=[] 无兜底。false = 回滚（快照终身不变）。审计留�?exit_policy_history�?EXIT_POLICY_REFRESH_OPEN=true"
+    },
+    {
+      "line": 2367,
+      "key": "ANALYSIS_MAX_OUTPUT_TOKENS",
+      "value": "1000000",
+      "text": "# 128000 �?ANALYSIS_MAX_OUTPUT_TOKENS=1000000 �?min 后仍 12.8 �?token，实�?p99=302s�?"
+    },
+    {
+      "line": 2380,
+      "key": "MIDLONG_MID_AI_CANDIDATES_ENABLED",
+      "value": "false���?MIDLONG_MID_AI_CANDIDATES_ENABLED=true",
+      "text": "# 挤占，故可安全开启。回滚：MIDLONG_MID_AI_CANDIDATES_ENABLED=false�?MIDLONG_MID_AI_CANDIDATES_ENABLED=true"
+    },
+    {
+      "line": 2381,
+      "key": "MIDLONG_MID_AI_SCAN_SLOTS",
+      "value": "2",
+      "text": "# AI 中线�?tick 扫描配额�?=不扫 AI，等价旧行为�?MIDLONG_MID_AI_SCAN_SLOTS=2"
+    },
+    {
+      "line": 2386,
+      "key": "MIDLONG_AI_MIN_LIQUIDITY",
+      "value": "0.5",
+      "text": "# 0 = 关闭该过滤（回滚）�?MIDLONG_AI_MIN_LIQUIDITY=0.5"
+    },
+    {
+      "line": 2389,
+      "key": "SCALP_OPEN_DISABLED",
+      "value": "true",
+      "text": "# SCALP_OPEN_DISABLED=true �?2026-09-05 因「旧因子 scalp 无边际」设的整体停开�?"
+    },
+    {
+      "line": 2395,
+      "key": "MIDLONG_AI_CANDIDATE_VERDICTS",
+      "value": "approve,watch",
+      "text": "# �?只认 approve 等于永久空池。改�?approve+watch（watch=值得观察，最终开仓仍由主脑论�?全部入场闸决定）�?MIDLONG_AI_CANDIDATE_VERDICTS=approve,watch"
+    },
+    {
+      "line": 2396,
+      "key": "MIDLONG_AI_APPROVAL_WINDOW_H",
+      "value": "24",
+      "text": "# 候选新鲜度窗口（小时）：取代看�?4h 展示�?valid_until（与数小时~数天的选币视野不匹配）�?=回退只看最新一�?MIDLONG_AI_APPROVAL_WINDOW_H=24"
+    },
+    {
+      "line": 2400,
+      "key": "TREND_E1_LONG_LANE_AI_EXCEPTION",
+      "value": "true",
+      "text": "# false = 回退完全独占（AI 长线只记提议）�?TREND_E1_LONG_LANE_AI_EXCEPTION=true"
+    },
+    {
+      "line": 2405,
+      "key": "LLM_LOCAL_FIRST_DISABLED",
+      "value": "true",
+      "text": "# false = 恢复「本地优�?+ 云端降级」�?LLM_LOCAL_FIRST_DISABLED=true"
+    },
+    {
+      "line": 2411,
+      "key": "OPENCODE_RECYCLE_EVERY",
+      "value": "60",
+      "text": "# 轮换降级为兜底�?OPENCODE_RECYCLE_EVERY=60"
+    },
+    {
+      "line": 2414,
+      "key": "ANALYSIS_AUTH_COOLDOWN_SEC",
+      "value": "600",
+      "text": "# 原硬编码 30 分钟：GLM 因缺 key 每票 3s 鉴权失败触发冷却，凭据修好后仍被罚站半小时�?ANALYSIS_AUTH_COOLDOWN_SEC=600"
+    },
+    {
+      "line": 2428,
+      "key": "MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES",
+      "value": "false���?MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=true",
+      "text": "#   回滚：MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=false�?MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES=true"
+    },
+    {
+      "line": 2435,
+      "key": "MIDLONG_SHORT_SIZE_MULT",
+      "value": "0.5",
+      "text": "#         >=1 �?0 = 不缩（回滚位）�?MIDLONG_SHORT_SIZE_MULT=0.5"
+    },
+    {
+      "line": 2440,
+      "key": "MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES",
+      "value": "false���?MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=true",
+      "text": "#   回滚：MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=false�?MIDLONG_LONG_BLOCK_TEMPLATE_SOURCES=true"
+    },
+    {
+      "line": 2447,
+      "key": "WFO_IC_MAX_P",
+      "value": "0.15",
+      "text": "# 回滚：删除本键或�?0.05，然后重�?backend�?WFO_IC_MAX_P=0.15"
+    },
+    {
+      "line": 2459,
+      "key": "FACTOR_EVO_INTRADAY_PERIODS",
+      "value": "",
+      "text": "# 回滚：删除本键或置空字符串，然后重启 backend�?FACTOR_EVO_INTRADAY_PERIODS="
+    },
+    {
+      "line": 2462,
+      "key": "FACTOR_EVO_INTRADAY_1H_ENABLED",
+      "value": "true",
+      "text": "# 回滚：置 false（跳过注册，无需改代码）�?FACTOR_EVO_INTRADAY_1H_ENABLED=true"
+    },
+    {
+      "line": 2467,
+      "key": "FACTOR_EVAL_ROLLING_FAST",
+      "value": "true",
+      "text": "# 回滚：置 false -> 回到逐窗 scipy 老路径（结果相同，只是慢）�?FACTOR_EVAL_ROLLING_FAST=true"
+    },
+    {
+      "line": 2474,
+      "key": "FACTOR_EVO_JOB_REGISTRY",
+      "value": "true",
+      "text": "# 回滚：置 false -> 回到纯日志行为�?FACTOR_EVO_JOB_REGISTRY=true"
+    },
+    {
+      "line": 2477,
+      "key": "MIDLONG_ROUTE_TREND_INVERT_REVERSAL",
+      "value": "true",
+      "text": "# 回滚：置 false 或删除本�?+ 重启 backend�?MIDLONG_ROUTE_TREND_INVERT_REVERSAL=true"
+    },
+    {
+      "line": 2486,
+      "key": "MIDLONG_TIME_STOP_ENABLED",
+      "value": "false������������������",
+      "text": "# 回滚：MIDLONG_TIME_STOP_ENABLED=false（或把阈值置 0）"
+    },
+    {
+      "line": 2507,
+      "key": "MIDLONG_PULLBACK_ENTRY_ENABLED",
+      "value": "false/PCT=0������19���",
+      "text": "# 注意：与旧「等回踩再市价」机制（MIDLONG_PULLBACK_ENTRY_ENABLED=false/PCT=0，轮19）"
+    },
+    {
+      "line": 2509,
+      "key": "MIDLONG_PULLBACK_LIMIT_ENABLED",
+      "value": "false������������������PAPER_LIMIT_ENTRY_TTL_S=0������������",
+      "text": "# 回滚：MIDLONG_PULLBACK_LIMIT_ENABLED=false（回市价）；PAPER_LIMIT_ENTRY_TTL_S=0（不撤）"
+    },
+    {
+      "line": 2523,
+      "key": "MIDLONG_DEBATE_MAX_OUTPUT_TOKENS",
+      "value": "2500",
+      "text": "# [�?58 2026-09-21] 辩论轮被 900 截断�?75 条失败的 output_tokens 全部=900�?MIDLONG_DEBATE_MAX_OUTPUT_TOKENS=2500"
+    },
+    {
+      "line": 2541,
+      "key": "LONG_LOSS_CAP_PCT",
+      "value": "8",
+      "text": "# 回滚：置 0 关闭。实现：paper_trading_engine._run_v2_protection（tick 级）�?LONG_LOSS_CAP_PCT=8"
+    },
+    {
+      "line": 2547,
+      "key": "LONG_STAGED_TP_EXEC",
+      "value": "true",
+      "text": "# [2026-09-24 用户指令] midlong 循环对趋势车道的管理资格与入场闸解耦。回滚：false�?LONG_STAGED_TP_EXEC=true"
+    },
+    {
+      "line": 2556,
+      "key": "MID_STAGED_TP_ENABLED",
+      "value": "false",
+      "text": "# 回滚：置 true 恢复中线分档。生效点 paper_trading_engine._should_run_unified_staged_tp�?MID_STAGED_TP_ENABLED=false"
+    },
+    {
+      "line": 2559,
+      "key": "LONG_LOCK_PEAK_FRAC",
+      "value": "0.3333333333",
+      "text": "# 依据 cf_long_exit_variants_20260924.py：已平仓 10 �?V4 -3.49 vs V0 -6.73，V4 更优但前半仍落后 �?暂不启用�?LONG_LOCK_PEAK_FRAC=0.3333333333"
+    },
+    {
+      "line": 2637,
+      "key": "TIER_MID_MAX_HOLD_SEC",
+      "value": "172800",
+      "text": "#   TIER_MID_MAX_HOLD_SEC=172800  ← 同上（中线恢复 48h 时间尺度）"
+    },
+    {
+      "line": 2638,
+      "key": "MIDLONG_SL_MAX_PCT_MID",
+      "value": "0.03",
+      "text": "#   MIDLONG_SL_MAX_PCT_MID=0.03  ← test_sl_floor_cap_conflict_20260916（mid/page 双源一致）"
+    },
+    {
+      "line": 2639,
+      "key": "MIDLONG_MAX_SL_PCT_MID",
+      "value": "0.03",
+      "text": "#   MIDLONG_MAX_SL_PCT_MID=0.03  ← 同上（旧名兼容键）"
+    },
+    {
+      "line": 2640,
+      "key": "MIDLONG_SL_MAX_PCT_LONG",
+      "value": "0.08",
+      "text": "#   MIDLONG_SL_MAX_PCT_LONG=0.08  ← 同上"
+    },
+    {
+      "line": 2641,
+      "key": "MIDLONG_MAX_SL_PCT_LONG",
+      "value": "0.08",
+      "text": "#   MIDLONG_MAX_SL_PCT_LONG=0.08  ← 同上（旧名兼容键）"
+    },
+    {
+      "line": 2642,
+      "key": "MIDLONG_MID_AI_CANDIDATES_ENABLED",
+      "value": "true",
+      "text": "#   MIDLONG_MID_AI_CANDIDATES_ENABLED=true  ← test_ai_coin_chain_20260916::test_env_ai_coin_chain_enabled"
+    },
+    {
+      "line": 2643,
+      "key": "MIDLONG_MID_AI_SCAN_SLOTS",
+      "value": "2",
+      "text": "#   MIDLONG_MID_AI_SCAN_SLOTS=2  ← 同上"
+    },
+    {
+      "line": 2644,
+      "key": "MIDLONG_AI_AUTOCREATE_STRATEGY",
+      "value": "true",
+      "text": "#   MIDLONG_AI_AUTOCREATE_STRATEGY=true  ← test_ai_strategy_provision_20260916::test_deployed_env_defaults"
+    },
+    {
+      "line": 2645,
+      "key": "LIVE_SUB_POSITION_TRACKING",
+      "value": "false",
+      "text": "#   LIVE_SUB_POSITION_TRACKING=false  ← test_live_close_routing_20260918（要求显式声明，值 false）"
+    }
+  ],
+  "duplicates": {},
+  "empties": [
+    {
+      "line": 53,
+      "key": "COINGLASS_FREE_API_KEY"
+    },
+    {
+      "line": 54,
+      "key": "COINGLASS_API_KEY"
+    },
+    {
+      "line": 124,
+      "key": "ONCHAIN_GLASSNODE_KEY"
+    },
+    {
+      "line": 125,
+      "key": "ONCHAIN_ETHERSCAN_KEY"
+    },
+    {
+      "line": 755,
+      "key": "KLINE_DEPTH_BACKFILL_SYMBOLS"
+    },
+    {
+      "line": 994,
+      "key": "FACTOR_EVO_SCALP_PERIODS"
+    },
+    {
+      "line": 1552,
+      "key": "EDGE_LEDGER_ACCOUNTS"
+    },
+    {
+      "line": 1564,
+      "key": "RISK_COMMAND_TOKEN"
+    },
+    {
+      "line": 1576,
+      "key": "ALERT_TELEGRAM_BOT_TOKEN"
+    },
+    {
+      "line": 1577,
+      "key": "ALERT_TELEGRAM_CHAT_ID"
+    },
+    {
+      "line": 1578,
+      "key": "ALERT_WEBHOOK_URLS"
+    },
+    {
+      "line": 1639,
+      "key": "ANALYSIS_LOCAL_TRANSPORTS"
+    }
+  ],
+  "important": {
+    "MM_REGISTRY_AUTHORITATIVE": {
+      "active_line": 2529,
+      "value": "1",
+      "buried_in_comment": false
+    },
+    "MM_LANE_LIMITS_ENFORCE": {
+      "active_line": 2234,
+      "value": "true",
+      "buried_in_comment": false
+    },
+    "MM_SPREAD_MULT": {
+      "active_line": 2513,
+      "value": "0.5",
+      "buried_in_comment": false
+    },
+    "MM_MAX_ONE_SIDE_SEC": {
+      "active_line": 2229,
+      "value": "300",
+      "buried_in_comment": false
+    },
+    "MM_JUDGE_LAG_BUCKETS": {
+      "active_line": null,
+      "value": null,
+      "buried_in_comment": false
+    }
+  },
+  "fixed": 0
+}

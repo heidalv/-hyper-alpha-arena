@@ -1,0 +1,62 @@
+{
+  "ts": 1791564150.1097612,
+  "lane": "mm_asterdex",
+  "coins": {
+    "PUMP": {
+      "n": 6,
+      "win_rate": 0.6667,
+      "avg_win_bp": 29.73,
+      "avg_loss_bp": -35.45,
+      "avg_bp": 8.0
+    },
+    "BTC": {
+      "n": 16,
+      "win_rate": 0.5,
+      "avg_win_bp": 5.79,
+      "avg_loss_bp": -1.8,
+      "avg_bp": 1.99
+    },
+    "ETH": {
+      "n": 37,
+      "win_rate": 0.6216,
+      "avg_win_bp": 4.58,
+      "avg_loss_bp": -2.09,
+      "avg_bp": 2.06
+    },
+    "NEAR": {
+      "n": 3,
+      "win_rate": 0.6667,
+      "avg_win_bp": 31.37,
+      "avg_loss_bp": -31.09,
+      "avg_bp": 10.55
+    },
+    "US": {
+      "n": 21,
+      "win_rate": 0.619,
+      "avg_win_bp": 28.67,
+      "avg_loss_bp": -55.51,
+      "avg_bp": -3.39
+    },
+    "ARB": {
+      "n": 1,
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -32.64,
+      "avg_bp": -32.64
+    },
+    "LYN": {
+      "n": 2,
+      "win_rate": 1.0,
+      "avg_win_bp": 106.58,
+      "avg_loss_bp": 0.0,
+      "avg_bp": 106.58
+    },
+    "BTW": {
+      "n": 1,
+      "win_rate": 1.0,
+      "avg_win_bp": 42.22,
+      "avg_loss_bp": 0.0,
+      "avg_bp": 42.22
+    }
+  }
+}

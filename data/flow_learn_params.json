@@ -1,0 +1,8 @@
+{
+  "disaster_stop_floor_bp": 15.0,
+  "disaster_stop_cap_bp": 40.0,
+  "hold_sec": 45.0,
+  "entry_margin_bp": 1.0,
+  "min_notional_60s": 0.0,
+  "notional_loss_frac": 0.01
+}

@@ -1,0 +1,56 @@
+{
+  "status_age_s": 10.8,
+  "open_positions": [],
+  "states": {
+    "BNB": {
+      "qty": 0.0,
+      "avg_px": 0.0,
+      "avg_mid": 0.0,
+      "opened_ts": 0.0,
+      "quote_bid": 0.0,
+      "quote_ask": 0.0,
+      "quote_mid": 759.4549999999999,
+      "quote_ts": 0.0
+    },
+    "NEAR": {
+      "qty": 0.0,
+      "avg_px": 0.0,
+      "avg_mid": 0.0,
+      "opened_ts": 0.0,
+      "quote_bid": 0.0,
+      "quote_ask": 4.67825,
+      "quote_mid": 4.6775,
+      "quote_ts": 1790644632.794862
+    },
+    "ARB": {
+      "qty": 0.0,
+      "avg_px": 0.0,
+      "avg_mid": 0.0,
+      "opened_ts": 0.0,
+      "quote_bid": 0.0,
+      "quote_ask": 0.198155,
+      "quote_mid": 0.19811,
+      "quote_ts": 1790644632.794862
+    },
+    "XRP": {
+      "qty": 0.0,
+      "avg_px": 0.0,
+      "avg_mid": 0.0,
+      "opened_ts": 0.0,
+      "quote_bid": 0.0,
+      "quote_ask": 0.0,
+      "quote_mid": 1.4924,
+      "quote_ts": 0.0
+    },
+    "ENA": {
+      "qty": 0.0,
+      "avg_px": 0.0,
+      "avg_mid": 0.0,
+      "opened_ts": 0.0,
+      "quote_bid": 0.0,
+      "quote_ask": 0.2494075,
+      "quote_mid": 0.24938500000000002,
+      "quote_ts": 1790644632.794862
+    }
+  }
+}

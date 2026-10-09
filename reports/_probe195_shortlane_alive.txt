@@ -1,0 +1,324 @@
+﻿
+====================================================================================================
+A 配置开关（scalp / short / 短线）
+   FACTOR_EVO_SCALP_PERIODS                   = 
+   FACTOR_SCORER_SCALP_MIN_BARS               = 500
+   FUSION_PROBE_SHORT_ENABLED                 = true
+   FUSION_SCALP_PWIN_MIN                      = 0.55
+   FUSION_SCALP_PWIN_MIN_LIVE                 = 0.45
+   FUSION_SCALP_PWIN_STRONG                   = 0.60
+   FUSION_SHORT_PWIN_EXTRA                    = 0.05
+   LAYER_BUDGET_SCALP                         = 0.0
+   LIVE_SCALP_DAILY_OPEN_CAP                  = 30
+   LIVE_SCALP_EV_META_HARD_FILTER             = true
+   LIVE_SCALP_EV_MIN_PCT_TIGHT                = -0.0100
+   LIVE_SCALP_META_MIN_PWIN                   = 0.45
+   LIVE_SCALP_V5_MIN_CONFIDENCE               = 45
+   LIVE_SCALP_V5_MIN_RR                       = 1.3
+   LIVE_SCALP_VETO_FAIL_OPEN                  = false
+   LLM2_CAP_SCALP_CONFIRM                     = 100
+   LLM_BUDGET_SCALP                           = 0
+   MIDLONG_DOWN_SHORT_MODE                    = learned
+   MIDLONG_LOCATION_MIN_PCT_SHORT             = 60
+   MIDLONG_OPEN_SHORT_ENABLED                 = false
+   MIDLONG_SHORT_BLOCK_TEMPLATE_SOURCES       = true
+   MIDLONG_SHORT_CHG24_MAX_PCT                = -1.0
+   MIDLONG_SHORT_MODE                         = regime_gated
+   MIDLONG_SHORT_SIZE_MULT                    = 0.5
+   MIDLONG_TIER_MARGIN_PCT_MID                = 0.10
+   PAPER_SCALP_ADAPTIVE_LOSS_CEILING          = 30
+   PAPER_SCALP_ADVISORY_PENALTY_MULT          = 0.5
+   PAPER_SCALP_MICRO_SOFT                     = true
+   PAPER_SCALP_MICRO_SOFT_PENALTY             = 8
+   PAPER_SCALP_UNIVERSE_DEGRADED_SIZE_MULT    = 0.35
+   PAPER_SCALP_UNIVERSE_DEGRADED_SOFT         = true
+   PB_SCALP_FREEZE_COOLDOWN_SEC               = 180
+   PB_SCALP_MAX_SYMBOL_EXPOSURE_PCT           = 1.5
+   REENTRY_LOSS_COOLDOWN_SEC_SHORT            = 0
+   REENTRY_SL_COOLDOWN_SEC_SHORT              = 3600
+   RISK_USE_MID_TIER_IMMUNE                   = true
+   RISK_USE_TIER_PROMPT_HINTS                 = true
+   RISK_USE_TIER_TP_SL_V2                     = true
+   SCALP_AI_REVERSE_DISABLED                  = true
+   SCALP_CALIBRATOR_MIN_SAMPLES               = 20
+   SCALP_DAILY_OPEN_CAP                       = 20
+   SCALP_DEFAULT_LEVERAGE                     = 10
+   SCALP_DIRECT_THRESHOLD                     = 45
+   SCALP_EV_FAIL_CLOSED_LIVE                  = true
+   SCALP_EV_GATE_ENABLED                      = true
+   SCALP_EV_MIN_PCT                           = 0.0003
+   SCALP_EV_MIN_PCT_PAPER                     = -0.0100
+   SCALP_EV_SL_REALIZATION                    = 1.15
+   SCALP_EV_TP_REALIZATION                    = 0.55
+   SCALP_EXCLUDE_PATTERN                      = 1
+   SCALP_EXIT_FAST_CUT_MIN                    = 30
+   SCALP_EXIT_PARAM_OVERRIDE                  = 0
+   SCALP_EXIT_SL_PCT                          = 0.020
+   SCALP_EXIT_TP_PCT                          = 0.035
+   SCALP_FACTOR_CANDLE_SEC                    = 300
+   SCALP_FACTOR_CONFIRM_THRESHOLD             = 35
+   SCALP_FACTOR_EXECUTE_THRESHOLD             = 45
+   SCALP_FACTOR_IC_EVAL_EVERY_N_TICKS         = 80
+   SCALP_FACTOR_INDEPENDENT_SCHEDULER         = false
+   SCALP_FACTOR_SCAN_INTERVAL_SEC             = 45
+   SCALP_GATE_DEFER_REGIME_TO_V5              = true
+   SCALP_LIQUIDITY_FILTER_ENABLED             = true
+   SCALP_LIQ_MAGNET_OPEN_DISABLED             = true
+   SCALP_LLM_CONFIRM_ENABLED                  = true
+   SCALP_MASTER_HARD_BLOCK                    = true
+   SCALP_MAX_HOLD_SEC                         = 1200
+   SCALP_MAX_OPENS_PER_TICK                   = 1
+   SCALP_MAX_TRADE_RISK_PCT                   = 0.03
+   SCALP_META_COST                            = 0.0008
+   SCALP_META_DEDUP_SEC                       = 300
+   SCALP_META_EV_BLEND                        = 0.35
+   SCALP_META_GATE_AUC                        = 0.60
+   SCALP_META_HORIZON_SEC                     = 1800
+   SCALP_META_IN_EV                           = 0
+   SCALP_META_LOAD_WINDOW_DAYS                = 5
+   SCALP_META_MIN_PER_CLASS                   = 1500
+   SCALP_META_MIN_SAMPLES                     = 5000
+   SCALP_META_WICK_SAMPLE_WEIGHT              = 0
+   SCALP_MIN_MARGIN_PCT                       = 0.08
+   SCALP_MIN_VOLUME_USD                       = 20000000
+   SCALP_MR_MAX_RANGE_PCT                     = 0.06
+   SCALP_MR_MIN_RANGE_PCT                     = 0.015
+   SCALP_MR_MIN_RR                            = 0.75
+   SCALP_MR_MIN_TP                            = 0.006
+   SCALP_MR_RSI_OB                            = 60.0
+   SCALP_MR_RSI_OS                            = 40.0
+   SCALP_MR_SIZE_MULTIPLIER                   = 1.5
+   SCALP_MTF_HARD_ONLY_ANCHOR                 = true
+   SCALP_MTF_RESONANCE_ENABLED                = false
+   SCALP_NEW_PARAM_MIN_SAMPLES                = 200
+   SCALP_OPEN_COOLDOWN_SEC                    = 300
+   SCALP_OPEN_DISABLED                        = true
+   SCALP_OPEN_SAME_SIDE_COOLDOWN_SEC          = 600
+   SCALP_PROFILE_LOG                          = true
+   SCALP_PWIN_FAIL_CLOSED                     = true
+   SCALP_RANGE_MAX_LONG                       = 0.97
+   SCALP_RANGE_MIN_SHORT                      = 0.03
+   SCALP_RANGING_MR_ENABLED                   = false
+   SCALP_REDUCE_MIN_LOSS_PCT                  = 0.2
+   SCALP_ROI_T1                               = 600
+   SCALP_ROI_T2                               = 1200
+   SCALP_ROI_T3                               = 1800
+   SCALP_SHADOW_MODE                          = true
+   SCALP_SHADOW_MODE_PAPER                    = false
+   SCALP_SHORT_EARLY_MORNING_GATE             = true
+   SCALP_SHORT_EM_END_HOUR                    = 8
+   SCALP_SHORT_EM_EXTRA_MULT                  = 0.5
+   SCALP_SHORT_EM_MIN_RANGE_POS               = 0.90
+   SCALP_SHORT_EM_START_HOUR                  = 4
+   SCALP_SHORT_LIVE_STRICT                    = false
+   SCALP_SHORT_PAPER_EXEMPT_MIN               = 40
+   SCALP_SHORT_PAPER_FULL_MIN                 = 55
+   SCALP_SIGNAL_LOG_ENABLED                   = true
+   SCALP_SIGNAL_LOG_MIN_SCORE                 = 25
+   SCALP_SIZE_PCT                             = 0.60
+   SCALP_TARGET_SL_PCT                        = 0.012
+   SCALP_TARGET_TP_PCT                        = 0.018
+   SCALP_USE_VETTED_FACTORS_ONLY              = false
+   SCALP_VETO_BAND_LOW                        = 35
+   SCALP_VETO_MODE                            = tiered
+   SHORT_TIER_SAME_DIR_COOLDOWN_PAPER_S       = 600
+   SHORT_TIER_SAME_DIR_COOLDOWN_S             = 600
+   SHORT_TIER_SKIP_CONFIDENCE                 = true
+   TIER_DAILY_LOSS_BUDGET_PCT_LONG            = 3.0
+   TIER_DAILY_LOSS_BUDGET_PCT_MID             = 2.0
+   TIER_DAILY_LOSS_BUDGET_PCT_SHORT           = 2.0
+   TIER_LONG_AI_TICK_SEC                      = 240
+   TIER_LONG_BUDGET                           = 0.45
+   TIER_LONG_MAX_MARGIN                       = 0.45
+   TIER_MID_AI_TICK_SEC                       = 180
+   TIER_MID_BUDGET                            = 0.40
+   TIER_MID_COOLDOWN_SEC                      = 7200
+   TIER_MID_ENABLED                           = true
+   TIER_MID_MAX_HOLD_SEC                      = 172800
+   TIER_MID_MAX_MARGIN                        = 0.40
+   TIER_MID_SL_PCT                            = 0.035
+   TIER_MID_TP_PCT                            = 0.10
+   TIER_SHORT_ATR_SL_MULT                     = 2.0
+   TIER_SHORT_ATR_TP_MULT                     = 3.0
+   TIER_SHORT_BUDGET                          = 0.0
+   TIER_SHORT_COOLDOWN_SEC                    = 14400
+   TIER_SHORT_MAX_HOLD_SEC                    = 43200
+   TIER_SHORT_MAX_MARGIN                      = 0.0
+   TIER_SHORT_MAX_SL                          = 0.045
+   TIER_SHORT_MAX_TP                          = 0.060
+   TIER_SHORT_MIN_SL                          = 0.012
+   TIER_SHORT_MIN_TP                          = 0.025
+   TIER_SHORT_SL_PCT                          = 0.020
+   TIER_SHORT_TP_PCT                          = 0.035
+   V5_SCALP_MIN_CONFIDENCE                    = 55
+   V5_SCALP_MIN_RR                            = 2.0
+   V5_SCALP_MIN_RR_PAPER                      = 2.0
+   V5_SCALP_MIN_TP_PCT                        = 0.006
+   V5_SCALP_MIN_TP_PCT_PAPER                  = 0.005
+   代码里 short/scalp 车道的开关默认值：
+     backend/config/settings.py:182: # - TIER_MID_ENABLED=false  → 中线 SwingAgent 不再调度（仅影响 AI 决策，
+     backend/config/settings.py:184: # - TIER_LONG_ENABLED=false → 长线 TrendAgent + MLTO 长线段不再调度
+     backend/config/settings.py:190: TIER_MID_ENABLED: bool = os.getenv("TIER_MID_ENABLED", "true").lower() in (
+     backend/config/settings.py:193: TIER_LONG_ENABLED: bool = os.getenv("TIER_LONG_ENABLED", "true").lower() in (
+     backend/config/lane_semantics.py:53: 写入方向一律使用 `LANE_*` 规范值。
+     backend/config/lane_semantics.py:62: LANE_INTRADAY = "intraday"   # 日内（含中线槽位）
+     backend/config/lane_semantics.py:63: LANE_TREND = "trend"         # 长线趋势
+     backend/config/lane_semantics.py:64: LANE_RESEARCH = "research"   # 研究车道（pair_research / research），不进交易报告
+     backend/config/lane_semantics.py:67: REPORT_LANES: Tuple[str, ...] = (LANE_INTRADAY, LANE_TREND)
+     backend/config/lane_semantics.py:69: ALL_LANES: Tuple[str, ...] = (LANE_INTRADAY, LANE_TREND, LANE_RESEARCH)
+     backend/config/lane_semantics.py:108: LANE_SPECS: Dict[str, LaneSpec] = {
+     backend/config/lane_semantics.py:109: LANE_INTRADAY: LaneSpec(
+     backend/config/lane_semantics.py:110: lane=LANE_INTRADAY,
+     backend/config/lane_semantics.py:123: LANE_TREND: LaneSpec(
+     backend/config/lane_semantics.py:124: lane=LANE_TREND,
+     backend/config/lane_semantics.py:137: LANE_RESEARCH: LaneSpec(
+     backend/config/lane_semantics.py:138: lane=LANE_RESEARCH,
+     backend/config/lane_semantics.py:156: DEFAULT_LANE = LANE_INTRADAY
+     backend/config/lane_semantics.py:162: "scalp": LANE_INTRADAY,        # 存量短线（车道已停，行为上仍是日内）
+     backend/config/lane_semantics.py:163: "intraday": LANE_INTRADAY,
+     backend/config/lane_semantics.py:164: "daytrade": LANE_INTRADAY,
+     backend/config/lane_semantics.py:165: "day_trade": LANE_INTRADAY,
+     backend/config/lane_semantics.py:166: "swing": LANE_INTRADAY,        # 中线槽位实测中位 4.0h ⇒ 日内
+     backend/config/lane_semantics.py:167: "mid": LANE_INTRADAY,
+     backend/config/lane_semantics.py:168: "midlong": LANE_INTRADAY,      # 旧报告枚举名
+     backend/config/lane_semantics.py:169: "trend_follow": LANE_TREND,
+     backend/config/lane_semantics.py:170: "position": LANE_TREND,        # 长线子类
+     backend/config/lane_semantics.py:171: "trend": LANE_TREND,
+     backend/config/lane_semantics.py:172: "long": LANE_TREND,
+     backend/config/lane_semantics.py:173: "research": LANE_RESEARCH,
+     backend/config/lane_semantics.py:174: "pair_research": LANE_RESEARCH,
+     backend/config/lane_semantics.py:176: "shortterm": LANE_INTRADAY,
+     backend/config/lane_semantics.py:177: "short_term": LANE_INTRADAY,
+     backend/config/lane_semantics.py:178: "midterm": LANE_INTRADAY,
+     backend/config/lane_semantics.py:179: "mid_term": LANE_INTRADAY,
+     backend/config/lane_semantics.py:180: "medium": LANE_INTRADAY,
+     backend/config/lane_semantics.py:181: "longterm": LANE_TREND,
+     backend/config/lane_semantics.py:182: "long_term": LANE_TREND,
+     backend/config/lane_semantics.py:183: "trendfollow": LANE_TREND,
+     backend/config/lane_semantics.py:187: "short": LANE_INTRADAY,
+     backend/config/lane_semantics.py:188: "mid": LANE_INTRADAY,
+     backend/config/lane_semantics.py:189: "long": LANE_TREND,
+     backend/config/lane_semantics.py:190: "research": LANE_RESEARCH,
+     backend/config/lane_semantics.py:191: "arb": LANE_RESEARCH,          # 套利中心已停，不进交易报告
+     backend/config/lane_semantics.py:192: "arbitrage": LANE_RESEARCH,
+     backend/config/lane_semantics.py:194: "scalp": LANE_INTRADAY,
+     backend/config/lane_semantics.py:195: "intraday": LANE_INTRADAY,
+     backend/config/lane_semantics.py:196: "swing": LANE_INTRADAY,
+     backend/config/lane_semantics.py:197: "trend_follow": LANE_TREND,
+     backend/config/lane_semantics.py:198: "position": LANE_TREND,
+     backend/config/lane_semantics.py:200: "shortterm": LANE_INTRADAY,
+     backend/config/lane_semantics.py:201: "short_term": LANE_INTRADAY,
+     backend/config/lane_semantics.py:202: "midterm": LANE_INTRADAY,
+     backend/config/lane_semantics.py:203: "mid_term": LANE_INTRADAY,
+     backend/config/lane_semantics.py:204: "medium": LANE_INTRADAY,
+     backend/config/lane_semantics.py:205: "longterm": LANE_TREND,
+     backend/config/lane_semantics.py:206: "long_term": LANE_TREND,
+     backend/config/lane_semantics.py:207: "trend": LANE_TREND,
+     backend/config/lane_semantics.py:210: # 旧报告 horizon 枚举 → 新车道（读入兼容；写入一律用 LANE_*）
+     backend/config/lane_semantics.py:212: "scalp": LANE_INTRADAY,
+     backend/config/lane_semantics.py:213: "midlong": LANE_INTRADAY,
+     backend/config/lane_semantics.py:214: "long": LANE_TREND,
+     backend/config/lane_semantics.py:215: "short": LANE_INTRADAY,
+     backend/config/lane_semantics.py:216: "mid": LANE_INTRADAY,
+     backend/config/lane_semantics.py:217: "intraday": LANE_INTRADAY,
+     backend/config/lane_semantics.py:218: "trend": LANE_TREND,
+     backend/config/lane_semantics.py:219: "research": LANE_RESEARCH,
+     backend/config/lane_semantics.py:224: "日内": LANE_INTRADAY,
+     backend/config/lane_semantics.py:225: "日内波段": LANE_INTRADAY,
+     backend/config/lane_semantics.py:226: "中线": LANE_INTRADAY,
+     backend/config/lane_semantics.py:227: "中线日内": LANE_INTRADAY,
+     backend/config/lane_semantics.py:228: "短线": LANE_INTRADAY,
+     backend/config/lane_semantics.py:229: "长线": LANE_TREND,
+     backend/config/lane_semantics.py:230: "长线趋势": LANE_TREND,
+     backend/config/lane_semantics.py:231: "趋势": LANE_TREND,
+     backend/config/lane_semantics.py:232: "研究": LANE_RESEARCH,
+     backend/config/lane_semantics.py:382: return LANE_SPECS[resolved]
+     backend/config/lane_semantics.py:439: "LANE_INTRADAY", "LANE_TREND", "LANE_RESEARCH",
+     backend/config/lane_semantics.py:442: "LaneSpec", "LANE_SPECS",
+
+====================================================================================================
+B 策略池：按 tier 统计 active 策略
+   tier=long     status=active     n=9
+   tier=long     status=archived   n=673
+   tier=long     status=paused     n=5
+   tier=mid      status=active     n=11
+   tier=mid      status=archived   n=1443
+   tier=mid      status=paused     n=18
+   tier=short    status=active     n=10
+   tier=short    status=archived   n=1047
+   tier=short    status=paused     n=17
+
+   short tier 的 active 策略明细（最近 10 条）：
+     tpl_short_range_48a96c         VIRTUAL  template_driven created=2026-09-17 14:05:00 last_trade=None
+     tpl_short_range_982f08         ETH      template_driven created=2026-09-17 14:04:45 last_trade=None
+     tpl_short_range_39e5ae         UNI      template_driven created=2026-09-01 08:18:27 last_trade=None
+     tpl_short_range_311f5b         SOL      template_driven created=2026-08-28 20:17:20 last_trade=None
+     tpl_short_range_3c830c         BTC      template_driven created=2026-08-28 19:07:55 last_trade=None
+     tpl_short_range_b55aa9         XRP      template_driven created=2026-08-28 18:45:25 last_trade=None
+     tpl_short_range_f3d458         BNB      template_driven created=2026-08-28 18:45:22 last_trade=None
+     tpl_short_range_b144c5         XPL      template_driven created=2026-08-28 18:45:21 last_trade=None
+     tpl_short_range_722362         ASTER    template_driven created=2026-08-28 18:45:20 last_trade=None
+     auto_fc605b2958                BTC      full_auto  created=2026-08-28 18:43:30 last_trade=None
+   short tier active 总数 = 10（上面最多列 10 条）
+
+====================================================================================================
+C 交易面：近 7 天 short / scalp 的持仓与订单
+   2026-09-21  tier=mid      nature=swing          n=12
+   2026-09-21  tier=long     nature=trend_follow   n=2
+   2026-09-20  tier=mid      nature=swing          n=4
+   2026-09-20  tier=long     nature=trend_follow   n=2
+   2026-09-19  tier=mid      nature=swing          n=11
+   2026-09-19  tier=long     nature=trend_follow   n=3
+   2026-09-18  tier=mid      nature=swing          n=9
+   2026-09-18  tier=long     nature=trend_follow   n=5
+   2026-09-17  tier=mid      nature=swing          n=18
+   2026-09-17  tier=long     nature=trend_follow   n=1
+   2026-09-16  tier=mid      nature=swing          n=11
+   2026-09-15  tier=mid      nature=swing          n=6
+   2026-09-15  tier=long     nature=trend_follow   n=1
+   2026-09-14  tier=mid      nature=swing          n=2
+   → 近 7 天 short/scalp 持仓合计 = 0
+   → 近 7 天全部持仓 = 87
+
+====================================================================================================
+D 循环面：scalp 相关日志（近 6h）
+   命中 1598 行，最常见的 6 类：
+     ×66  ####-##-## ##:##:## [WARNING] [tr=-] backend.services.auto_coin_selector:#### - [AutoCoinSelector] 平台短线看板为空，本
+轮
+     ×64  ####-##-## ##:##:## [INFO] [tr=-] backend.services.runtime_governor:### - [RuntimeGovernor] withdraw source=d
+e
+     ×49  ####-##-## ##:##:## [INFO] [tr=-] backend.services.strategy_learning_service:#### - [Learning] scalp_lane_sca
+l
+     ×46  ####-##-## ##:##:## [INFO] [tr=-] backend.services.evolution_scheduler:#### - [EvoScheduler] SCALP_RESEARCH_E
+N
+   最后 3 行原文：
+     2026-09-21 07:44:21,476 [INFO] [tr=-] backend.services.evolution.factor_evolution_loop:3511 - [FactorEvo] ═══ 因子进化
+完成: {'elapsed_sec': 6258.8, 'symbols': ['ASTER', 'BNB', 
+     2026-09-21 07:44:22,044 [INFO] [tr=-] __main__:98 - [EvoSubprocess] 完成 period=15m {'elapsed_sec': 6258.8, 'symbols
+': ['ASTER', 'BNB', 'BTC', 'ETH', 'SOL', 'UNI', 'VIRTUAL
+
+====================================================================================================
+E 历史：有没有「短线退役/关闭」的决定记录
+   _垃圾收拾_因子挖掘链路审计.md: - **短线通道已整体判死关闭**（`SCALP_OPEN_DISABLED=true` + `SCALP_RESEARCH_ENABLED=false` + 表内无 s5m_ 因子），短线挖掘
+产物没有任何可交易消费者。
+   _垃圾收拾_因子挖掘链路审计.md: ### 断点 1：短线整条链已判死关闭（最硬断点）
+   _垃圾收拾_因子挖掘链路审计.md: - ⚠️ **反哺的部分（残）**：唯一活着的中线通道里，挖掘因子只是 LLM 提示词的"证据"角色，无直接开仓权；短线通道（历史上因子消费最大的面）已整体判死关闭，挖掘产物在短线侧消费者为零；
+近 33 天仅 1 个新因子真正晋升 ACTIVE。
+   _垃圾收拾_学习进化闭环审计.md: | **短线置信度校准** | `scalp/scalp_confidence_calibrator.py:439` | 内存模型 | 样本刷新 | `scalp/scalp_ev_gate.p
+y:202-205` | ✅ 代码链真实（但 `SCALP_OPEN_DISABLED=true`，车道当
+   _垃圾收拾_实盘执行与账户现状审计.md: - 近 30 天 paper 成交节奏：8-17~9-3 每日数百笔（scalp 时代），9-4 起骤降（scalp 关闭），**9-13 全天仅 9 笔**。
+   _垃圾收拾_实盘执行与账户现状审计.md: | `SCALP_OPEN_DISABLED` | **true** | **短线开仓整体禁用**（2026-09-05 起，lane_registry 注明“永久关闭”） |
+   _垃圾收拾_实盘执行与账户现状审计.md: 4. `SCALP_OPEN_DISABLED=true` + `SCALP_MASTER_HARD_BLOCK=true`：短线车道永久关闭（lane_registry 明注），scal
+p 循环不注册。
+   _垃圾收拾_门禁链审计.md: - **短线 scalp**：★`SCALP_OPEN_DISABLED=true` + 引擎层硬闸 → 新开仓概率 **≈ 0（设计上关闭）**；live 另有影子模式（永不下单）。
+   _调研_AI决策链_20260916.md: | `midlong_short_off` | 33 | 短线关闭 |
+   _调研轮10_中长线AI选币修复_20260916.md: > 据此先回退轮9 的短线解封（`git revert 7bbc5ce`，`INTRADAY_LLM_ENABLED` 回 false、删除
+   _调研轮10_中长线AI选币修复_20260916.md: | 短线仍关闭 | `[MidLongAgent独立] tiers=['mid','long']`（无 short）；`SCALP_OPEN_DISABLED=true` 
+未动 |
+   _调研轮17_零active静默死单_20260916.md: （短线 auto-coin 车道已停用），既不在 `session.symbols` 也不在 AI 候选池，
+   _调研轮29_系统状态面板_20260917.md: 负贡献集中 `tpl_模板` −173.44、`scalp_遗留` −144.36（已停用车道）、`auto_全自动` −67.73
+   _轮105_长线车道与因子链体检_20260919.md: | `lane_registry.scalp_directional` | `mode=disabled`，备注"**已证无边际，永久关闭**" |
+   _轮63_周期报告重构_双车道口径_20260918.md: - **`scalp` 不再是独立车道**：短线车道已于 2026-09-17 停用，存量 scalp 仓位实测中位
+   _轮63_周期报告重构_双车道口径_20260918.md: 否则该指标会随短线车道停用而从报告里消失。
+
+

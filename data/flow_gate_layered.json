@@ -1,0 +1,184 @@
+{
+  "ts": 1791118728.2886307,
+  "as_of": "2026-10-04T20:58:48",
+  "protocol": "horizon_layered_empirical",
+  "allowed_horizons": [
+    30.0,
+    180.0
+  ],
+  "empirical_markout": {
+    "30.0": 0.93,
+    "180.0": 0.42,
+    "300.0": -6.74
+  },
+  "gates": {
+    "PLAY": {
+      "allow": true,
+      "side": "buy",
+      "mu": 4.142,
+      "max_hold_sec": 180.0,
+      "horizon_sec": 180.0,
+      "oos": {
+        "mean_y": 2.39,
+        "n_eff": 39.75,
+        "win_rate": 0.635
+      },
+      "reason": "ok",
+      "empirical_bp": 0.42
+    },
+    "BTW": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "BTC": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "ETH": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "LYN": {
+      "allow": false,
+      "side": null,
+      "mu": 18.622,
+      "max_hold_sec": 300.0,
+      "horizon_sec": 300.0,
+      "oos": {
+        "mean_y": 20.652,
+        "n_eff": 34.6,
+        "win_rate": 0.585
+      },
+      "reason": "horizon_not_layered(300.0);empirical_negative(-6.74)",
+      "empirical_bp": -6.74
+    },
+    "QNT": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "MOVR": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "PUMP": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "MAGMA": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "SI": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    },
+    "US": {
+      "allow": false,
+      "side": null,
+      "mu": -28.477,
+      "max_hold_sec": 30.0,
+      "horizon_sec": 30.0,
+      "oos": {
+        "mean_y": 1.61,
+        "n_eff": 42.0,
+        "win_rate": 0.536
+      },
+      "reason": "mu_low",
+      "empirical_bp": 0.93
+    },
+    "ONE": {
+      "allow": false,
+      "side": null,
+      "mu": null,
+      "max_hold_sec": 0.0,
+      "horizon_sec": 0.0,
+      "oos": {
+        "mean_y": null,
+        "n_eff": null,
+        "win_rate": null
+      },
+      "reason": "horizon_not_layered(0.0);oos_not_positive;n_eff_low;mu_low",
+      "empirical_bp": null
+    }
+  }
+}

@@ -296,7 +296,13 @@ class ObservationAgent:
             res.advice.append(asdict(adv))
 
         res.errors = errors
-        res.ok = res.ok and not any(e.startswith("analyze") for e in errors)
+        # [2026-09-19 修复] 原先仅当错误以 "analyze" 开头才置 ok=False，
+        # 于是 `advise` 阶段崩溃（现场：execution_qa 的 KeyError('avg_bp')，09-18/09-19 两次）
+        # 被记进 errors 却仍上报 ok=true ⇒ `/api/agents/status` 显示 last_run_ok=true，
+        # 故障被掩盖两天。本处以上所有 errors 来源（analyze/predict/advise/apply_advice/
+        # propose_experiment/record_prediction）都是真实失败，无正常路径噪音，
+        # 故改为"任何阶段出错 ⇒ ok=False"（禁止静默退化）。
+        res.ok = res.ok and not errors
         res.elapsed_sec = round(time.time() - t0, 3)
         if not dry_run:
             res.latest_path = write_latest(self.agent_id, res.to_dict())

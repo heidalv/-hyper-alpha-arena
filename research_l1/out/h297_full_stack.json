@@ -1,0 +1,24 @@
+{
+  "base": {
+    "n": 23522,
+    "gated": 0,
+    "net_mean_bp": -0.687,
+    "mae_mean_bp": -1.531,
+    "exits": {
+      "decay": 17872,
+      "timeout": 1215,
+      "tp": 4435
+    }
+  },
+  "gated": {
+    "n": 17167,
+    "gated": 6355,
+    "net_mean_bp": -0.718,
+    "mae_mean_bp": -1.552,
+    "exits": {
+      "decay": 12678,
+      "timeout": 1157,
+      "tp": 3332
+    }
+  }
+}

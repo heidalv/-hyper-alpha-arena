@@ -1,0 +1,67 @@
+﻿====================================================================================================
+① 若 K 线是 UTC：此刻本地 17:0x = UTC 09:0x。用『最新 1m close』对『车道真实成交价』交叉验证
+   1m bar=2026-09-21 09:05:00  close=83871.800000  入库于(本地)=2026-09-21 17:05:47.662685
+   1m bar=2026-09-21 09:04:00  close=83842.400000  入库于(本地)=2026-09-21 17:04:32.530556
+   1m bar=2026-09-21 08:53:00  close=83737.900000  入库于(本地)=2026-09-21 16:54:40.189012
+   market now = 2026-09-21 17:08:35.092951+08:00
+   UTC now    = 2026-09-21 09:08:35.092951   （DB TimeZone 设置 = Asia/Shanghai）
+.venv\Scripts\python.exe : Traceback (most recent call last):
+At line:1 char:129
++ ... ew($false); .venv\Scripts\python.exe scripts\_probe210_mm_mid_source. ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: �ֶ� "side" ������
+LINE 1: select to_char(ts,'HH24:MI:SS'), symbol, side, price, size, ...
+                                                 ^
+HINT:  Ҳ������Ҫ������"lane_ledger.id"��
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\001Alpha\Hyper-Alpha-Arena\scripts\_probe210_mm_mid_source.py", line 33, in <module>
+    r = c.execute(text(
+        ^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_con
+nection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clause
+element
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_contex
+t
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_co
+ntext
+    self._handle_dbapi_exception(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_e
+xception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_co
+ntext
+    self.dialect.do_execute(
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\001Alpha\Hyper-Alpha-Arena\.venv\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedColumn) �ֶ� "side" ������
+LINE 1: select to_char(ts,'HH24:MI:SS'), symbol, side, price, size, ...
+                                                 ^
+HINT:  Ҳ������Ҫ������"lane_ledger.id"��
+[SQL: select to_char(ts,'HH24:MI:SS'), symbol, side, price, size, notional, net_bp from lane_ledger where lane_id='mm_a
+sterdex' and event='fill' order by ts desc limit 6]
+(Background on this error at: https://sqlalche.me/e/20/f405)

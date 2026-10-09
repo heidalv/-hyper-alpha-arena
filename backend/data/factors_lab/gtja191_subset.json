@@ -1,0 +1,159 @@
+{
+  "_meta": {
+    "name": "GTJA Alpha191 校准子集（v2，30条）",
+    "note": "单序列适配版30条；公式号对应公开研报，横截面rank按适配说明处理；继续扩充需人工核对。",
+    "adapted": "2026-09-17"
+  },
+  "formulas": [
+    {
+      "id": "gtja_06",
+      "note": "价量背离：开盘与成交量的负相关(-1*CORR(OPEN,VOLUME,10))",
+      "formula": "-ts_corr(open, volume, 10)"
+    },
+    {
+      "id": "gtja_12",
+      "note": "量增价跌信号(SIGN(DELTA(VOLUME,1))*(-1*DELTA(CLOSE,1)))",
+      "formula": "sign(delta(volume, 1)) * (-1 * delta(close, 1))"
+    },
+    {
+      "id": "gtja_18",
+      "note": "日内动量强度((CLOSE-OPEN)/((HIGH-LOW)+0.001))",
+      "formula": "(close - open) / ((high - low) + 0.001)"
+    },
+    {
+      "id": "gtja_29",
+      "note": "距12日低点距离(CLOSE-TSMIN(CLOSE,12))",
+      "formula": "close - ts_min(close, 12)"
+    },
+    {
+      "id": "gtja_54",
+      "note": "收盘位置值CLV((C-L)-(H-C))/((H-L)+0.001)",
+      "formula": "((close - low) - (high - close)) / ((high - low) + 0.001)"
+    },
+    {
+      "id": "gtja_58",
+      "note": "量价趋势计数(COUNT(CLOSE>DELAY(CLOSE,1),20)/20近似)",
+      "formula": "ts_rank(close, 20)"
+    },
+    {
+      "id": "gtja_63",
+      "note": "16日低点反转(-(C-MIN(C,16)))",
+      "formula": "-(close - ts_min(close, 16))"
+    },
+    {
+      "id": "gtja_68",
+      "note": "高低位差与量能((HIGH+LOW)/2的20日均值差)",
+      "formula": "ts_mean((high + low) / 2, 20) - ts_mean(close, 20)"
+    },
+    {
+      "id": "gtja_101",
+      "note": "量价波动比((CLOSE-CLOSE_20STD)/(VOLUME_20STD+0.001)近似)",
+      "formula": "ts_std(close, 20) / (ts_std(volume, 20) + 0.001)"
+    },
+    {
+      "id": "gtja_111",
+      "note": "14日收益动量与波动比",
+      "formula": "ts_mean(returns, 14) / (ts_std(returns, 14) + 0.001)"
+    },
+    {
+      "id": "gtja_02",
+      "note": "CLV一日变化(-1*DELTA(((C-L)-(H-C))/((H-L)+.001),1))",
+      "formula": "-delta(((close - low) - (high - close)) / ((high - low) + 0.001), 1)"
+    },
+    {
+      "id": "gtja_03",
+      "note": "短期价量背离(-CORR(C,V,3)适配)",
+      "formula": "-ts_corr(close, volume, 3)"
+    },
+    {
+      "id": "gtja_08",
+      "note": "均价上方压力((H+L)/2-C的5日均值)",
+      "formula": "ts_mean((high + low) / 2 - close, 5)"
+    },
+    {
+      "id": "gtja_26",
+      "note": "量高价高相关性负极值(适配)",
+      "formula": "-ts_max(ts_corr(ts_rank(volume, 5), ts_rank(high, 5), 5), 3)"
+    },
+    {
+      "id": "gtja_33",
+      "note": "日内涨幅短均(适配)",
+      "formula": "ts_mean((close - open) / (open + 0.001), 5)"
+    },
+    {
+      "id": "gtja_41",
+      "note": "几何均价差(SQRT(H*L)-VWAP，**幂适配)",
+      "formula": "((high * low) ** 0.5) - vwap"
+    },
+    {
+      "id": "gtja_43",
+      "note": "20日价量相关",
+      "formula": "ts_corr(close, volume, 20)"
+    },
+    {
+      "id": "gtja_44",
+      "note": "价与量秩相关(-CORR(C,RANK(V,20),5)适配)",
+      "formula": "-ts_corr(close, ts_rank(volume, 20), 5)"
+    },
+    {
+      "id": "gtja_45",
+      "note": "收盘弱于上影(适配)",
+      "formula": "ts_mean(close, 10) - ts_mean(high, 10)"
+    },
+    {
+      "id": "gtja_52",
+      "note": "4日均线回落压力(适配)",
+      "formula": "ts_mean(close, 4) - close"
+    },
+    {
+      "id": "gtja_55",
+      "note": "12日KD位置((C-MIN(L,12))/(MAX(H,12)-MIN(L,12)))",
+      "formula": "(close - ts_min(low, 12)) / ((ts_max(high, 12) - ts_min(low, 12)) + 0.001)"
+    },
+    {
+      "id": "gtja_71",
+      "note": "24日乖离((C-MA24)/MA24)",
+      "formula": "(close - ts_mean(close, 24)) / (ts_mean(close, 24) + 0.001)"
+    },
+    {
+      "id": "gtja_85",
+      "note": "单位高价量能(RANK(V/H,5)适配)",
+      "formula": "ts_rank(volume / high, 5)"
+    },
+    {
+      "id": "gtja_99",
+      "note": "5日动量归一((C-D5)/(C+D5))",
+      "formula": "(close - delay(close, 5)) / (close + delay(close, 5))"
+    },
+    {
+      "id": "gtja_102",
+      "note": "量加权的日内动量(V*(C-O)/O)",
+      "formula": "volume * ((close - open) / (open + 0.001))"
+    },
+    {
+      "id": "gtja_105",
+      "note": "5日反转(-DELTA(C,5))",
+      "formula": "-delta(close, 5)"
+    },
+    {
+      "id": "gtja_106",
+      "note": "20日动量(C-D20)",
+      "formula": "close - delay(close, 20)"
+    },
+    {
+      "id": "gtja_120",
+      "note": "20日量比(V/MA(V,20))",
+      "formula": "volume / (ts_mean(volume, 20) + 1)"
+    },
+    {
+      "id": "gtja_134",
+      "note": "12日乖离((C-MA12)/MA12)",
+      "formula": "(close - ts_mean(close, 12)) / (ts_mean(close, 12) + 0.001)"
+    },
+    {
+      "id": "gtja_153",
+      "note": "BBI四均线和(MA3+MA6+MA12+MA24)",
+      "formula": "ts_mean(close, 3) + ts_mean(close, 6) + ts_mean(close, 12) + ts_mean(close, 24)"
+    }
+  ]
+}

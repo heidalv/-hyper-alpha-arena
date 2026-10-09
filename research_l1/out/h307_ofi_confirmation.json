@@ -1,0 +1,24 @@
+{
+  "base": {
+    "n": 3419,
+    "blocked": 0,
+    "net_mean_bp": -0.755,
+    "mae_mean_bp": -1.633,
+    "exits": {
+      "decay": 2520,
+      "timeout": 235,
+      "tp": 664
+    }
+  },
+  "ofi_cfm": {
+    "n": 1968,
+    "blocked": 1451,
+    "net_mean_bp": -0.63,
+    "mae_mean_bp": -1.631,
+    "exits": {
+      "decay": 1363,
+      "timeout": 143,
+      "tp": 462
+    }
+  }
+}

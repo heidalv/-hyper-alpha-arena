@@ -1,0 +1,50 @@
+{
+  "ts": 1790937477.0091798,
+  "bands": [
+    {
+      "band": "s<20",
+      "n": 1704,
+      "per_day": 568.0,
+      "mean_bp": 0.948,
+      "mean_notional": 11.7,
+      "day_usd": 0.6274
+    },
+    {
+      "band": "s20-40",
+      "n": 979,
+      "per_day": 326.3,
+      "mean_bp": 0.104,
+      "mean_notional": 32.3,
+      "day_usd": 0.1092
+    },
+    {
+      "band": "s40-80",
+      "n": 1192,
+      "per_day": 397.3,
+      "mean_bp": -0.325,
+      "mean_notional": 65.0,
+      "day_usd": -0.8387
+    },
+    {
+      "band": "s80-160",
+      "n": 1326,
+      "per_day": 442.0,
+      "mean_bp": -0.694,
+      "mean_notional": 136.5,
+      "day_usd": -4.1888
+    },
+    {
+      "band": "s>=160",
+      "n": 63,
+      "per_day": 21.0,
+      "mean_bp": -2.296,
+      "mean_notional": 248.6,
+      "day_usd": -1.1984
+    }
+  ],
+  "conclusion": {
+    "best_band": "s<20",
+    "best_day_usd": 0.6274,
+    "verdict": "规模最优落点 s<20(日净 +0.627U)"
+  }
+}

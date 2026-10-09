@@ -1,0 +1,152 @@
+{
+  "base_maker_bp": 0.0,
+  "capture_bp": 0.2,
+  "nominal_half_bp": 0.75,
+  "ratio": 0.26666666666666666,
+  "venues": [
+    {
+      "venue": "dYdX T7 (≥$200M/30d)",
+      "maker_bp": -1.1,
+      "taker_bp": 2.5,
+      "half_spread_bp": null,
+      "spread_known": false,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 2.2,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": null,
+      "note": "门槛≈全所量的 10%"
+    },
+    {
+      "venue": "DESK (ex-HMX)",
+      "maker_bp": -1.0,
+      "taker_bp": 1.75,
+      "half_spread_bp": 0.375,
+      "spread_known": true,
+      "capture_bp": 0.1,
+      "fee_delta_rt": 2.0,
+      "capture_delta_rt": -0.2,
+      "total_delta_rt": 1.8,
+      "note": "三度改名，深度未知"
+    },
+    {
+      "venue": "dYdX T6 (≥$100M/30d)",
+      "maker_bp": -0.7,
+      "taker_bp": 2.5,
+      "half_spread_bp": null,
+      "spread_known": false,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 1.4,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": null,
+      "note": "同上"
+    },
+    {
+      "venue": "Aster 注册做市商",
+      "maker_bp": -0.5,
+      "taker_bp": 1.6,
+      "half_spread_bp": 0.75,
+      "spread_known": true,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 1.0,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": 1.0,
+      "note": "**同所，无迁移风险**"
+    },
+    {
+      "venue": "Velocity (ex-Drift)",
+      "maker_bp": -0.25,
+      "taker_bp": 6.0,
+      "half_spread_bp": null,
+      "spread_known": false,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 0.5,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": null,
+      "note": "唯一最小档位就给返佣"
+    },
+    {
+      "venue": "Hotstuff 标准档",
+      "maker_bp": -0.2,
+      "taker_bp": 2.5,
+      "half_spread_bp": null,
+      "spread_known": false,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 0.4,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": null,
+      "note": "0–1M 14d 档"
+    },
+    {
+      "venue": "Aster 零售（现状）",
+      "maker_bp": 0.0,
+      "taker_bp": 4.0,
+      "half_spread_bp": 0.75,
+      "spread_known": true,
+      "capture_bp": 0.2,
+      "fee_delta_rt": 0.0,
+      "capture_delta_rt": 0.0,
+      "total_delta_rt": 0.0,
+      "note": "实测基线"
+    },
+    {
+      "venue": "Lighter / Paradex",
+      "maker_bp": 0.0,
+      "taker_bp": 0.0,
+      "half_spread_bp": 0.16,
+      "spread_known": true,
+      "capture_bp": 0.042666666666666665,
+      "fee_delta_rt": 0.0,
+      "capture_delta_rt": -0.3146666666666667,
+      "total_delta_rt": -0.3146666666666667,
+      "note": "零费零返佣"
+    },
+    {
+      "venue": "Hyperliquid 基础",
+      "maker_bp": 1.5,
+      "taker_bp": 4.5,
+      "half_spread_bp": 0.1,
+      "spread_known": true,
+      "capture_bp": 0.02666666666666667,
+      "fee_delta_rt": -3.0,
+      "capture_delta_rt": -0.3466666666666667,
+      "total_delta_rt": -3.3466666666666667,
+      "note": "官方费率，BTC 价差 0.20bp"
+    },
+    {
+      "venue": "Binance VIP0",
+      "maker_bp": 2.0,
+      "taker_bp": 5.0,
+      "half_spread_bp": 0.015,
+      "spread_known": true,
+      "capture_bp": 0.004,
+      "fee_delta_rt": -4.0,
+      "capture_delta_rt": -0.392,
+      "total_delta_rt": -4.392,
+      "note": "官方费率，一个 tick 宽"
+    },
+    {
+      "venue": "Bybit VIP0",
+      "maker_bp": 2.0,
+      "taker_bp": 5.5,
+      "half_spread_bp": 0.02,
+      "spread_known": true,
+      "capture_bp": 0.005333333333333333,
+      "fee_delta_rt": -4.0,
+      "capture_delta_rt": -0.38933333333333336,
+      "total_delta_rt": -4.389333333333333,
+      "note": "官方费率"
+    },
+    {
+      "venue": "OKX VIP0",
+      "maker_bp": 2.0,
+      "taker_bp": 5.0,
+      "half_spread_bp": 0.02,
+      "spread_known": true,
+      "capture_bp": 0.005333333333333333,
+      "fee_delta_rt": -4.0,
+      "capture_delta_rt": -0.38933333333333336,
+      "total_delta_rt": -4.389333333333333,
+      "note": "官方费率"
+    }
+  ]
+}

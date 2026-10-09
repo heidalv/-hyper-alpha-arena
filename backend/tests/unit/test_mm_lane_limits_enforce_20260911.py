@@ -113,7 +113,9 @@ def test_pause_is_placed_after_exit_paths_in_source():
     # 用**调用点**而不是名字做标记：`lane_pause_reason` 也出现在函数顶部的 import 里，
     # 用裸名字会在第一版误判（索引比止损更靠前）——这类"标记太宽"的坑已踩过多次。
     i_flatten_sl = src.index("should_stop_loss(state.qty")
-    i_timeout = src.index("limits.max_one_side_seconds:")
+    # [h403] 超时上界已改为分形态 `_effective_hold_sec`（原标记
+    # `limits.max_one_side_seconds:` 被替换——契约意图不变：超时平仓在车道暂停之前）
+    i_timeout = src.index("> _effective_hold_sec(state, limits):")
     i_pause = src.index("_lane_pause, _lane_why = lane_pause_reason(")
     assert i_flatten_sl < i_pause and i_timeout < i_pause, \
         "车道暂停被放在离场逻辑之前 ⇒ 可能把已有库存卡死"

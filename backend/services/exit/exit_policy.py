@@ -268,14 +268,26 @@ def evaluate(policy: ExitPolicy, snap: ExitSnapshot) -> ExitVerdict:
         return ExitVerdict("close", "time_limit", detail={"elapsed_sec": snap.elapsed_sec, "limit_sec": policy.time_limit_sec, "roi_pct": roi})
 
     # 5) 时间递减 ROI（Freqtrade minimal_roi）：取已到达的最后一档
+    # [P2 大轮回 2026-09-27] 弱化：仅盈利后生效（§96 反事实：min_roi_decay 的 55%
+    # 是市场 beta——把时间到点但浮亏的仓砍掉等于把 beta 当 alpha）。
+    # 弱化后：roi>0 且低于阶段门槛 → 关（保护已兑现利润）；roi≤0 → 不砍，
+    # 浮亏仓交给 4h 反转/SL/§9.2⑤时间止损（P3 落地 8h 减半/24h 全平）接管。
+    # 回滚：EXIT_POLICY_MIN_ROI_PROFIT_ONLY=false（恢复旧口径"时间到点即砍"）。
     if policy.min_roi:
         threshold = None
         for sec, min_roi in policy.min_roi:
             if snap.elapsed_sec >= sec:
                 threshold = (sec, min_roi)
-        if threshold is not None and roi < threshold[1]:
-            return ExitVerdict("close", "min_roi_decay",
-                               detail={"elapsed_sec": snap.elapsed_sec, "stage_sec": threshold[0], "min_roi_pct": threshold[1], "roi_pct": roi})
+        if threshold is not None:
+            _profit_only = (
+                os.getenv("EXIT_POLICY_MIN_ROI_PROFIT_ONLY", "true") or "true"
+            ).strip().lower() in ("1", "true", "yes", "on")
+            _fire = roi < threshold[1] and (roi > 0 or not _profit_only)
+            if _fire:
+                return ExitVerdict("close", "min_roi_decay",
+                                   detail={"elapsed_sec": snap.elapsed_sec, "stage_sec": threshold[0],
+                                           "min_roi_pct": threshold[1], "roi_pct": roi,
+                                           "profit_only": _profit_only})
 
     # 6) trailing：激活后从峰值回撤 ≥ callback → close；否则把 SL 收紧到 peak − callback（只朝有利方向）
     if policy.trailing_activation_pct is not None and policy.trailing_callback_pct is not None and peak >= float(policy.trailing_activation_pct):

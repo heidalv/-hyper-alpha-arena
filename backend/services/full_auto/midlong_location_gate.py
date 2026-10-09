@@ -241,14 +241,57 @@ def _range_position(ms: Dict[str, Any]) -> Tuple[Optional[float], Optional[float
     return _pct, hi, lo
 
 
+def _chg24_legacy_frac() -> bool:
+    """[2026-09-24 回滚开关] 恢复「|v|≤1 视为小数口径 → ×100」的旧行为（默认关闭）。
+
+    仅用于回滚；默认 False = 按**百分比**口径直读（与所有写入方一致）。
+    """
+    return (os.getenv("MIDLONG_LOCATION_CHG24_LEGACY_FRAC", "false") or "false").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _chg24_abs_max() -> float:
+    """[2026-09-24] 24h 涨跌幅的可信上限（绝对值，百分点），超过即判为脏数据。
+
+    实测（`logs/backend.log`，2026-09-24）：位置闸共 4 条「24h已跌X% 逆势接刀」 veto，
+    **全部 4 条都是脏数据**——BNB −30.2%、UNI −71.8%/−75.7%，而同期五个交易所的
+    UNI 1h 序列 24h 真实涨跌为 +2.0%~+3.2%（最大单小时跌幅仅 −6.62%）。
+    成因：`price_change_24h_pct` 的**所有**写入方都是百分比口径
+    （`midlong_helpers.py:2053` ×100、`unified_data_pool.py:1989` ×100、
+    hyperliquid `percentage24h = change/prev*100`、CCXT `percentage`），
+    但旧代码 `abs(v) <= 1.0 → v*100` 会把 −0.757% 放大成 −75.7%，
+    于是「小幅回调」被误判成「崩盘接刀」，把这批**回调入场**的仓位砍到 ×0.25。
+    默认 60：单币 24h 跌超 60% 属极端事件，宁可判脏（fail-open 放行分位规则）。
+    """
+    try:
+        return abs(float(os.getenv("MIDLONG_LOCATION_CHG24_ABS_MAX", "60") or 60))
+    except (TypeError, ValueError):
+        return 60.0
+
+
 def _change_24h_pct(ms: Dict[str, Any]) -> Optional[float]:
+    """读 24h 涨跌幅（**百分比**口径）。
+
+    [2026-09-24 修复] 去掉按量级猜口径的 `×100`（见 `_chg24_abs_max` 注释中的实测证据）。
+    """
     for k in ("price_change_24h_pct", "change_24h_pct", "pct_change_24h"):
         try:
             v = ms.get(k)
-            if v is not None:
-                v = float(v)
-                # 兼容 0~1 小数口径
-                return v * 100.0 if abs(v) <= 1.0 else v
+            if v is None:
+                continue
+            v = float(v)
+            if _chg24_legacy_frac() and abs(v) <= 1.0:
+                # 旧行为（仅回滚用）：会把 −0.757% 放大成 −75.7%
+                return v * 100.0
+            lim = _chg24_abs_max()
+            if lim > 0 and abs(v) > lim:
+                logger.warning(
+                    "[LocationGate] 24h涨跌幅疑似脏数据，按缺失处理: %s=%.4f（上限 %.0f%%）",
+                    k, v, lim,
+                )
+                return None
+            return v
         except (TypeError, ValueError):
             continue
     return None

@@ -5,12 +5,13 @@
 挂不出卖单、空头在下跌趋势里挂不出买单，库存只能等超时 taker 平仓
 （实盘平仓均价 -12.98bp，是亏损主因）。F76 修正：趋势闸只封**加仓侧**。
 
-[F204 2026-09-15 **符号修正**] 本文件原先钉的是"**禁逆势侧**"（下跌禁买、上涨禁卖）✗。
-该语义的依据（"亏损平仓来自下跌中买入"）被证伪：那是账本把持仓漂移记在**减仓腿**上
-造成的归因假象（F187）✗。按 2915 笔账本 + 严格无未来函数分组：
-    **顺势成交（买在上涨/卖在下跌）−4.053bp ✗   逆势成交 +2.109bp ✓  差 6.16bp**
-⇒ 现在封的是**顺势侧**：上涨禁**买**、下跌禁**卖** ✓。
-F76 的"减仓侧豁免"与本次符号修正**正交**，逻辑不变 ✓（断言同步更新）。
+[F204 2026-09-15] 曾把符号翻成"禁顺势侧"（上涨禁买、下跌禁卖）。
+
+[h324 2026-09-26] **翻回"禁逆势侧"**（上涨禁卖、下跌禁买），依据：
+  · h323 真实成交 markout（4 日窗、中位数口径）：加仓腿顺势侧 mk30 +4.3~+5.3bp，
+    逆势侧 −0.5~−3.1bp；
+  · h284 带闸门实现盈亏双窗复现：封逆势 −0.842/−0.868 vs 封顺势 −0.885/−1.073。
+F76 的"减仓侧豁免"与符号方向**正交**，逻辑不变 ✓（断言同步更新）。
 """
 from __future__ import annotations
 
@@ -70,10 +71,11 @@ def test_long_uptrend_reduce_side_still_quotes():
     assert not dec.fills
 
 
-def test_flat_uptrend_buy_blocked():
-    """空仓 + 上涨趋势：**买**侧必须被封（F204：买在上涨=顺势 ✗）。
+def test_flat_uptrend_sell_blocked():
+    """空仓 + 上涨趋势：**卖**侧必须被封（h324：卖在上涨=逆势做空 ✗）。
 
-    旧版本断言的是"卖侧被封" ✗ —— 而卖在上涨恰是实证里**赚钱**的那一侧 ✓。
+    F204 期间断言的是"买侧被封" ✗ —— 而买在上涨（顺势回调）恰是实证里
+    赚钱的那一侧（h323 中位数 +4.4~+5.3bp）✓。
     """
     st = _mk_state(_UP)
     dec, _ = mmrunner.plan_tick(
@@ -82,16 +84,14 @@ def test_flat_uptrend_buy_blocked():
         equity=5000.0, fill_notional=100.0,
         params=QuoteParams(), limits=_trend_limits(),
     )
-    assert dec.bid == 0, "空仓上涨时买侧应被封（别追涨 ✗）"
+    assert dec.ask == 0, "空仓上涨时卖侧应被封（逆势做空 ✗）"
     assert "trend_up" in (dec.skip or ""), dec.skip
-    assert dec.ask > 0, "卖侧应允许（卖在上涨 = 逆势 = 实证为正 ✓）"
+    assert dec.bid > 0, "买侧应允许（上涨买回调 = 顺势 = 实证为正 ✓）"
 
 
-def test_long_downtrend_both_sides_pass_because_sell_is_reducing():
-    """多头 + 下跌趋势：顺势侧是"卖"，但它是**减仓侧** ⇒ 按 F76 豁免 ⇒ 两侧都放行。
-
-    （买在下跌 = 逆势 = 实证 +2.1bp ✓ 本就该放行 ✓）
-    """
+def test_long_downtrend_buy_blocked_sell_reduce_passes():
+    """多头 + 下跌趋势：逆势侧是"买"，且买是**加仓侧** ⇒ 封买；
+    卖是**减仓侧** ⇒ 按 F76 豁免 ⇒ 放行。"""
     st = _mk_state(_DOWN)
     book = _mk_book(qty=0.5)
     dec, _ = mmrunner.plan_tick(
@@ -100,7 +100,7 @@ def test_long_downtrend_both_sides_pass_because_sell_is_reducing():
         equity=5000.0, fill_notional=100.0,
         params=QuoteParams(), limits=_trend_limits(), book=book,
     )
-    assert dec.bid > 0, "买（逆势低吸）应放行"
+    assert dec.bid == 0, "买是逆势加仓侧 ⇒ 应被封（h324）"
     assert dec.ask > 0, "卖是减仓侧 ⇒ 必须放行（F76 核心）"
 
 
@@ -118,8 +118,9 @@ def test_short_downtrend_reduce_side_still_quotes():
     assert not dec.fills
 
 
-def test_short_uptrend_both_sides_pass_because_buy_is_reducing():
-    """空头 + 上涨趋势：顺势侧是"买"，但它是**回补侧** ⇒ 豁免 ⇒ 两侧都放行。"""
+def test_short_uptrend_sell_blocked_buy_reduce_passes():
+    """空头 + 上涨趋势：逆势侧是"卖"，且卖是**加仓侧** ⇒ 封卖；
+    买是**回补侧** ⇒ 豁免 ⇒ 放行。"""
     st = _mk_state(_UP)
     book = _mk_book(qty=-0.5)
     dec, _ = mmrunner.plan_tick(
@@ -128,6 +129,6 @@ def test_short_uptrend_both_sides_pass_because_buy_is_reducing():
         equity=5000.0, fill_notional=100.0,
         params=QuoteParams(), limits=_trend_limits(), book=book,
     )
+    assert dec.ask == 0, "卖是逆势加仓侧 ⇒ 应被封（h324）"
     assert dec.bid > 0, "买是回补侧 ⇒ 必须放行（F76 核心）"
-    assert dec.ask > 0, "卖（别杀跌 ✗ 的反面：上涨中卖=逆势）应放行"
 

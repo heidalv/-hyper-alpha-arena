@@ -1,4 +1,4 @@
-"""AI因子: 波动率调整动量加速度 | 置信:58% | 用5日与20日收益率之差衡量动量加速度，再除以20日已实现波动率做风险调整，剔除高波动噪声对动量的干扰。加速度为正说明短期动能强于中期趋势，未来上涨概率更高；为负则相反。clip至[-1,1]输出。"""
+"""AI因子: 波动调整动量加速度 | 置信:60% | 以短周期收益率与长周期收益率之差衡量动量加速度，并用已实现波动率做标准化，捕捉趋势加速阶段的alpha。波动调整后因子在[-1,1]区间，正值表示上行加速，负值表示下行加速。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,14 +7,14 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class VolatilityAdjustedMomentumAcceleration(BaseFactor):
-    """用5日与20日收益率之差衡量动量加速度，再除以20日已实现波动率做风险调整，剔除高波动噪声对动量的干扰。加速度为正说明短期动能强于中期趋势，未来上涨概率更高；为负则相反。clip至[-1,1]输出。"""
+    """以短周期收益率与长周期收益率之差衡量动量加速度，并用已实现波动率做标准化，捕捉趋势加速阶段的alpha。波动调整后因子在[-1,1]区间，正值表示上行加速，负值表示下行加速。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_vol_adj_momentum_accel",
             name="Volatility Adjusted Momentum Acceleration",
-            display_name="波动率调整动量加速度",
-            description="用5日与20日收益率之差衡量动量加速度，再除以20日已实现波动率做风险调整，剔除高波动噪声对动量的干扰。加速度为正说明短期动能强于中期趋势，未来上涨概率更高；为负则相反。clip至[-1,1]输出。",
+            display_name="波动调整动量加速度",
+            description="以短周期收益率与长周期收益率之差衡量动量加速度，并用已实现波动率做标准化，捕捉趋势加速阶段的alpha。波动调整后因子在[-1,1]区间，正值表示上行加速，负值表示下行加速。",
             category="technical",
             subcategory="momentum",
             version="1.0.0-ai",
@@ -22,8 +22,8 @@ class VolatilityAdjustedMomentumAcceleration(BaseFactor):
         )
 
     def calculate(self, data):
-        fast = data['close'].pct_change(5)
-        slow = data['close'].pct_change(20)
-        vol = data['close'].pct_change().rolling(20).std() + 1e-9
-        result = ((fast - slow) / vol).clip(-1, 1)
+        short_ret = data['close'].pct_change(5)
+        long_ret = data['close'].pct_change(20)
+        vol = data['close'].pct_change().rolling(20).std()
+        result = ((short_ret - long_ret) / (vol + 1e-9)).clip(-1, 1)
         return result

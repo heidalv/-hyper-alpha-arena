@@ -1,0 +1,172 @@
+{
+  "since": "2026-09-28T05:00:00+00:00",
+  "symbols": [
+    "BNB",
+    "NEAR",
+    "ARB",
+    "XRP",
+    "ENA"
+  ],
+  "rows": [
+    {
+      "hour": "09-28 13",
+      "legs": 61,
+      "covered_min": 60,
+      "rate_covered": 61.0,
+      "rate_wall": 61.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 14",
+      "legs": 61,
+      "covered_min": 60,
+      "rate_covered": 61.0,
+      "rate_wall": 61.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 15",
+      "legs": 64,
+      "covered_min": 60,
+      "rate_covered": 64.0,
+      "rate_wall": 64.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 16",
+      "legs": 56,
+      "covered_min": 60,
+      "rate_covered": 56.0,
+      "rate_wall": 56.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 17",
+      "legs": 76,
+      "covered_min": 60,
+      "rate_covered": 76.0,
+      "rate_wall": 76.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 18",
+      "legs": 60,
+      "covered_min": 60,
+      "rate_covered": 60.0,
+      "rate_wall": 60.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 19",
+      "legs": 89,
+      "covered_min": 60,
+      "rate_covered": 89.0,
+      "rate_wall": 89.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 20",
+      "legs": 72,
+      "covered_min": 60,
+      "rate_covered": 72.0,
+      "rate_wall": 72.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 21",
+      "legs": 58,
+      "covered_min": 60,
+      "rate_covered": 58.0,
+      "rate_wall": 58.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-28 22",
+      "legs": 42,
+      "covered_min": 60,
+      "rate_covered": 42.0,
+      "rate_wall": 42.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-28 23",
+      "legs": 50,
+      "covered_min": 60,
+      "rate_covered": 50.0,
+      "rate_wall": 50.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 00",
+      "legs": 83,
+      "covered_min": 60,
+      "rate_covered": 83.0,
+      "rate_wall": 83.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 01",
+      "legs": 71,
+      "covered_min": 60,
+      "rate_covered": 71.0,
+      "rate_wall": 71.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 02",
+      "legs": 95,
+      "covered_min": 60,
+      "rate_covered": 95.0,
+      "rate_wall": 95.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 03",
+      "legs": 51,
+      "covered_min": 60,
+      "rate_covered": 51.0,
+      "rate_wall": 51.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 04",
+      "legs": 25,
+      "covered_min": 33,
+      "rate_covered": 45.5,
+      "rate_wall": 25.0,
+      "thin_night": true
+    },
+    {
+      "hour": "09-29 09",
+      "legs": 56,
+      "covered_min": 50,
+      "rate_covered": 67.2,
+      "rate_wall": 56.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-29 10",
+      "legs": 63,
+      "covered_min": 60,
+      "rate_covered": 63.0,
+      "rate_wall": 63.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-29 11",
+      "legs": 63,
+      "covered_min": 60,
+      "rate_covered": 63.0,
+      "rate_wall": 63.0,
+      "thin_night": false
+    },
+    {
+      "hour": "09-29 12",
+      "legs": 10,
+      "covered_min": 10,
+      "rate_covered": 60.0,
+      "rate_wall": 10.0,
+      "thin_night": false
+    }
+  ]
+}

@@ -7,7 +7,7 @@
     "BNB",
     "ASTER"
   ],
-  "max_active_strategies": 10,
+  "max_active_strategies": 25,
   "graduation_queue": [
     "tpl_mid_reversion_a9e8e8",
     "tpl_mid_reversion_3fe51b",
@@ -16,7 +16,13 @@
     "tpl_mid_reversion_290af6",
     "auto_dfa9e3b348",
     "auto_efd68a88ca",
-    "tpl_long_swing_42c24a"
+    "tpl_long_swing_42c24a",
+    "tpl_mid_range_814602",
+    "tpl_mid_range_0d4016",
+    "tpl_long_swing_4e727e",
+    "tpl_mid_range_c1126e",
+    "tpl_mid_range_5226c6",
+    "tpl_mid_range_c3e85c"
   ],
   "strategy_graduation": {
     "tpl_mid_reversion_a9e8e8": {
@@ -33,9 +39,9 @@
     },
     "tpl_mid_range_253ba5": {
       "status": "graduated",
-      "trades": 36,
-      "wr": 0.5,
-      "dd": 0.010327864394276494
+      "trades": 142,
+      "wr": 0.4859154929577464,
+      "dd": 0.018303953464288987
     },
     "tpl_mid_reversion_3b76ff": {
       "status": "candidate",
@@ -44,10 +50,10 @@
       "dd": 0.007835179044618182
     },
     "tpl_mid_range_c1126e": {
-      "status": "candidate",
-      "trades": 19,
-      "wr": 0.42105263157894735,
-      "dd": 0.026613047657884033
+      "status": "graduated",
+      "trades": 235,
+      "wr": 0.5106382978723404,
+      "dd": 0.032883603953263035
     },
     "tpl_mid_reversion_ee142d": {
       "status": "graduated",
@@ -69,7 +75,7 @@
     },
     "auto_dfa9e3b348": {
       "status": "graduated",
-      "trades": 26,
+      "trades": 32,
       "wr": 0.5,
       "dd": 0.017469716742091485
     },
@@ -80,28 +86,74 @@
       "dd": 0.0
     },
     "auto_efd68a88ca": {
-      "status": "graduated",
-      "trades": 75,
-      "wr": 0.5066666666666665,
+      "status": "candidate",
+      "trades": 90,
+      "wr": 0.4222222222222221,
       "dd": 0.049388618413643434
     },
     "tpl_long_swing_42c24a": {
       "status": "graduated",
-      "trades": 36,
-      "wr": 0.5833333333333334,
+      "trades": 46,
+      "wr": 0.5434782608695652,
       "dd": 0.025157842785055926
     },
     "tpl_long_swing_4e727e": {
-      "status": "candidate",
-      "trades": 15,
+      "status": "graduated",
+      "trades": 20,
       "wr": 1.0,
       "dd": 0.0
+    },
+    "tpl_mid_range_814602": {
+      "status": "graduated",
+      "trades": 111,
+      "wr": 0.5495495495495494,
+      "dd": 0.04887616741989643
+    },
+    "tpl_mid_range_0d4016": {
+      "status": "graduated",
+      "trades": 46,
+      "wr": 0.5869565217391305,
+      "dd": 0.0404830014679227
+    },
+    "auto_3efd402c67": {
+      "status": "candidate",
+      "trades": 17,
+      "wr": 1.0,
+      "dd": 0.0
+    },
+    "auto_5d5d1ae203": {
+      "status": "candidate",
+      "trades": 16,
+      "wr": 0.4375,
+      "dd": 0.010089196851175743
+    },
+    "tpl_mid_range_c3e85c": {
+      "status": "graduated",
+      "trades": 96,
+      "wr": 0.5104166666666666,
+      "dd": 0.06596386432243298
+    },
+    "tpl_mid_range_5226c6": {
+      "status": "graduated",
+      "trades": 100,
+      "wr": 0.55,
+      "dd": 0.019647047134297803
+    },
+    "tpl_mid_range_444876": {
+      "status": "candidate",
+      "trades": 114,
+      "wr": 0.4210526315789473,
+      "dd": 0.02606629854635997
     }
   },
   "champion_windows": {
-    "tpl_mid_reversion_ee142d": 256,
-    "tpl_mid_range_89e53b": 186,
-    "tpl_mid_reversion_290af6": 256
+    "tpl_mid_reversion_ee142d": 1085,
+    "tpl_mid_range_89e53b": 601,
+    "tpl_mid_reversion_290af6": 1085,
+    "tpl_mid_range_814602": 366,
+    "tpl_mid_range_c3e85c": 150,
+    "tpl_mid_range_5226c6": 394,
+    "tpl_mid_range_253ba5": 37
   },
   "live_cooldown_until": {},
   "started_at": "2026-09-09T04:43:02.132140+00:00"

@@ -1,0 +1,41 @@
+轮135: 修 K线深度分析师"整段静默失效"（快照键 current vs 门控键 close）+ kline_deep 去重
+
+按序继续（轮134 之后）第 3 项：`KlineAnalyst` 为何恒判 `DATA_MISSING:无真实K线趋势`。
+
+## 根因（实测定位，字段名不匹配）
+| 观测 | 事实 |
+|---|---|
+| K 线取数 | **正常**：BTC/ETH/SOL 各 5m=96 / 15m=96 / 1h=72 / 4h=60 / 1d=30 根 |
+| 技术快照 | trend 算得出来（strong_bearish/bearish/neutral…） |
+| **快照里的 `close`** | **恒为 None** —— `_compute_technical_snapshot` 只写 **`current`**（trading_analysts.py:1302） |
+| 严格门控判据 | `_rule_based_analysis` 读 **`close`**：`close = float(tech.get("close",0) or 0)` ⇒ 恒 0 |
+| 后果 | `has_real=False` ⇒ **恒判 `DATA_MISSING`** ⇒ K线深度分析师 100% 输出中性 0（BTC/ETH/SOL 全中） |
+
+与 轮132 的 `name 'tier'` 同类：**命名不一致导致整段静默降级**；而且因为"分析师说中性"看起来无害，
+它比崩溃更难被发现（`kline_ai_analysis_logs` 直到轮134 落库才让它显形）。
+
+## 修复
+- `_compute_technical_snapshot`：**同时写 `close` 与 `current`**（下游两类消费者都不再瞎）；
+- `_rule_based_analysis` 门控：**同时认 `close` / `current`**（任一侧改名都不至于让门控瞎掉）；
+- `score_kline_deep`：同一币只取**最新一行**（此前每行产出一条信号 ⇒ 契约计数与混合打分重复计权）。
+
+## 实测（修复后，真实 LLM 路径）
+```
+KlineAnalyst.analyze(['BTC','ETH','SOL']):
+  BTC  signal=bearish  score=60  detail="BTC bearish(60%) | regime=transition(65%)
+        共振=5周期中仅15m与1h方向一致偏空，5m/4h/1d均为中性…"
+  ETH  signal=bearish  score=50  detail="ETH 规则化分析: 5m:strong_bearish/RSI=41…"
+  SOL  signal=neutral  score=50
+落库 3 条 → scorer: BTC −1.000 / ETH −1.000 / SOL 0.000（parsed=structured，质量 ok）
+```
+（此前三者全是 `neutral/score=0/DATA_MISSING`。）
+
+## 测试
+- 新增 `test_kline_snapshot_key_20260920.py` **5 项**：快照两键都存在且一致 / 有真实快照不得判无数据 /
+  只有旧键 `current` 也必须通过 / **真·无数据时仍必须 gate（不许因此放开"编方向"）** / 端到端不得全为 DATA_MISSING；
+- 更新 `test_analyst_signals_20260920.py` 两条**因情况变好而失效**的断言（原断言写"kline_deep 必须 missing"，
+  按新现实改为与数据状态无关的守卫：有产物必须交付、人为读空必须 missing 且带原因；
+  混合打分的"缺产域排除"改为构造缺产域验证归一化语义）。
+- 合计 **27 passed**。
+
+回滚：两处均为兼容性修复（新增键 + 双键读取），无需开关；若确需回到旧行为，删掉 `close` 键即可。

@@ -59,6 +59,19 @@ MINER_COOLDOWN_HOURS = 24               # 模式挖掘最小间隔 24 小时
 THESIS_POSTMORTEM_COOLDOWN_SEC = 3600   # 同 symbol+tier 复盘节流 1h（可被 settings 覆盖）
 
 
+def _pm_dedupe_on_bus_enabled() -> bool:
+    """[新目标 R4] bus 写 postmortem 前是否先查已存在（默认 true）。
+
+    背景：postmortem 有两个写入方 —— `learning_bridge.record_outcome`（同步，先跑）与
+    本模块的异步 worker（后跑，此前不查重）⇒ 实测 146 条事件里 34 组同 payload 重复。
+    非法值 fail-closed（与本仓开关约定一致）。
+    回滚：MLTO_PM_DEDUPE_ON_BUS=false。
+    """
+    import os as _os
+    raw = _os.environ.get("MLTO_PM_DEDUPE_ON_BUS", "true")
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
 class LearningBus:
     """
     统一学习总线 (D5)
@@ -149,7 +162,16 @@ class LearningBus:
         return result
 
     def enqueue_thesis_postmortem(self, outcome) -> bool:
-        """MLTO 平仓后异步复盘队列（节流 1h/symbol+tier，不阻塞主 learning 路径）。"""
+        """MLTO 平仓后异步复盘队列（节流 1h/symbol+tier，不阻塞主 learning 路径）。
+
+        [新目标 R4] 两处补强（都只影响可观测性/去重，不改学习语义）：
+          ① 节流命中此前是**完全静默**的 `return False` ⇒ 漏斗审计无法区分"没进 MLTO 块"
+             与"被节流吃掉"。现在补一条 INFO（平仓频率低，不会刷屏）。
+          ② 本 worker 与 `learning_bridge.record_outcome` 是 postmortem 的**两个写入方**，
+             同步方先落库后本线程仍会再写一次 ⇒ 实测 146 条事件里 34 组同 payload 重复
+             （占 23%，见 §100.7）。开关 `MLTO_PM_DEDUPE_ON_BUS`（默认 true）在写前查一次
+             `_has_postmortem`；回滚置 false = 退回旧行为。
+        """
         meta = outcome.metadata if isinstance(getattr(outcome, "metadata", None), dict) else {}
         thesis_id = meta.get("thesis_id")
         if not thesis_id:
@@ -161,6 +183,12 @@ class LearningBus:
         with self._thesis_postmortem_lock:
             last = self._thesis_postmortem_last.get(key, 0)
             if now - last < get_thesis_postmortem_cooldown_sec():
+                logger.info(
+                    "[LearningBus] thesis postmortem skip=cooldown %s %s thesis=%s "
+                    "(距上次 %.0fs < %.0fs)",
+                    sym, tier, str(thesis_id)[:8],
+                    now - last, get_thesis_postmortem_cooldown_sec(),
+                )
                 return False
             self._thesis_postmortem_last[key] = now
 
@@ -168,6 +196,29 @@ class LearningBus:
             try:
                 from backend.database.connection import AnalyticsSessionLocal
                 from backend.services.mlto import thesis_store
+                if _pm_dedupe_on_bus_enabled():
+                    try:
+                        from backend.services.mlto.learning_bridge import (
+                            _has_event_for_trade,
+                            _has_postmortem,
+                            _per_trade_dedupe,
+                        )
+                        _pnl_fb = float(getattr(outcome, "pnl", 0) or 0)
+                        _pid_fb = (outcome.metadata or {}).get("paper_position_id")
+                        # [新目标 R4] 逐笔去重：同一 thesis 的**不同平仓**不能互相吞掉
+                        if _per_trade_dedupe():
+                            _skip = _has_event_for_trade(
+                                str(thesis_id), "postmortem", _pnl_fb, _pid_fb)
+                        else:
+                            _skip = _has_postmortem(str(thesis_id))
+                        if _skip:
+                            logger.info(
+                                "[LearningBus] thesis postmortem skip=already_present %s %s thesis=%s",
+                                sym, tier, str(thesis_id)[:8],
+                            )
+                            return
+                    except Exception as _dedupe_err:
+                        logger.debug("[LearningBus] postmortem 去重查询跳过: %s", _dedupe_err)
                 adb = AnalyticsSessionLocal()
                 try:
                     thesis_store.append_event(
@@ -180,6 +231,8 @@ class LearningBus:
                             "hub_at_entry": meta.get("hub_adjusted_at_entry"),
                             "memory_event_ids": meta.get("memory_event_ids") or [],
                             "async": True,
+                            # [新目标 R4] 交易身份，供逐笔去重
+                            "paper_position_id": meta.get("paper_position_id"),
                         },
                         db=adb,
                     )

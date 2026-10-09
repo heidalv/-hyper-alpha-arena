@@ -134,6 +134,108 @@ def get_quantity_step(exchange: Optional[str]) -> float:
     return float(get_exchange_rules(exchange).quantity_step)
 
 
+# ══════════════════════════════════════════════════════════════
+# [统一成本口径 2026-10-05] 缺口补齐：滑点 / 资金费 / 往返成本 / 盈亏平衡
+#
+# 背景（整顿轮实测）：全仓有 ≥8 处各自硬编码 `TAKER_FEE_BP = 4.0`，
+# 而滑点与资金费散落在 fee_guard / cost_model / funding_history 三处，
+# 导致"这笔交易到底要动多少才不亏"没有唯一答案。
+#
+# 本段把**成本四要素**（手续费 + 滑点 + 资金费 + 往返倍数）收敛到本模块，
+# 与本文件既有的 get_fee_rate 一起构成全系统唯一的成本真相源。
+#
+# 规矩：任何模块需要成本数字，一律调本模块，**禁止再硬编码**。
+# ══════════════════════════════════════════════════════════════
+
+# 滑点：基点 5bp/边（与 fee_guard.SLIPPAGE_BASE 同源，此处为唯一声明）
+SLIPPAGE_BASE_RATE = 0.0005
+# 止损出场的滑点倍数：止损是"追价出"，实测比正常出场贵一倍（fee_guard 同口径）
+SL_SLIPPAGE_MULT = 2.0
+# 资金费：默认 1bp / 8h（与 backtest_engine.funding_history 同源）
+FUNDING_RATE_PER_8H = 0.0001
+FUNDING_SETTLE_HOURS = 8.0
+
+
+def get_slippage_rate(is_stop_loss: bool = False) -> float:
+    """单边滑点率。`is_stop_loss=True` 时按 SLIPPAGE_MULT 加倍（追价出场）。"""
+    base = SLIPPAGE_BASE_RATE
+    return base * (SL_SLIPPAGE_MULT if is_stop_loss else 1.0)
+
+
+def get_funding_cost_rate(hold_seconds: float, rate_per_8h: Optional[float] = None) -> float:
+    """持仓 `hold_seconds` 的资金费成本率（按 8h 结算周期的线性近似）。
+
+    真实结算只在资金费时刻发生；这里给出**期望成本**，用于开仓前的期望判断。
+    """
+    r = FUNDING_RATE_PER_8H if rate_per_8h is None else float(rate_per_8h)
+    if hold_seconds <= 0:
+        return 0.0
+    periods = float(hold_seconds) / (FUNDING_SETTLE_HOURS * 3600.0)
+    return abs(r) * periods
+
+
+def round_trip_cost_rate(
+    exchange: Optional[str],
+    *,
+    entry_is_maker: bool = False,
+    exit_is_maker: bool = True,
+    hold_seconds: float = 0.0,
+    is_stop_loss: bool = False,
+) -> float:
+    """一次完整往返的**总成本率**（占名义比例）。这是"盈亏平衡移动"的唯一算法。
+
+    组成：
+      1. 入场手续费 + 出场手续费（分别按 maker/taker 取真实费率）
+      2. 入场滑点 + 出场滑点（止损出场滑点加倍）
+      3. 持仓期资金费（期望值）
+
+    例：asterdex 全挂单、秒级持仓 → 0.0（maker 免费 + 滑点按 0 计）
+        事实是挂单不付滑点，只有主动成交才付。`entry_is_maker/exit_is_maker`
+        同时决定滑点是否计入——挂单成交不承担滑点。
+    """
+    maker_in = bool(entry_is_maker)
+    maker_out = bool(exit_is_maker)
+    fee_in = get_fee_rate(exchange, is_maker=maker_in)
+    fee_out = get_fee_rate(exchange, is_maker=maker_out)
+    slip_in = 0.0 if maker_in else get_slippage_rate(False)
+    slip_out = 0.0 if maker_out else get_slippage_rate(is_stop_loss)
+    funding = get_funding_cost_rate(hold_seconds)
+    return float(fee_in + fee_out + slip_in + slip_out + funding)
+
+
+def break_even_move_rate(
+    exchange: Optional[str],
+    *,
+    entry_is_maker: bool = False,
+    exit_is_maker: bool = True,
+    hold_seconds: float = 0.0,
+    is_stop_loss: bool = False,
+) -> float:
+    """盈亏平衡所需的价格有利移动比例（= `round_trip_cost_rate`）。
+
+    单独命名是为了让调用点读起来就是"我要动多少才不亏"。"""
+    return round_trip_cost_rate(
+        exchange,
+        entry_is_maker=entry_is_maker,
+        exit_is_maker=exit_is_maker,
+        hold_seconds=hold_seconds,
+        is_stop_loss=is_stop_loss,
+    )
+
+
+def break_even_move_bp(exchange: Optional[str], **kwargs) -> float:
+    """同 `break_even_move_rate`，单位换成 bp。"""
+    return break_even_move_rate(exchange, **kwargs) * 10000.0
+
+
+# 成本假设的最保守上界：用于"跨交易所/跨场所"的成本比较与门限。
+# 取全部场所中最贵的 taker，避免"用便宜场所的费率给贵场所的仓算盈亏"。
+def worst_case_taker_rate() -> float:
+    """所有已登记场所中最高的 taker 费率（保守口径）。"""
+    rates = [float(r.taker_fee_rate) for r in DEFAULT_EXCHANGE_RULES.values()]
+    return max(rates) if rates else 0.0005
+
+
 # ── 批量视图（审计/前端用）──────────────────────────────────────
 
 def get_all_exchange_rules() -> Dict[str, PaperExchangeRules]:

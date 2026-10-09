@@ -1,0 +1,38 @@
+{
+  "legs": 23791,
+  "maker_n": 22702,
+  "flatten_n": 1089,
+  "maker_usd": -60.56,
+  "flatten_usd": -333.5,
+  "maker_w_bp": -0.129,
+  "flatten_w_bp": -17.584,
+  "quad": {
+    "maker_seg": {
+      "n": 16242,
+      "notional": 3640723.0,
+      "usd": -62.49,
+      "w_bp": -0.172
+    },
+    "maker_noseg": {
+      "n": 6460,
+      "notional": 1063705.0,
+      "usd": 1.93,
+      "w_bp": 0.018
+    },
+    "flatten_noseg": {
+      "n": 1089,
+      "notional": 189659.0,
+      "usd": -333.5,
+      "w_bp": -17.584
+    }
+  },
+  "exit_reason": {
+    "(空)": -339.74,
+    "take_profit": 0.99,
+    "vol_pause": 1.29,
+    "trend_down": 1.76,
+    "ofi_toxic_sell": 0.43,
+    "trend_up": 1.37,
+    "daily_loss": 0.42
+  }
+}

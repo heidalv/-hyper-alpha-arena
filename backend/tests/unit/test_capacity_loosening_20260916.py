@@ -75,11 +75,23 @@ def test_concurrency_guard_untouched():
     e = _env()
     v = int(e.get("MIDLONG_MAX_OPEN_POSITIONS", "6"))
     assert 1 <= v <= 8, f"MIDLONG_MAX_OPEN_POSITIONS={v} 超出本轮观察期区间 [1,8]"
-    per_trade = (float(e.get("PC_MAX_WEIGHT_PER_SYMBOL_MID", "0.15"))
-                 * float(e.get("MIDLONG_SL_MAX_PCT_MID", "0.015")))
-    assert v * per_trade <= 0.025, (
-        f"并发帽 {v} × 单笔风险 {per_trade:.3%} = {v * per_trade:.2%} 权益 > 2.5% 上限"
+    # [续作R17 风险政策 C] 静态不等式 → 运行时跳闸：
+    # 中线止损 1.5%→3.0% 后 `v × per_trade ≤ 2.5%` 被打红（3.6%>2.5%），
+    # 但配置上限 ≠ 实际风险；`concurrent_loss_tripwire` 用每笔实际 sl_pct 求和拦截。
+    from backend.services.mlto.midlong_portfolio_risk import concurrent_loss_tripwire
+
+    _notional = float(e.get("PC_MAX_WEIGHT_PER_SYMBOL_MID", "0.15"))
+    _sl = float(e.get("MIDLONG_SL_MAX_PCT_MID", "0.015"))
+    _sl_pp = _sl * 100.0
+    ok, why = concurrent_loss_tripwire(
+        positions=[{"notional": _notional, "sl_pct": _sl_pp} for _ in range(v)],
+        equity=1.0, new_notional=0.0, ceiling_pct=2.5, default_sl_pct=_sl_pp,
     )
+    if v * _notional * _sl > 0.025:
+        assert not ok, "静态口径超限时，跳闸必须在运行时拦截"
+        assert "concurrent_loss_tripwire" in why, why
+    else:
+        assert ok, why
 
 
 def test_tier_margin_env_overridable_with_same_default(monkeypatch):

@@ -6,7 +6,8 @@
 22507 条净 +12.82bp、pwin>=0.55 时 +28.73bp。
 
 本用例锁定四条契约：
-1. 默认关闭（不依赖 .env 是否写了开关）；
+1. [2026-09-27 用户指令] 默认开启（撤销「不做空」封锁），不依赖 .env 是否写了开关；
+   总开关 false 仍是显式回滚位；
 2. 缺证据（pwin 缺失/非法）时不放行 —— 负期望结论是在有 pwin 的样本上得出的；
 3. 闸门位于 log_signal 之后 —— 做空样本必须继续落库供学习，否则等于把做空从
    闭环里删掉，永远无法判断何时可以放开；
@@ -36,31 +37,46 @@ def _clean_env(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
-class TestDefaultClosed:
-    def test_lane_disabled_by_default(self):
-        assert short_lane_enabled() is False
+class TestDefaults:
+    """[2026-09-27] 默认口径 = 开启 + 0.60 实验门槛（用户指令撤销「不做空」封锁）。"""
 
-    def test_min_pwin_defaults_to_all_closed(self):
-        assert short_min_pwin() >= 999.0, "默认须等价全关"
+    def test_lane_enabled_by_default(self):
+        assert short_lane_enabled() is True
+
+    def test_min_pwin_defaults_to_experiment_threshold(self):
+        assert short_min_pwin() == 0.60, "默认应为 0.60 实验门槛（215 条样本 +5.18bp 档）"
 
     def test_no_score_gate_by_default(self):
         """factor_score 与净收益反向，不该拿它当做空准入条件。"""
         assert short_min_score() == 0.0
 
-    def test_short_rejected_regardless_of_quality(self):
+    def test_default_threshold_filters_quality(self):
+        ok, why = short_open_allowed(pwin=None, factor_score=80)
+        assert ok is False and why == "short_pwin_missing"
+        ok, why = short_open_allowed(pwin=0.55, factor_score=80)
+        assert ok is False and "below_min" in why
+        for pw in (0.60, 0.7, 0.99):
+            ok, why = short_open_allowed(pwin=pw, factor_score=80)
+            assert ok is True, f"默认配置下 pwin={pw} 应放行，实际 {why}"
+
+    def test_switch_off_is_explicit_rollback(self, monkeypatch):
+        """false 是显式回滚位：任何 pwin 都不得放行。"""
+        monkeypatch.setenv("SCALP_SHORT_ENABLED", "false")
         for pw in (None, 0.3, 0.55, 0.7, 0.99):
             ok, why = short_open_allowed(pwin=pw, factor_score=80)
-            assert ok is False, f"默认配置下 pwin={pw} 也不得放行"
+            assert ok is False, f"回滚位下 pwin={pw} 也不得放行"
             assert why == "short_lane_off"
 
 
 class TestExperimentSlit:
     """可配的实验缝隙：开关+门槛都显式给出时才放行。"""
 
-    def test_requires_both_switch_and_threshold(self, monkeypatch):
+    def test_sentinel_999_closes_gate(self, monkeypatch):
+        """MIN_PWIN=999 保留为等价全关哨兵（回滚位）。"""
         monkeypatch.setenv("SCALP_SHORT_ENABLED", "true")
+        monkeypatch.setenv("SCALP_SHORT_MIN_PWIN", "999")
         ok, why = short_open_allowed(pwin=0.9)
-        assert ok is False, "只开总开关、未设 pwin 门槛时仍应关闭"
+        assert ok is False, "哨兵 999 应等价全关"
         assert why == "short_pwin_gate_closed"
 
     def test_allows_above_threshold(self, monkeypatch):
@@ -106,11 +122,12 @@ class TestMissingEvidence:
             ok, why = short_open_allowed(pwin=bad)
             assert ok is False, f"非法 pwin {bad!r} 不得放行"
 
-    def test_malformed_threshold_falls_back_to_closed(self, monkeypatch):
+    def test_malformed_threshold_falls_back_to_default(self, monkeypatch):
         monkeypatch.setenv("SCALP_SHORT_ENABLED", "true")
         monkeypatch.setenv("SCALP_SHORT_MIN_PWIN", "not-a-number")
-        assert short_min_pwin() >= 999.0
-        assert short_open_allowed(pwin=0.9)[0] is False
+        assert short_min_pwin() == 0.60, "非法阈值应回退到默认 0.60"
+        assert short_open_allowed(pwin=0.9)[0] is True
+        assert short_open_allowed(pwin=0.5)[0] is False
 
 
 class TestWiring:
