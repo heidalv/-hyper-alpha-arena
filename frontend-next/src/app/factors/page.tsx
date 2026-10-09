@@ -1,18 +1,25 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FlaskConical, RefreshCw, LayoutDashboard, Pickaxe, Gauge, HeartPulse, LineChart } from "lucide-react";
+import { BookOpen, FlaskConical, RefreshCw, LayoutDashboard, Pickaxe, Gauge, HeartPulse, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FactorOverviewPanel from "@/components/factors/FactorOverviewPanel";
+import { FactorLabPanel } from "@/components/factors/FactorLabPanel";
 import { OpsMidlongFactors } from "@/components/ops/OpsMidlongFactors";
 import { PulsePanel, PoolPanel, FunnelPanel, GatePanel, LongPanel, LlmProposePanel } from "@/components/factors/FactorSystemPanels";
 import "@/app/ops/ops.css";
 
-type Tab = "overview" | "mining" | "values" | "reports" | "gate" | "long";
+// [2026-10-01 合并] 用户指令：「合并 因子系统 因子研究中心」。
+// 原 `/factors-lab` 独立页并入本页，成为第 7 个 Tab「研究中心」（面板见
+// components/factors/FactorLabPanel.tsx）；侧栏只保留一个入口「因子系统」；
+// 旧路由 `/factors-lab` 保留为跳转桩 → `/factors?tab=lab`；后端 /api/factors-lab/* 不变。
+type Tab = "overview" | "mining" | "values" | "reports" | "gate" | "long" | "lab";
+const TAB_KEYS: Tab[] = ["overview", "mining", "values", "reports", "gate", "long", "lab"];
 
 type Factor = {
   name: string;
@@ -30,15 +37,41 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "reports", label: "因子报告卡", icon: FlaskConical },
   { id: "gate", label: "门禁", icon: Gauge },
   { id: "long", label: "长线规则", icon: HeartPulse },
+  // 合并自原「因子研究中心」页（五Agent闭环：文献→假设→因子工程→回测→反馈）
+  { id: "lab", label: "研究中心", icon: BookOpen },
 ];
 
 export default function FactorsPage() {
-  const [tab, setTab] = useState<Tab>("overview");
+  return (
+    <Suspense fallback={<div className="p-6 text-xs text-muted-foreground">加载中…</div>}>
+      <FactorsPageInner />
+    </Suspense>
+  );
+}
+
+function FactorsPageInner() {
+  const searchParams = useSearchParams();
+  // 深链：`?tab=` 决定首屏 Tab（旧 /factors-lab 跳转桩带的就是 ?tab=lab），非法值回落总览。
+  // 惰性初始化而非 useEffect+setState（避免 react-hooks/set-state-in-effect）。
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = (searchParams.get("tab") || "").toLowerCase();
+    return (TAB_KEYS as string[]).includes(t) ? (t as Tab) : "overview";
+  });
   const [symbols, setSymbols] = useState<string[]>(FALLBACK_SYMBOLS);
   const [symbol, setSymbol] = useState<string>("BTC");
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** 切 Tab 时把 `?tab=` 同步进地址栏（刷新/复制链接保持同一视图）；静态导出下 replaceState 最稳。 */
+  const switchTab = useCallback((k: Tab) => {
+    setTab(k);
+    if (typeof window === "undefined") return;
+    const url = `${window.location.pathname}?tab=${k}`;
+    if (`${window.location.pathname}${window.location.search}` !== url) {
+      window.history.replaceState(null, "", url);
+    }
+  }, []);
 
   const load = async (sym: string) => {
     try {
@@ -119,7 +152,7 @@ export default function FactorsPage() {
       <PageHeader
         icon={<FlaskConical className="w-4 h-4" />}
         title="因子系统"
-        subtitle="因子生命周期：挖掘 → 因子池 → 门禁 → 活跃 · 实时因子值 · 报告卡"
+        subtitle="因子生命周期：挖掘 → 因子池 → 门禁 → 活跃 · 实时因子值 · 报告卡 · 研究中心（①文献→②假设→③因子工程→④回测→⑤反馈）"
         breadcrumb={[{ label: "市场 & 分析" }, { label: "因子系统" }]}
         refreshHint="15s 轮询 · 评估任务按需触发"
         actions={
@@ -140,7 +173,7 @@ export default function FactorsPage() {
               variant={tab === t.id ? "default" : "outline"}
               size="sm"
               className="text-xs h-8"
-              onClick={() => setTab(t.id)}
+              onClick={() => switchTab(t.id)}
             >
               <Icon className="w-3.5 h-3.5" />
               {t.label}
@@ -350,6 +383,9 @@ export default function FactorsPage() {
 
       {/* ── 长线规则 ── */}
       {tab === "long" && <LongPanel />}
+
+      {/* ── 研究中心（2026-10-01 合并自原 /factors-lab 页） ── */}
+      {tab === "lab" && <FactorLabPanel />}
     </div>
   );
 }

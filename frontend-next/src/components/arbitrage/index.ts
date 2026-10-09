@@ -15,3 +15,4 @@ export { FeeTable } from "./FeeTable";
 export { LaneParamEditor } from "./LaneParamEditor";
 export { ExposureTable } from "./ExposureTable";
 export { UnifiedAccountCard } from "./UnifiedAccountCard";
+export { DepthLadder, TradingBoard } from "./DepthLadder";

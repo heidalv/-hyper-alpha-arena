@@ -35,6 +35,7 @@ import type {
   CapitalPoolResponse,
   UnifiedAccountResponse,
   LaneReconcile,
+  LaneBoardResponse,
 } from "@/lib/trading-api";
 
 export interface PollResource<T> {
@@ -138,6 +139,27 @@ export function useShadowReport(laneId: string, days: number): PollResource<Shad
 /** [F91] 双账对账（运行态 vs 账本重建，30s）：ok=false 必须显性告警 */
 export function useReconcile(laneId: string): PollResource<LaneReconcile> {
   return usePollingResource(() => tradingApi.laneReconcile(laneId), 30_000, !!laneId);
+}
+
+/**
+ * [F247] 实时深度看板（**2s**）。
+ *
+ * 为什么是 2s 而不是其他 hook 的 15s：深度采集是 **p50 105ms** 的 20 档快照，
+ * 15s 轮询会让价格梯看起来是静止的、完全失去"实时深度"的意义。2s 是
+ * 「看得出变化」与「不打爆后端」的折中（后端每币深度查询 <1ms）。
+ */
+export function useLaneBoard(
+  laneId: string,
+  symbols?: string[],
+  depth = 20
+): PollResource<LaneBoardResponse> {
+  const symKey = (symbols ?? []).join(",");
+  return usePollingResource(
+    () => tradingApi.laneBoard(laneId, symbols, depth),
+    2_000,
+    !!laneId,
+    `${laneId}|${symKey}|${depth}`
+  );
 }
 
 /** 持仓（30s，可过滤车道/标的） */

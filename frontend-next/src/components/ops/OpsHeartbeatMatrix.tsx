@@ -9,7 +9,9 @@ type HbItem = {
   last_status?: string;
 };
 
-/** 技术 task_id → 中文名（看不懂英文缩写也能一眼懂在干什么） */
+/** 技术 task_id → 中文名（看不懂英文缩写也能一眼懂在干什么）
+ * [2026-09-17] scalp_chain_health / scalp_circuit_breaker / scalp_daily_health /
+ * scalp_symbol_profile 四路短线心跳已随短线车道停用移除（后端标记 disabled，不再展示）。 */
 const HB_LABELS: Record<string, { title: string; hint: string }> = {
   pair_selector_watcher: {
     title: "AI选币扫描",
@@ -18,22 +20,6 @@ const HB_LABELS: Record<string, { title: string; hint: string }> = {
   pair_binding_lane: {
     title: "币种绑定车道",
     hint: "通过的候选挂到交易车道",
-  },
-  scalp_chain_health: {
-    title: "短线链路健康",
-    hint: "短线决策/执行链路自检",
-  },
-  scalp_circuit_breaker: {
-    title: "短线熔断器",
-    hint: "连亏/异常时自动刹车",
-  },
-  scalp_daily_health: {
-    title: "短线每日体检",
-    hint: "每日 05:30 全链路健康扫描",
-  },
-  scalp_symbol_profile: {
-    title: "币种画像刷新",
-    hint: "每日 05:45 重建币种短线画像",
   },
 };
 
@@ -45,23 +31,25 @@ const SLA_CN: Record<string, string> = {
   unknown: "未知",
 };
 
-/** 固定展示顺序，避免 API 乱序导致四个格子跳来跳去 */
+/** 固定展示顺序，避免 API 乱序导致格子跳来跳去 */
 const HB_ORDER = [
   "pair_selector_watcher",
   "pair_binding_lane",
-  "scalp_chain_health",
-  "scalp_circuit_breaker",
 ];
+
+/** 短线车道已停： scalp_* 心跳一律不展示 */
+const HB_HIDDEN = (taskId: string) => taskId.startsWith("scalp_");
 
 function labelOf(taskId: string) {
   return HB_LABELS[taskId] || { title: taskId, hint: taskId };
 }
 
 export function OpsHeartbeatMatrix({ items }: { items: HbItem[] }) {
-  const byId = new Map(items.map((h) => [h.task_id, h]));
+  const visible = items.filter((h) => !HB_HIDDEN(h.task_id));
+  const byId = new Map(visible.map((h) => [h.task_id, h]));
   const ordered: HbItem[] = [
     ...HB_ORDER.map((id) => byId.get(id)).filter(Boolean) as HbItem[],
-    ...items.filter((h) => !HB_ORDER.includes(h.task_id)),
+    ...visible.filter((h) => !HB_ORDER.includes(h.task_id)),
   ];
 
   return (

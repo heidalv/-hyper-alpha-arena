@@ -281,7 +281,6 @@ function OpsDashboard() {
         <OpsTraining
           report={train?.report}
           laneEnabled={binds?.lane?.PAIR_BINDING_LANE_ENABLED}
-          cbEnabled={binds?.circuit_breaker?.SCALP_CIRCUIT_BREAKER_ENABLED}
           laneNote={binds?.lane?.note}
         />
         <OpsFactorPool

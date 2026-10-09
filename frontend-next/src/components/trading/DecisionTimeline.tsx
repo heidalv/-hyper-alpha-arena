@@ -2,7 +2,7 @@
 
 /**
  * DecisionTimeline — AI 决策时间线（R8）
- * 把三周期活动流从「80 字文本列表」升级为分组时间线：
+ * 把双周期活动流从「80 字文本列表」升级为分组时间线：
  * 时间 + tier 徽章 + 标的 + 动作 + 推理摘要；点击展开完整 reasoning。
  */
 import { useState } from "react";
@@ -11,8 +11,9 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TierActivity, TierActivityItem } from "@/types/api";
 
+// [2026-09-17] 短线车道已停：时间线只展示 中线/长线（short 活动属历史遗留不再渲染）
 const TIER_META: Record<"short" | "mid" | "long", { label: string; color: string; bg: string }> = {
-  short: { label: "短线", color: "#6366f1", bg: "rgba(99,102,241,0.15)" },
+  short: { label: "短线(停)", color: "#6366f1", bg: "rgba(99,102,241,0.15)" },
   mid: { label: "中线", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
   long: { label: "长线", color: "#eab308", bg: "rgba(234,179,8,0.12)" },
 };
@@ -26,7 +27,7 @@ interface Row {
 function flatten(activity: TierActivity | undefined): Row[] {
   if (!activity) return [];
   const rows: Row[] = [];
-  for (const tier of ["short", "mid", "long"] as const) {
+  for (const tier of ["mid", "long"] as const) {
     for (const item of activity[tier] ?? []) {
       rows.push({ key: `${tier}-${item.time}-${item.symbol}-${item.action}`, tier, item });
     }

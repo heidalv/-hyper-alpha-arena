@@ -14,7 +14,8 @@ import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { CooldownSnapshot, SessionEventsResponse, TierCircuitState } from "@/types/api";
 
-const TIER_LABELS: Record<string, string> = { short: "短线", mid: "中线", long: "长线", default: "默认" };
+// [2026-09-17] 短线车道已停：矩阵只渲染 中线/长线（short 键保留用于历史数据标签）
+const TIER_LABELS: Record<string, string> = { short: "短线(停)", mid: "中线", long: "长线", default: "默认" };
 
 function fmtTime(iso?: string): string {
   if (!iso) return "—";
@@ -49,7 +50,7 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
           冷却矩阵
           {tierBlocked && (
             <span className="text-[9px] font-mono text-muted-foreground">
-              {(["short", "mid", "long"] as const).map((k) => `${TIER_LABELS[k]}⛔${tierBlocked[k]?.length ?? 0}`).join(" ")}
+              {(["mid", "long"] as const).map((k) => `${TIER_LABELS[k]}⛔${tierBlocked[k]?.length ?? 0}`).join(" ")}
             </span>
           )}
         </h2>
@@ -62,10 +63,10 @@ export function CooldownMatrixPanel({ sessionId }: { sessionId: string | undefin
         </span>
       </div>
 
-      {/* P0-E 周期级日亏熔断 */}
+      {/* P0-E 周期级日亏熔断（双周期） */}
       {data?.tier_circuit && (
-        <div className="grid grid-cols-3 gap-1.5">
-          {(["short", "mid", "long"] as const).map((k) => {
+        <div className="grid grid-cols-2 gap-1.5">
+          {(["mid", "long"] as const).map((k) => {
             const c: TierCircuitState | undefined = data.tier_circuit?.[k];
             if (!c) return null;
             const loss = Number(c.loss ?? 0);

@@ -1,28 +1,34 @@
+/**
+ * 旧路由跳转桩：`/reports`（周期报告）→ `/intelligent-learning?tab=reports`（智能学习 · 周期报告）
+ *
+ * [2026-10-03 用户指令] 「周期报告 并入 智能学习」。原页面只有 PageHeader + `LongReportsPanel`，
+ * 现整块成为「智能学习中心」的第八个 Tab（周期报告），侧栏不再单列入口。
+ *
+ * 保留路由的理由同其它合并桩：书签/文档/旧 e2e 仍可能引用，静态导出（`output: "export"`）下
+ * 删掉就是 404，且静态导出不支持 `redirects()` / 服务端 `redirect()`，只能用客户端跳转。
+ */
 "use client";
 
-import { Suspense } from "react";
-import { Activity, Loader2 } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { LongReportsPanel } from "@/components/long/LongReportsPanel";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, Activity } from "lucide-react";
+import { softNavigate } from "@/lib/app-nav";
 
-export default function ReportsPage() {
+const TARGET = "/intelligent-learning?tab=reports";
+
+export default function ReportsRedirectPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    softNavigate(TARGET, (url) => router.replace(url));
+  }, [router]);
+
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-40">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <PageHeader
-          icon={<Activity className="w-4 h-4" />}
-          title="周期报告"
-          subtitle="两条车道各自成段 · 日内（中线槽位，主看 1h） / 长线趋势（主看 4h）· 含周期身份、持仓时长与亏损归因 · 日报每日 08:05、周报每周一 08:30 后台生成"
-          breadcrumb={[{ label: "市场 & 分析" }, { label: "周期报告" }]}
-        />
-        <LongReportsPanel />
-      </div>
-    </Suspense>
+    <div className="p-6 flex items-center gap-2 text-sm text-muted-foreground">
+      <Loader2 className="w-4 h-4 animate-spin" />
+      <Activity className="w-4 h-4" />
+      <span>周期报告已并入「智能学习中心 · 周期报告」，正在跳转…</span>
+      <a href={TARGET} className="text-cyan-300 hover:underline">未自动跳转请点这里</a>
+    </div>
   );
 }

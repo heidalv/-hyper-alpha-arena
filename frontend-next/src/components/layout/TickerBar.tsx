@@ -12,7 +12,12 @@ const FIXED_SYMBOLS = ["BTC", "ETH", "SOL", "BNB", "VIRTUAL", "ASTER", "XPL"] as
 // [2026-09-09] 1s → 3s。实测 ticker-bar 占后端总请求量 48.5%（3 小时窗口 5547/11440），
 // 而该端点偶发 3~4s 延迟 → 1s 间隔必然堆积。设计稿要求 ticker「每 2.2s 跳动」，
 // 3s 仍满足观感；配合 usePolling 的可见性暂停与单飞去重，后台/慢响应下不再打空枪。
-const PRICE_POLL_MS = 3_000;   // 数据中心价格轮询
+// [2026-09-18 前端刷新慢治理] 3s → 5s。取证结果：后端**单进程 GIL 饱和**
+// （无请求时进程也中位占 ~99% 单核，见 backend/services/gil_watch.py），
+// 而真实访问日志里 ticker-bar 占全部请求 25%、`/paper/*` 占 50.7%。
+// 3s 间隔 ≈ 端点自身延迟（实测中位 62ms、p90 316ms、串行峰值 992ms），
+// 属"打满即排队"；5s 把该端点请求量直接砍 40%，观感无实质差别。
+const PRICE_POLL_MS = 5_000;   // 数据中心价格轮询
 const AUTO_POLL_MS = 30_000;   // AI 选币列表轮询（原来 15s，属低频数据）
 
 interface PriceEntry {

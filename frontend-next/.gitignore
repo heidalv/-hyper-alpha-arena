@@ -44,3 +44,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 临时验证/备份/测试产物（2026-10-09 前端打包前整理）
+/.verify_tmp_hft/
+/out.bak_*/
+/test-results/

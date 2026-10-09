@@ -15,7 +15,8 @@
  * 旧 /evolution 路由已删除（8 Tab 中 4 个为死通道，与本站重复）。
  */
 import { useState } from "react";
-import { Sparkles, GitBranch, ListTree, Coins, ServerCog, Workflow, Layers, Clock } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Sparkles, GitBranch, ListTree, Coins, ServerCog, Workflow, Layers, Clock, Activity, HeartPulse, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WisdomLifecyclePanel } from "@/components/learning/WisdomLifecyclePanel";
@@ -26,10 +27,21 @@ import LearningLineagePanel from "@/components/learning/LearningLineagePanel";
 import ScheduleLogPanel from "@/components/learning/ScheduleLogPanel";
 import { DecisionChainPanel } from "@/components/operations/DecisionChainPanel";
 import { CoinFeedbackPanel } from "@/components/operations/CoinFeedbackPanel";
+// [2026-10-03 用户指令] 「周期报告 并入 智能学习」：原 `/reports` 页只有 PageHeader + 本面板，
+// 整页搬进来做第一个 Tab（原页保留为跳转桩 → /intelligent-learning?tab=reports）。
+import { LongReportsPanel } from "@/components/long/LongReportsPanel";
+// [2026-10-03 用户指令] 「前端和后端对不上，重新校对、功能重排、补齐功能显示、暴露断链」：
+// 新增 ①链路总览（9 环体检，点环跳页签）②Hermes 四级（把 9 个从未上屏的 /api/hermes/* 接口全部呈现）
+import { ChainOverviewPanel } from "@/components/learning/ChainOverviewPanel";
+import { HermesLevelsPanel } from "@/components/learning/HermesLevelsPanel";
 
-type Tab = "lifecycle" | "channels" | "decision" | "coin" | "compute" | "lineage" | "schedule";
+type Tab =
+  | "chain" | "hermes" | "lifecycle" | "channels" | "decision"
+  | "coin" | "compute" | "lineage" | "schedule" | "reports";
 
-const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }>; hint?: string }[] = [
+  { key: "chain", label: "链路总览", icon: HeartPulse, hint: "9 环体检：哪一环断了" },
+  { key: "hermes", label: "Hermes 四级", icon: Boxes, hint: "L1 智慧 / L2 提示词 / L3 架构 / L4 起源" },
   { key: "lifecycle", label: "Wisdom 生命周期", icon: Sparkles },
   { key: "channels", label: "三通道健康", icon: GitBranch },
   { key: "decision", label: "决策链路", icon: ListTree },
@@ -37,27 +49,35 @@ const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: s
   { key: "compute", label: "检索与算力", icon: ServerCog },
   { key: "lineage", label: "学习血缘", icon: Layers },
   { key: "schedule", label: "调度&日志", icon: Clock },
+  { key: "reports", label: "周期报告", icon: Activity },
 ];
 
 export default function IntelligentLearningPage() {
-  const [tab, setTab] = useState<Tab>("lifecycle");
+  const searchParams = useSearchParams();
+  // [2026-10-03] 深链 `?tab=`：周期报告桩指向 `?tab=reports`；非法值回落「链路总览」。
+  const tabParam = (searchParams.get("tab") || "").toLowerCase();
+  const [tab, setTab] = useState<Tab>(
+    (TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "chain"),
+  );
 
   return (
     <div className="p-4 space-y-4">
       <PageHeader
         icon={<Workflow className="w-4 h-4" />}
         title="智能学习中心"
-        subtitle="唯一学习进化前端入口 · 只对接后端真实接口"
+        subtitle="学习进化唯一前端入口 · 10 个页签对齐运行中的后端（/api/learning/* + /api/hermes/* + /api/intelligent-learning/*）· 断链如实标红"
         breadcrumb={[{ label: "市场 & 分析" }, { label: "智能学习" }]}
         refreshHint="学习闭环 30s tick"
       />
 
-      {/* Tab 导航 */}
+      {/* Tab 导航（图标 + 悬浮说明；共 10 个能力区） */}
       <div className="flex items-center gap-1 flex-wrap border-b border-border/50 pb-2">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
+            title={t.hint || t.label}
+            data-testid={`learning-tab-${t.key}`}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-transparent transition-colors",
               tab === t.key
@@ -72,6 +92,8 @@ export default function IntelligentLearningPage() {
       </div>
 
       {/* Tab 内容 */}
+      {tab === "chain" && <ChainOverviewPanel onGoTab={(k) => setTab(k as Tab)} />}
+      {tab === "hermes" && <HermesLevelsPanel />}
       {tab === "lifecycle" && <WisdomLifecyclePanel />}
       {tab === "channels" && <HealthChannelsPanel />}
       {tab === "decision" && <DecisionChainPanel />}
@@ -84,6 +106,8 @@ export default function IntelligentLearningPage() {
       )}
       {tab === "lineage" && <LearningLineagePanel />}
       {tab === "schedule" && <ScheduleLogPanel />}
+      {/* [2026-10-03] 原「周期报告」整页内容（两条车道各自成段 · 日报 08:05 / 周报周一 08:30） */}
+      {tab === "reports" && <LongReportsPanel />}
     </div>
   );
 }

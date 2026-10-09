@@ -3,19 +3,21 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { EquitySeriesCard } from "@/components/charts/EquitySeriesCard";
 import {
   FlaskConical, TrendingUp, TrendingDown, Wallet, Clock,
   Loader2, RefreshCw, Plus, Trash2, DollarSign,
   Banknote, Shield, Layers, Receipt, Percent, ListOrdered,
-  History, Inbox, PackageOpen,
+  History, Inbox, PackageOpen, AlertTriangle, CheckCircle2,
 } from "lucide-react";
-import { OrderForm } from "@/components/trading/OrderForm";
 import {
   useAccounts, usePaperBalance, usePositions, useOrders, usePaperSummary,
-  useClosePosition, useCreateAccount, useDeleteAccount,
+  useClosePosition, useCreateAccount, useDeleteAccount, invalidatePaperData,
+  useSessions,
 } from "@/hooks/useTradingData";
-import { paperApi } from "@/lib/api";
+import { accountApi, paperApi } from "@/lib/api";
 import type { PaperOrder, Position } from "@/types/api";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,7 @@ import { sumBy, sumUnrealizedPnl } from "@/lib/stats";
 import { formatCloseReason } from "@/lib/close-reason";
 import { useQueryClient } from "@tanstack/react-query";
 import { confirmDialog } from "@/lib/confirm";
+import { useActivePaperAccountId } from "@/hooks/useActivePaperAccountId";
 
 export default function PaperTradingPage() {
   const { data: accounts } = useAccounts();
@@ -37,7 +40,9 @@ export default function PaperTradingPage() {
       .sort((a, b) => b.id - a.id);
   }, [accounts]);
 
-  const activeAccountId = selectedAccountId ?? paperAccounts[0]?.id ?? null;
+  // [2026-09-18 切页提速] 账户列表未返回时用"上次用过的账户"乐观兜底，
+  // 让下面 4 个数据请求与账户列表**并行**发出（原先必须等列表 → 两级瀑布）。
+  const activeAccountId = useActivePaperAccountId(accounts, selectedAccountId);
   const activeAccount = paperAccounts.find((a) => a.id === activeAccountId);
 
   // 对齐旧前端 loadData 的 5 个并行请求
@@ -54,6 +59,105 @@ export default function PaperTradingPage() {
   const [recordFilter, setRecordFilter] = useState<"filled" | "all">("filled");
   const createMut = useCreateAccount();
   const deleteMut = useDeleteAccount();
+
+  // ── 账户操作（[2026-10-02 修复] 原先四个按钮：window.prompt 在 Electron 不可用 +
+  //    无校验 + 无 try/catch ⇒ 后端 400/500 一律"点了没反应"）──
+  const [amountDraft, setAmountDraft] = useState("");
+  const [opBusy, setOpBusy] = useState<string | null>(null);
+  const [opMsg, setOpMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const amountNum = Number(amountDraft);
+  const amountValid =
+    amountDraft.trim() !== "" && Number.isFinite(amountNum) && amountNum > 0 && amountNum <= 1e9;
+
+  // 该账户是否有运行中的交易会话：决定「重置/改金额」是否会被循环立刻覆盖
+  const { data: sessions } = useSessions();
+  const runningSessionIds = useMemo(
+    () =>
+      (sessions ?? [])
+        .filter(
+          (s: any) =>
+            (s.status === "running" || s.status === "defensive") &&
+            (s.account_id === activeAccountId || s.paper_account_id === activeAccountId),
+        )
+        .map((s: any) => String(s.session_id)),
+    [sessions, activeAccountId],
+  );
+
+  /** 统一操作包装：忙态 + 成功/失败反馈 + 全量失效（含权益曲线/账户缓存）。 */
+  const runOp = async (key: string, fn: () => Promise<unknown>, okText: string) => {
+    setOpBusy(key);
+    setOpMsg(null);
+    try {
+      const res: any = await fn();
+      invalidatePaperData(qc, activeAccountId);
+      const running: string[] = res?.running_sessions ?? [];
+      const isDelete = key === "disable" || key === "hardDelete";
+      setOpMsg({
+        ok: true,
+        text:
+          okText +
+          (!isDelete && running.length
+            ? `（注意：会话 ${running.join(" / ")} 仍在运行，会继续开仓）`
+            : ""),
+      });
+      if (key === "amount") setAmountDraft("");
+    } catch (e) {
+      // apiRequest 抛 ApiError(detail) —— 后端的中文原因在这里第一次真正显示给用户
+      setOpMsg({ ok: false, text: `操作失败：${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setOpBusy(null);
+    }
+  };
+
+  const handleSetBalance = async () => {
+    if (!amountValid || opBusy || activeAccountId == null) return;
+    const val = amountNum;
+    const acct = activeAccountId;
+    const nPos = openPositions?.length ?? 0;
+    // [2026-10-03 用户口径] 改金额 = 连带重置：破坏性动作，必须二次确认（有持仓时尤其要说清）
+    if (!(await confirmDialog({
+      title: `把初始金额改为 $${val} 并重置账户？`,
+      description:
+        `当前 $${Number(initialBal).toFixed(2)}。保存后：钱包基准变为 $${val}，`
+        + `**持仓与订单会被清空**（当前 ${nPos} 个持仓）${runningSessionIds.length
+          ? `；注意会话 ${runningSessionIds.join(" / ")} 仍在运行，会立刻按新金额继续开仓` : ""}。`
+        + "（只想改基准、保留持仓？用旧口径的 reset_positions=false，本页不提供。）",
+      tone: "danger",
+      confirmText: "改金额并重置",
+      requireText: nPos > 0 ? "重置" : undefined,
+    }))) return;
+    await runOp(
+      "amount",
+      () => paperApi.setBalance(acct, val, true),
+      `初始资金已改为 $${val}，持仓/订单已随之重置`,
+    );
+  };
+
+  /** [2026-10-03 用户需求] 一键平仓：平掉该账户全部 open 持仓。 */
+  const handleCloseAll = async () => {
+    if (opBusy || activeAccountId == null) return;
+    const acct = activeAccountId;
+    const nPos = openPositions?.length ?? 0;
+    if (nPos === 0) return;
+    if (!(await confirmDialog({
+      title: `一键平仓：平掉全部 ${nPos} 个持仓？`,
+      description: "逐笔按市价平仓（与单笔「平仓」同一路径）。平仓后该币会进入再开仓冷却。",
+      tone: "warning",
+      confirmText: `平掉 ${nPos} 笔`,
+    }))) return;
+    await runOp(
+      "closeAll",
+      async () => {
+        const r = await paperApi.closeAll(acct);
+        if (r?.failed_count) {
+          throw new Error(`部分失败：成功 ${r.closed_count} / 失败 ${r.failed_count}（${r.failed?.slice(0, 3).map((f) => `${f.symbol}:${f.error}`).join("；")}）`);
+        }
+        return r;
+      },
+      `一键平仓完成：已平 ${nPos} 笔`,
+    );
+  };
 
   const handleCreate = async () => {
     if (!newAccountName.trim()) return;
@@ -96,7 +200,7 @@ export default function PaperTradingPage() {
         title="模拟交易"
         subtitle="Paper 验证运行中 · 模拟撮合不触达真实资金"
         refreshHint="2s 轮询"
-        breadcrumb={[{ label: "交易核心" }, { label: "模拟交易" }]}
+        breadcrumb={[{ label: "交易核心" }, { label: "实盘交易" }, { label: "模拟交易" }]}
         actions={
           <>
             {paperAccounts.length > 0 && (
@@ -233,20 +337,52 @@ export default function PaperTradingPage() {
             </div>
           )}
 
-          {/* 手动下单面板 */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="lg:col-span-1">
-              <OrderForm accountId={activeAccountId} />
+          {/* 挂单情况（2026-09-23）——原「手动下单」面板已移除：该模块无实际用途，
+              改为展示交易所侧自动挂出的止盈/止损条件单（用户要求）。 */}
+          {/* [2026-09-23 对齐修复 v2 · 用户要求] ① 当前持仓**不滚动、全部显示**（槽位固定 10 个，
+              内容高度自驱）；② 挂单卡**跟随持仓卡高度**（表格决定行高，挂单卡绝对定位填满同一高度，
+              挂单超出时只在挂单框内滚动）。这样两卡严格等高、右侧不会被撑长也不留空白。 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:items-stretch">
+            <div className="lg:col-span-1 relative min-h-0" data-testid="left-column">
+              {/* [2026-09-23] 左列上下两卡：挂单情况 + 账户收益曲线（新卡，独立实现，不复用主页曲线）。
+                  宽度约束（实测）：持仓表自然宽 995px，行宽 1352px ⇒ 三卡并排装不下
+                  （995+340+330+间距 ≈1690）。故曲线与挂单同列上下堆叠，持仓保持原宽不失真。 */}
+              <div className="lg:absolute lg:inset-0 flex flex-col gap-3">
+                <PendingOrdersPanel
+                  orders={orders ?? []}
+                  positions={openPositions ?? []}
+                  className="flex-1 min-h-0"
+                />
+                <EquitySeriesCard
+                  accountId={activeAccountId}
+                  initialPeriod="30d"
+                  className="flex-1 min-h-0"
+                />
+              </div>
             </div>
 
-            {/* 持仓列表 */}
-            <div className="lg:col-span-2">
-          <Card className="p-4 glass">
-            <div className="flex items-center justify-between mb-3">
+            {/* 持仓列表（10 槽位，全部显示，不滚动） */}
+            <div className="lg:col-span-2 min-h-0">
+          <Card className="p-4 glass h-full flex flex-col" data-testid="open-positions-card">
+            <div className="flex items-center justify-between mb-3 gap-2">
               <h2 className="text-sm font-medium">当前持仓 ({openPositions?.length ?? 0})</h2>
+              {/* [2026-10-03 用户需求] 一键平仓（此前只有逐笔「平仓」） */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-loss h-7"
+                disabled={opBusy !== null || (openPositions?.length ?? 0) === 0}
+                title={(openPositions?.length ?? 0) === 0 ? "当前无持仓" : "逐笔按市价平掉全部持仓"}
+                onClick={handleCloseAll}
+              >
+                {opBusy === "closeAll"
+                  ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+                一键平仓
+              </Button>
             </div>
             {openPositions && openPositions.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" data-testid="open-positions-scroll">
                 <table className="data-table">
                   <thead>
                     <tr className="text-muted-foreground border-b border-border">
@@ -302,7 +438,7 @@ export default function PaperTradingPage() {
                 </table>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground flex-1">
                 <PackageOpen className="w-6 h-6 opacity-50" />
                 <span className="text-sm">暂无持仓</span>
               </div>
@@ -374,71 +510,150 @@ export default function PaperTradingPage() {
 
           {/* 账户操作 */}
           <Card className="p-4">
-            <h2 className="text-sm font-medium mb-3">账户操作</h2>
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <h2 className="text-sm font-medium">账户操作</h2>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                当前初始资金 ${Number(initialBal).toFixed(2)} · 权益 ${Number(balance?.total_equity ?? 0).toFixed(2)}
+              </span>
+            </div>
+
+            {/* 运行中会话警示（[2026-10-02] 用户"重置无效"的真因之一：交易循环仍在开仓） */}
+            {runningSessionIds.length > 0 && (
+              <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning flex items-start gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  该账户有<strong>运行中的交易会话</strong>（{runningSessionIds.join(" / ")}）：重置或改金额后它会立刻按新资金继续开仓，
+                  看起来像「重置没生效」。要真正停手，请先到「<strong>策略配置 → 交易总控 → 会话管理</strong>」停止会话
+                  （原「AI 策略」入口已并入交易总控）。
+                </span>
+              </div>
+            )}
+
+            {/* 分配金额：原实现用 window.prompt —— Electron 不支持 prompt（按钮点了没反应），
+                且无校验、无错误提示。现改为页内输入框 + 明确反馈。 */}
+            <div className="mb-3 rounded-lg border border-border/60 p-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground shrink-0">分配金额（初始资金）</span>
+                <Input
+                  value={amountDraft}
+                  onChange={(e) => setAmountDraft(e.target.value)}
+                  placeholder={String(Number(initialBal).toFixed(0))}
+                  inputMode="decimal"
+                  aria-label="分配金额"
+                  className="h-8 w-32 text-xs"
+                />
+                <Button
+                  size="sm"
+                  className="btn-glow"
+                  disabled={opBusy !== null || !amountValid}
+                  onClick={handleSetBalance}
+                >
+                  {opBusy === "amount" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <DollarSign className="w-3.5 h-3.5 mr-1" />}
+                  保存金额
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                  正数，≤1e9 · <strong>改金额 = 连带重置</strong>（清空持仓与订单，钱包落到新金额）——
+                  与「完整重置」一致，避免旧仓按旧基准计价
+                </span>
+              </div>
+            </div>
+
             <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
+                disabled={opBusy !== null}
                 onClick={async () => {
-                  const val = prompt("输入新的初始余额：", "500");
-                  if (val) {
-                    await paperApi.setBalance(activeAccountId, parseFloat(val));
-                    qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
-                  }
+                  if (!(await confirmDialog({
+                    title: "软重置钱包？",
+                    description: "只把已实现盈亏与手续费归零（保留持仓与交易记录）。持仓的浮动盈亏仍会继续计入权益。",
+                    tone: "warning",
+                    confirmText: "软重置",
+                  }))) return;
+                  await runOp("soft", () => paperApi.resetBalance(activeAccountId),
+                    "软重置完成：已实现盈亏/手续费归零，持仓与交易记录保留");
                 }}
               >
-                <DollarSign className="w-3.5 h-3.5 mr-1" />设置余额
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await paperApi.resetBalance(activeAccountId);
-                  qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
-                }}
-              >
-                <RefreshCw className="w-3.5 h-3.5 mr-1" />软重置
+                {opBusy === "soft" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                软重置
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-warning"
+                disabled={opBusy !== null}
                 onClick={async () => {
-                  if (await confirmDialog({
+                  if (!(await confirmDialog({
                     title: "完整重置模拟账户？",
-                    description: "所有持仓和订单将被清除，账户回到初始资金，不可恢复。",
+                    description:
+                      "清除该账户全部持仓与订单，资金回到初始金额；不可恢复。"
+                      + (runningSessionIds.length
+                        ? `注意：会话 ${runningSessionIds.join(" / ")} 仍在运行，重置后会立刻重新开仓。`
+                        : ""),
                     tone: "danger",
                     confirmText: "完整重置",
                     requireText: "重置",
-                  })) {
-                    await paperApi.fullReset(activeAccountId);
-                    qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
-                    qc.invalidateQueries({ queryKey: ["positions", activeAccountId] });
-                    qc.invalidateQueries({ queryKey: ["orders", activeAccountId] });
-                  }
+                  }))) return;
+                  await runOp("full", () => paperApi.fullReset(activeAccountId),
+                    "完整重置完成：持仓/订单已清空，资金回到初始金额");
                 }}
               >
-                <RefreshCw className="w-3.5 h-3.5 mr-1" />完整重置
+                {opBusy === "full" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                完整重置
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={opBusy !== null}
+                onClick={async () => {
+                  if (!(await confirmDialog({
+                    title: "停用此模拟账户？",
+                    description: "停用 = is_active/自动交易关闭 + 停掉绑定会话；历史数据保留（可在账户管理里彻底删除）。",
+                    tone: "warning",
+                    confirmText: "停用",
+                  }))) return;
+                  await runOp("disable", async () => deleteMut.mutateAsync(activeAccountId), "账户已停用（历史数据保留）");
+                }}
+              >
+                {opBusy === "disable" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+                停用账户
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-loss"
+                disabled={opBusy !== null || (openPositions?.length ?? 0) > 0}
+                title={(openPositions?.length ?? 0) > 0 ? "仍有持仓：先平仓或先做完整重置" : "只清状态（open 持仓 / pending 订单）；已平仓历史保留，用于决策归因与学习（PAPER_RESET_KEEP_HISTORY 可回滚）"}
                 onClick={async () => {
-                  if (await confirmDialog({
-                    title: "删除此模拟账户？",
-                    description: "账户下所有数据将被清除，不可恢复。",
+                  if (!(await confirmDialog({
+                    title: "彻底删除此模拟账户？",
+                    description: "清除该账户的模拟资金/持仓/订单与凭证配置，账户行匿名化保留（历史审计表需要外键归属）。",
                     tone: "danger",
-                    confirmText: "删除账户",
+                    confirmText: "彻底删除",
                     requireText: "删除",
-                  })) {
-                    deleteMut.mutate(activeAccountId);
-                  }
+                  }))) return;
+                  await runOp("hardDelete", async () => {
+                    const r = await accountApi.delete(activeAccountId, { hard: true });
+                    void qc.invalidateQueries({ queryKey: ["accounts"] });
+                    return r;
+                  }, "账户已彻底删除（资金/持仓/订单已清除）");
                 }}
               >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />删除账户
+                {opBusy === "hardDelete" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+                彻底删除
               </Button>
             </div>
+
+            {/* 操作反馈：原实现四个按钮全都没有 try/catch ⇒ 后端 400/500 一律"点了没反应" */}
+            {opMsg && (
+              <div className={cn(
+                "mt-3 rounded-md border px-3 py-2 text-xs flex items-start gap-2",
+                opMsg.ok ? "border-profit/40 bg-profit/10 text-profit" : "border-loss/40 bg-loss/10 text-loss",
+              )}>
+                {opMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+                <span className="break-all">{opMsg.text}</span>
+              </div>
+            )}
           </Card>
         </>
       )}
@@ -451,7 +666,7 @@ export default function PaperTradingPage() {
             className="btn-glow"
             onClick={async () => {
               await paperApi.initialize(activeAccountId, activeAccount?.initial_capital || 500);
-              qc.invalidateQueries({ queryKey: ["balance", activeAccountId] });
+              invalidatePaperData(qc, activeAccountId);
             }}
           >
             初始化钱包
@@ -535,9 +750,8 @@ function PositionRow({ pos, onClose, closing, onPartialClose }: { pos: Position;
         </span>
       </td>
       <td className="py-2 px-2 text-muted-foreground">{
-        // [2026-08-31 修复] 补 position→长线（long 仓新 nature，此前漏映射回退显示
-        // 英文原文 "position"），与 strategy 页/订单表同一张映射表保持一致。
-        ({scalp:"短线",intraday:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
+        // [2026-09-17] 短线车道已停：scalp/intraday 按存量口径标注（intraday=日内波段归中线）
+        ({scalp:"短线(存量)",intraday:"中线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[pos.trade_nature] || pos.trade_nature || "—"
       }</td>
       <td className="py-2 px-2 text-right tabular-nums num text-muted-foreground">{formatPosPrice(entry)}</td>
       <td className="py-2 px-2 text-right tabular-nums num">
@@ -689,7 +903,7 @@ function OrderRow({ order }: { order: PaperOrder }) {
       </td>
       <td className="py-1.5 px-2 text-muted-foreground">{
         order.trade_nature
-          ? ({scalp:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[order.trade_nature] || order.trade_nature
+          ? ({scalp:"短线(存量)",intraday:"中线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[order.trade_nature] || order.trade_nature
           : "—"
       }</td>
       <td className="py-1.5 px-2 text-right tabular-nums num text-muted-foreground">
@@ -712,5 +926,111 @@ function OrderRow({ order }: { order: PaperOrder }) {
         {formatCloseReason(order.close_reason)}
       </td>
     </tr>
+  );
+}
+
+/** 挂单情况（2026-09-23 取代原「手动下单」面板）。
+ *
+ * 展示交易所侧自动挂出的条件单（`order_type` = take_profit / stop_loss，`status` = pending）：
+ * 这些单在开仓时由引擎挂出（`_upsert("take_profit"|"stop_loss")`），触发即市价平仓。
+ * 每张单显示：触发价、距当前标记价的百分比（正=还在上方）、数量、挂出时间。
+ */
+function PendingOrdersPanel({
+  orders,
+  positions,
+  className,
+}: {
+  orders: PaperOrder[];
+  positions: Position[];
+  className?: string;
+}) {
+  const pending = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status === "pending")
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [orders],
+  );
+  const markBySymbol = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const p of positions) {
+      if (p.mark_price) m[p.symbol] = p.mark_price;
+    }
+    return m;
+  }, [positions]);
+  const nTp = pending.filter((o) => o.order_type === "take_profit").length;
+  const nSl = pending.length - nTp;
+
+  return (
+    <Card className={cn("p-4 glass h-full flex flex-col", className)} data-testid="pending-orders-card">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <ListOrdered className="w-3.5 h-3.5" /> 挂单情况 ({pending.length})
+        </h2>
+        {pending.length > 0 && (
+          <span className="text-[10px] text-muted-foreground">止盈 {nTp} · 止损 {nSl}</span>
+        )}
+      </div>
+      <p className="text-[10px] text-muted-foreground mb-2">
+        开仓后自动挂到交易所侧的止盈/止损条件单，触发即市价平仓
+      </p>
+      {pending.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 flex-1 flex flex-col items-center justify-center gap-1">
+          <Inbox className="w-4 h-4 opacity-50" />
+          当前无挂单
+        </div>
+      ) : (
+        // [2026-09-23 修复] 原为 max-h-[320px]：10 张单只露 5 张、下方留大片空白（用户实测反馈）。
+        // 改为 flex-1 + min-h-0：列表占满卡片剩余高度，超出才滚动，不再固定截断。
+        <div
+          data-testid="pending-orders-list"
+          className="space-y-1.5 overflow-y-auto pr-1 flex-1 min-h-0"
+        >
+          {pending.map((o) => {
+            const mark = markBySymbol[o.symbol];
+            const px = o.price || 0;
+            const dist = mark && px ? ((px - mark) / mark) * 100 : null;
+            const isTp = o.order_type === "take_profit";
+            return (
+              <div
+                key={o.id}
+                className="rounded border border-border/40 px-2 py-1 hover:bg-muted/10"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-xs">{o.symbol}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded border",
+                      isTp ? "text-profit border-profit/40" : "text-loss border-loss/40",
+                    )}
+                  >
+                    {isTp ? "止盈" : "止损"}
+                  </span>
+                </div>
+                {/* [2026-09-23 紧凑化] 原为三行（触发/数量/时间各一行）⇒ 8 条就把框撑出滚动条。
+                    合并为一行（触发价 · 距离 · 数量 · 时间），10 条槽位×2 张单也能全部落在框内。 */}
+                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground tabular-nums num whitespace-nowrap">
+                  <span>触发 {px.toLocaleString()}</span>
+                  <span className={cn(dist === null ? "" : dist >= 0 ? "text-profit" : "text-loss")}>
+                    {dist === null ? "—" : `${dist >= 0 ? "+" : ""}${dist.toFixed(2)}%`}
+                  </span>
+                  <span className="truncate">{o.quantity !== undefined ? o.quantity.toFixed(4) : "—"}</span>
+                  <span className="ml-auto">
+                    {o.created_at
+                      ? new Date(o.created_at).toLocaleString("zh-CN", {
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }

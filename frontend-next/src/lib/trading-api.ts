@@ -549,6 +549,78 @@ export interface ConfirmationResponse {
 }
 
 // ═══════════════════════════════════════════════════════
+// [F247] L1 做市 · 实时深度看板（纵向价格梯）
+// 设计：docs/MM_实时深度看板设计_F246补全.md
+// 数据：asterdex_depth_snapshots（20 档真实价量、p50 105ms、仅 10 币）
+// ═══════════════════════════════════════════════════════
+
+/** [价, 量, 累计量]。档位按「价格由优到劣」排列：
+ *  `asks` 升序（首个是最优卖价），`bids` 升序（**末位**是最优买价）。 */
+export type LadderLevel = [number, number, number];
+
+export interface BoardLadder {
+  bids: LadderLevel[];
+  asks: LadderLevel[];
+  levels: number;
+  ts_ms: number;
+}
+
+export interface BoardMine {
+  bid: number | null;
+  ask: number | null;
+  bid_width_bp: number | null;
+  ask_width_bp: number | null;
+  /** 我方挂单价**前方**（更优价）的累计名义额 USD —— "深度"对做市的真正意义 */
+  bid_queue_ahead_usd: number | null;
+  ask_queue_ahead_usd: number | null;
+  quoted_age_ms: number | null;
+}
+
+export interface BoardPosition {
+  qty: number;
+  avg_px: number | null;
+  avg_mid: number | null;
+  opened_ts: number | null;
+  last_ts: number | null;
+  unrealized_usd: number | null;
+  hold_ms?: number;
+}
+
+export interface BoardFill {
+  ts: string | null;
+  side: string | null;
+  price: number | null;
+  qty: number | null;
+  net_bp: number | null;
+  is_close: boolean;
+}
+
+export interface BoardCard {
+  symbol: string;
+  /** 是否有 20 档深度。false 时**绝不画假深度**，如实留白。 */
+  has_depth: boolean;
+  /** 该币是否在深度采集名单内 —— 用于区分「本就无采集」与「采集停了」 */
+  depth_expected: boolean;
+  depth_age_ms: number | null;
+  mid: number | null;
+  top: { bid: number | null; bid_qty: number | null; ask: number | null; ask_qty: number | null } | null;
+  top_age_ms: number | null;
+  spread_bp: number | null;
+  ladder: BoardLadder | null;
+  mine: BoardMine;
+  position: BoardPosition;
+  recent_fills: BoardFill[];
+}
+
+export interface LaneBoardResponse {
+  lane_id: string;
+  as_of: string;
+  depth_symbols?: string[];
+  cards: BoardCard[];
+  error?: string;
+}
+
+// ═══════════════════════════════════════════════════════
 // [F61 阶段3] 数据源健康 / 资金池 / 组合级熔断演练
 // ═══════════════════════════════════════════════════════
 
@@ -685,6 +757,15 @@ export const tradingApi = {
   /** [F91] 双账对账（运行态 vs 账本重建） */
   laneReconcile: (laneId: string) =>
     apiRequest<LaneReconcile>(`/trading/lanes/${laneId}/reconcile`),
+
+  /** [F247] 实时深度看板（纵向价格梯；20 档真实深度 + 我方挂单 + 队列前方量） */
+  laneBoard: (laneId: string, symbols?: string[], depth = 20) => {
+    const q = new URLSearchParams({ depth: String(depth) });
+    if (symbols && symbols.length) q.set("symbols", symbols.join(","));
+    return apiRequest<LaneBoardResponse>(
+      `/trading/lanes/${laneId}/board?${q.toString()}`
+    );
+  },
 
   // 组合
   portfolioSummary: () => apiRequest<PortfolioSummary>("/trading/portfolio/summary"),

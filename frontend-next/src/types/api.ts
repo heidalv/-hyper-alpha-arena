@@ -136,6 +136,23 @@ export interface PaperSummary {
   open_winning?: number;
 }
 
+/**
+ * 模拟盘一屏数据（`GET /api/paper/dashboard/{id}`）。
+ * [2026-09-18 前端刷新慢治理] 四节口径与单端点一致（后端同一份 helper + 对拍测试），
+ * 前端用它把「4 个端点各 5s 轮询」收敛为「1 个请求 5s 轮询」。
+ * 未初始化账户：`balance` 为 null 且带 `warnings`。
+ */
+export interface PaperDashboard {
+  account_id: number;
+  balance: PaperBalance | null;
+  positions: Position[];
+  orders: PaperOrder[];
+  summary: PaperSummary;
+  positions_status: "open" | "closed";
+  generated_at: string;
+  warnings?: string[];
+}
+
 // ═══ 全自动会话 ═══
 
 export interface SessionStatus {

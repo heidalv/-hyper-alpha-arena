@@ -7,19 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Play, Square, Pause, RefreshCw, Loader2, Plus, X,
-  Zap, Activity, Search, Settings2, Bot, Trash2, ChevronDown, ChevronRight,
+  Zap, Activity, Settings2, Bot, Trash2, ChevronDown, ChevronRight,
 } from "lucide-react";
 import {
   useSessions, useAccounts, useStartSession, useStopSession,
   usePauseSession, useResumeSession, useDeleteSession,
 } from "@/hooks/useTradingData";
-import { sessionApi, autoCoinApi, configApi, type SessionStatus } from "@/lib/api";
+import { sessionApi, configApi, type SessionStatus } from "@/lib/api";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/auth";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
-/** 会话内 AI 选币：VIP / 管理员 / 已开选币特权 */
+/** 会话内 AI 选币（现为中线 AI 选币）：VIP / 管理员 / 已开选币特权 */
 function useCanSessionAutoCoin(): boolean {
   const user = useAuthStore((s) => s.user);
   const tier = (user?.tier || "").toLowerCase();
@@ -38,7 +38,6 @@ type SessionConfigForm = {
   max_total_drawdown_pct: number;
   daily_loss_limit_pct: number;
   active_exchange: string;
-  auto_coin_max_slots: number;
   auto_coin_mid_enabled: boolean;
   auto_coin_mid_max_slots: number;
 };
@@ -51,7 +50,6 @@ function configFromSession(session: SessionStatus): SessionConfigForm {
     max_total_drawdown_pct: session.max_total_drawdown_pct ?? 0.30,
     daily_loss_limit_pct: session.daily_loss_limit_pct ?? 0.05,
     active_exchange: session.active_exchange ?? "",
-    auto_coin_max_slots: session.auto_coin_max_slots ?? 5,
     auto_coin_mid_enabled: !!session.auto_coin_mid_enabled,
     auto_coin_mid_max_slots: session.auto_coin_mid_max_slots ?? 3,
   };
@@ -113,7 +111,6 @@ export function SessionManager() {
   const [symbols, setSymbols] = useState("BTC,ETH,SOL");
   const [mode, setMode] = useState("paper");
   const [riskLevel, setRiskLevel] = useState("moderate");
-  const [autoCoin, setAutoCoin] = useState(false);
   const [showStopped, setShowStopped] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -136,7 +133,6 @@ export function SessionManager() {
       symbols: symList,
       trading_mode: mode,
       risk_level: riskLevel,
-      auto_coin_enabled: autoCoin,
     });
     setShowCreate(false);
   };
@@ -195,12 +191,8 @@ export function SessionManager() {
               <option value="conservative">保守</option><option value="moderate">均衡</option><option value="aggressive">激进</option>
             </select>
           </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-muted-foreground">会话内 AI 选币 (VIP)</label>
-            <button type="button" onClick={() => setAutoCoin(!autoCoin)} className={cn("relative w-11 h-6 rounded-full transition-colors", autoCoin ? "bg-primary" : "bg-muted")}>
-              <span className={cn("absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform", autoCoin ? "left-5" : "left-0.5")} />
-            </button>
-          </div>
+          {/* [2026-09-17] 「会话内 AI 选币(短线)」开关已随短线车道停用移除；
+              创建后如需 AI 选币，在会话卡里开「中线 AI 选币」。 */}
           <Button size="sm" className="w-full btn-glow" onClick={handleCreate} disabled={!selectedAccount || startMut.isPending}>
             {startMut.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
             启动会话
@@ -294,7 +286,6 @@ function SessionRow({
   const canEdit = !isStopped;
   const [expanded, setExpanded] = useState(isRunning || isPaused || isDefensive);
   const [busy, setBusy] = useState<string | null>(null);
-  const [autoCoinStatus, setAutoCoinStatus] = useState<any>(null);
   const [midErr, setMidErr] = useState<string | null>(null);
   const [midMsg, setMidMsg] = useState<string | null>(null);
   const canAutoCoin = useCanSessionAutoCoin();
@@ -302,15 +293,6 @@ function SessionRow({
   const midFixed = tierFixedList(session, "mid");
   const midAiOn = !!session.auto_coin_mid_enabled;
   const midAiSyms = session.auto_coin_mid_symbols || [];
-
-  const loadAutoCoin = async () => {
-    try { setAutoCoinStatus(await autoCoinApi.status(session.session_id)); } catch {}
-  };
-
-  useEffect(() => {
-    if (expanded) loadAutoCoin();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, session.session_id]);
 
   const action = async (type: string, fn: () => Promise<any>) => {
     setBusy(type);
@@ -326,26 +308,8 @@ function SessionRow({
     } finally { setBusy(null); }
   };
 
-  const toggleAutoCoin = async () => {
-    const enabled = autoCoinStatus?.auto_coin_enabled;
-    if (!enabled && !canAutoCoin) {
-      toast.warning("会话内 AI 选币仅 VIP 可用，请升级 VIP 后再开启");
-      return;
-    }
-    await action("autoCoin", async () => {
-      if (enabled) { await autoCoinApi.stop(session.session_id); }
-      else { await autoCoinApi.start(session.session_id); }
-      await loadAutoCoin();
-    });
-  };
-
-  const scanNow = async () => {
-    if (!canAutoCoin) {
-      toast.warning("会话内 AI 选币仅 VIP 可用");
-      return;
-    }
-    await action("scan", () => autoCoinApi.scanNow(session.session_id));
-  };
+  // [2026-09-17] 「短线 AI 选币」(/auto-coin/*，喂短线 auto 池) 已随短线车道停用移除。
+  // 会话内 AI 选币仅剩「中线 AI 选币」(auto-coin-mid)。
 
   const toggleMidAi = async (e?: MouseEvent) => {
     e?.preventDefault();
@@ -397,7 +361,7 @@ function SessionRow({
             <Badge variant="outline" className="text-[9px] bg-muted/40">{session.active_exchange}</Badge>
           )}
           <span className="text-xs font-mono text-muted-foreground truncate">{session.session_id?.slice(0, 16)}...</span>
-          <button onClick={() => { setExpanded(!expanded); if (!expanded && !autoCoinStatus) loadAutoCoin(); }}
+          <button onClick={() => setExpanded(!expanded)}
             className="text-xs text-primary hover:underline ml-1">
             {expanded ? "收起" : "展开配置"}
           </button>
@@ -460,7 +424,6 @@ function SessionRow({
         )}
         <span>风险: <span className="text-foreground">{session.risk_level ?? "moderate"} / {session.risk_mode ?? "ai_dynamic"}</span></span>
         <span>{session.active_count}/{session.max_concurrent_strategies ?? 25} 策略</span>
-        <span>AI槽位: <span className="text-foreground">{(session.auto_coin_symbols || []).length}/{session.auto_coin_max_slots ?? 5}</span></span>
         {session.total_trades !== undefined && session.total_trades > 0 && (
           <span>胜率: <span className={cn("text-foreground", (session.win_rate ?? 0) >= 50 ? "text-profit" : "text-loss")}>{(session.win_rate ?? 0).toFixed(1)}%</span> ({session.total_trades}笔)</span>
         )}
@@ -469,10 +432,10 @@ function SessionRow({
         )}
       </div>
 
-      {/* 分周期固定币 + AI 选币摘要 */}
+      {/* 分周期固定币 + AI 选币摘要（[2026-09-17] 短线已停，只展示中/长两周期） */}
       <div className="mt-2 space-y-2">
-        {(["short", "mid", "long"] as const).map((tier) => {
-          const label = tier === "short" ? "短线固定" : tier === "mid" ? "中线固定" : "长线固定";
+        {(["mid", "long"] as const).map((tier) => {
+          const label = tier === "mid" ? "中线固定" : "长线固定";
           const list = tierFixedList(session, tier);
           return (
             <div key={tier}>
@@ -492,19 +455,9 @@ function SessionRow({
           );
         })}
         {(session.auto_coin_symbols || []).length > 0 && (
-          <>
-            <div className="text-[10px] text-muted-foreground pt-1">
-              AI选币 · 短线 · 槽位 {(session.auto_coin_symbols || []).length}/{session.auto_coin_max_slots ?? 5}
-              {session.auto_coin_enabled ? "" : "（已关）"}
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {(session.auto_coin_symbols || []).map((s: string) => (
-                <div key={`auto-${s}`} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px]">
-                  {s}
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="text-[10px] text-muted-foreground/70 pt-1">
+            短线 AI 池遗留 {(session.auto_coin_symbols || []).length} 个（车道已停，不再交易）：{(session.auto_coin_symbols || []).join(", ")}
+          </div>
         )}
         <div className="text-[10px] text-muted-foreground">
           中线固定：{midFixed.length ? midFixed.join(", ") : "无"} · 中线 AI：
@@ -535,65 +488,7 @@ function SessionRow({
             />
           )}
 
-          {/* 自动选币 · 短线（仅 VIP / 管理员可开启） */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs">短线 AI 选币</span>
-                <Badge variant="outline" className="text-[9px]">VIP</Badge>
-                {autoCoinStatus && (
-                  <Badge variant="secondary" className={cn("text-[9px]",
-                    autoCoinStatus.auto_coin_enabled ? "bg-profit/20 text-profit" : "bg-muted text-muted-foreground")}>
-                    {autoCoinStatus.auto_coin_enabled ? "ON" : "OFF"}
-                  </Badge>
-                )}
-                <Badge variant="outline" className="text-[9px]">
-                  槽位 {(session.auto_coin_symbols || []).length}/{session.auto_coin_max_slots ?? 5}
-                </Badge>
-              </div>
-              <div className="flex gap-1">
-                {canAutoCoin && autoCoinStatus?.auto_coin_enabled && (
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={scanNow} disabled={busy === "scan"}>
-                    {busy === "scan" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3 mr-1" />}
-                    补仓扫描
-                  </Button>
-                )}
-                {canAutoCoin ? (
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={toggleAutoCoin} disabled={busy === "autoCoin"}>
-                    {busy === "autoCoin" ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                    {autoCoinStatus?.auto_coin_enabled ? "关闭" : "开启"}
-                  </Button>
-                ) : autoCoinStatus?.auto_coin_enabled ? (
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={toggleAutoCoin} disabled={busy === "autoCoin"}>
-                    {busy === "autoCoin" ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                    关闭
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" className="h-7 text-xs opacity-60" disabled title="需 VIP">
-                    需 VIP
-                  </Button>
-                )}
-              </div>
-            </div>
-            {!canAutoCoin && (
-              <p className="text-[10px] text-muted-foreground pl-5">会话内 AI 选币仅 VIP 可用，请升级后再开启</p>
-            )}
-            {canAutoCoin && autoCoinStatus?.auto_coin_enabled && (
-              <p className="text-[10px] text-muted-foreground pl-5">
-                短线 AI 与固定币分开；槽位在下方「会话配置」调整。
-              </p>
-            )}
-          </div>
-
-          {autoCoinStatus?.auto_coin_enabled && autoCoinStatus.auto_symbols && (
-            <div className="text-xs">
-              <span className="text-muted-foreground">短线 AI 选中: </span>
-              <span className="text-primary">{autoCoinStatus.auto_symbols.join(", ")}</span>
-            </div>
-          )}
-
-          {/* 中线 AI 选币 */}
+          {/* 中线 AI 选币（会话内唯一 AI 选币入口；短线 AI 选币已随短线车道停用移除） */}
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -679,31 +574,47 @@ function TierStatus({ sessionId }: { sessionId: string }) {
   });
 
   const tierData = tiers?.tiers ?? tiers ?? {};
+  const lanes = (tiers as any)?.lanes ?? {};
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Settings2 className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-xs">三周期状态</span>
+          <span className="text-xs">双周期状态</span>
         </div>
         <button onClick={() => refetch()} className="text-[10px] text-primary hover:underline">
           {isLoading ? "加载中..." : "刷新"}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {["short", "mid", "long"].map((tier) => {
+      <div className="grid grid-cols-2 gap-2">
+        {(["mid", "long"] as const).map((tier) => {
           const t = tierData[tier] || {};
           return (
             <div key={tier} className="p-2 rounded bg-muted/30 text-center">
               <div className="text-[10px] text-muted-foreground">
-                {tier === "short" ? "短线" : tier === "mid" ? "中线" : "长线"}
+                {tier === "mid" ? "中线" : "长线"}
               </div>
               <div className="text-sm font-bold tabular-nums">{t.active_count ?? 0}</div>
               <div className="text-[9px] text-muted-foreground">{t.position_count ?? 0} 持仓</div>
             </div>
           );
         })}
+      </div>
+      {/* [2026-09-17] AI 选币池与决策循环同源展示（中线/长线分开），消除前后端口径割裂 */}
+      <div className="mt-1.5 space-y-0.5 text-[10px]">
+        <div className="flex items-start gap-1">
+          <span className="text-muted-foreground shrink-0">AI 中线池:</span>
+          <span className="text-primary font-mono break-all">
+            {(lanes.ai_mid || []).length ? lanes.ai_mid.join(", ") : "—"}
+          </span>
+        </div>
+        <div className="flex items-start gap-1">
+          <span className="text-muted-foreground shrink-0">AI 长线池:</span>
+          <span className="text-warning font-mono break-all">
+            {(lanes.ai_long || []).length ? lanes.ai_long.join(", ") : "—"}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -803,8 +714,9 @@ function FixedTierEditor({
     return (session.backup_pool || []).map((s) => String(s).toUpperCase());
   }, [pairsData, session.backup_pool]);
 
+  // [2026-09-17] 短线车道已停：编辑器只展示中/长两档。保存时显式传 short: []
+  // 清空历史遗留（后端对未传的周期保留现有值）。
   const [draft, setDraft] = useState(() => ({
-    short: [...tierFixedList(session, "short")],
     mid: [...tierFixedList(session, "mid")],
     long: [...tierFixedList(session, "long")],
   }));
@@ -817,7 +729,6 @@ function FixedTierEditor({
     // 会话切换：重置草稿
     setDirty(false);
     setDraft({
-      short: [...tierFixedList(session, "short")],
       mid: [...tierFixedList(session, "mid")],
       long: [...tierFixedList(session, "long")],
     });
@@ -827,16 +738,14 @@ function FixedTierEditor({
   }, [session.session_id]);
 
   useEffect(() => {
-    // 有未保存修改时，不要被 5s 会话轮询冲掉（否则三周期看起来无法单独改）
+    // 有未保存修改时，不要被 5s 会话轮询冲掉（否则两周期看起来无法单独改）
     if (dirty) return;
     const next = {
-      short: [...tierFixedList(session, "short")],
       mid: [...tierFixedList(session, "mid")],
       long: [...tierFixedList(session, "long")],
     };
     setDraft((prev) => {
       if (
-        sameSymList(prev.short, next.short) &&
         sameSymList(prev.mid, next.mid) &&
         sameSymList(prev.long, next.long)
       ) {
@@ -846,7 +755,7 @@ function FixedTierEditor({
     });
   }, [dirty, session.symbols, session.fixed_symbols_by_tier]);
 
-  const toggle = (tier: "short" | "mid" | "long", sym: string) => {
+  const toggle = (tier: "mid" | "long", sym: string) => {
     setDirty(true);
     setMsg(null);
     setDraft((prev) => {
@@ -863,20 +772,19 @@ function FixedTierEditor({
     setMsg(null);
     try {
       const res = await sessionApi.setFixedSymbolsByTier(session.session_id, {
-        short: [...draft.short],
+        short: [],
         mid: [...draft.mid],
         long: [...draft.long],
       });
       const saved = normalizeFixedByTier(res?.fixed_symbols_by_tier);
       if (saved) {
         setDraft({
-          short: [...(saved.short || [])].map((s) => String(s).toUpperCase()),
           mid: [...(saved.mid || [])].map((s) => String(s).toUpperCase()),
           long: [...(saved.long || [])].map((s) => String(s).toUpperCase()),
         });
       }
       setDirty(false);
-      setMsg("已保存：短/中/长各自独立");
+      setMsg("已保存：中/长各自独立");
       onUpdated();
     } catch (e: any) {
       setErr(e?.message || e?.detail || "保存失败");
@@ -895,14 +803,14 @@ function FixedTierEditor({
         </Button>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        从「设置 → 交易对」备选池勾选；短/中/长可不同，互不影响。长线仅固定币，无 AI。
-        启动时勾选的币默认只进「长线」；短/中请在此分别勾选后点「保存固定币」。
+        从「设置 → 交易对」备选池勾选；中/长可不同，互不影响。长线仅固定币，无 AI。
+        启动时勾选的币默认只进「长线」；中线请在此勾选后点「保存固定币」（保存会顺带清空已停用车道的短线遗留）。
         {dirty ? " · 有未保存修改" : ""}
       </p>
-      {(["short", "mid", "long"] as const).map((tier) => (
+      {(["mid", "long"] as const).map((tier) => (
         <div key={tier}>
           <div className="text-[10px] text-muted-foreground mb-1">
-            {tier === "short" ? "短线" : tier === "mid" ? "中线" : "长线"}固定
+            {tier === "mid" ? "中线" : "长线"}固定
             <span className="ml-1 tabular-nums">({draft[tier].length})</span>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -956,7 +864,6 @@ function ConfigEditor({
     session.max_total_drawdown_pct,
     session.daily_loss_limit_pct,
     session.active_exchange,
-    session.auto_coin_max_slots,
     session.auto_coin_mid_enabled,
     session.auto_coin_mid_max_slots,
   ]);
@@ -969,7 +876,7 @@ function ConfigEditor({
       Number(form.max_total_drawdown_pct) !== Number(baseline.max_total_drawdown_pct) ||
       Number(form.daily_loss_limit_pct) !== Number(baseline.daily_loss_limit_pct) ||
       (form.active_exchange || "") !== (baseline.active_exchange || "") ||
-      Number(form.auto_coin_max_slots) !== Number(baseline.auto_coin_max_slots)
+      Number(form.auto_coin_mid_max_slots) !== Number(baseline.auto_coin_mid_max_slots)
     );
   }, [form, baseline]);
 
@@ -994,7 +901,6 @@ function ConfigEditor({
         active_exchange: (form.active_exchange || "").trim(),
       };
       if (canAutoCoin) {
-        payload.auto_coin_max_slots = Number(form.auto_coin_max_slots);
         payload.auto_coin_mid_max_slots = Number(form.auto_coin_mid_max_slots);
         // [2026-08-15 修复] auto_coin_mid_enabled 不在本表单提交：
         // 中线 AI 选币开关由「中线 AI 选币」区独立入口管理（enable/disable 端点）。
@@ -1106,21 +1012,6 @@ function ConfigEditor({
             <option value="okx">OKX</option>
             <option value="bybit">Bybit</option>
             <option value="asterdex">Asterdex</option>
-          </select>
-        </div>
-        <div className={cn(fieldCls, "col-span-2")}>
-          <span className="text-muted-foreground">
-            短线 AI 槽位{!canAutoCoin ? "（需VIP）" : "（5~10，固定币不占）"}
-          </span>
-          <select
-            className={selectCls}
-            disabled={!canEdit || !canAutoCoin}
-            value={form.auto_coin_max_slots}
-            onChange={(e) => setForm({ ...form, auto_coin_max_slots: Number(e.target.value) })}
-          >
-            {[5, 6, 7, 8, 9, 10].map((n) => (
-              <option key={n} value={n}>{n} 个</option>
-            ))}
           </select>
         </div>
         <div className={cn(fieldCls, "col-span-2")}>

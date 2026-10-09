@@ -58,12 +58,10 @@ function fmtTs(ts?: number): string {
 export function OpsTraining({
   report,
   laneEnabled,
-  cbEnabled,
   laneNote,
 }: {
   report?: MetaReport;
   laneEnabled?: boolean;
-  cbEnabled?: boolean;
   laneNote?: string;
 }) {
   const auc = report?.oos_auc_lgbm ?? report?.auc;
@@ -191,12 +189,7 @@ export function OpsTraining({
               {laneEnabled ? "已启用（会真实开仓）" : "干跑（只写心跳，不开仓）"}
             </span>
           </div>
-          <div>
-            <span className="ops-muted">短线熔断 apply </span>
-            <span className={cn("ops-mono", cbEnabled ? "ops-lag" : "ops-ok")}>
-              {cbEnabled ? "已开启" : "干跑（不真正熔断）"}
-            </span>
-          </div>
+          {/* [2026-09-17] 「短线熔断 apply」已随短线车道停用移除 */}
           {laneNote ? (
             <div className="ops-muted" style={{ fontSize: 10, lineHeight: 1.4 }}>
               {laneNote}

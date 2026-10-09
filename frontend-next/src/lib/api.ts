@@ -147,6 +147,25 @@ export async function apiRequest<T = any>(
         signal: controller.signal,
         headers: buildHeaders(token),
       });
+    } catch (e) {
+      // ⚠️ [F329 2026-09-21] 超时/中断必须包成 ApiError，不能把 DOMException 原样漏出去。
+      //
+      // 现场：HFT 面板「选币评分」「硬性拒绝」两张卡片都显示
+      //     `刷新失败: signal is aborted without reason`
+      // 那是 `AbortController.abort()` 在**无参数**调用时，浏览器给出的
+      // DOMException.message 默认文案 —— 对用户完全无意义（看不出是超时、
+      // 也不知道该等还是该重试）。
+      //
+      // 根因链：`/hft/universe/score` 实测 **119.5s**（见 H192 profiling），
+      // 而本函数默认 timeout 只有 90s ⇒ 必然 abort。
+      // 调用方（`useHftResource`）只做 `e.message` 透传，所以漏到了界面上。
+      if (e instanceof DOMException && e.name === "AbortError") {
+        throw new ApiError(
+          0,
+          `请求超时（${Math.round(ms / 1000)}s）— 该接口较慢，稍后会自动重试`
+        );
+      }
+      throw e;
     } finally {
       clearTimeout(timer);
     }
@@ -222,13 +241,13 @@ export async function fetchPublic<T = any>(
 // ═══ 类型定义（已迁至 src/types/api.ts，此处保持重导出兼容） ═══
 
 import type {
-  Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
+  Account, PaperBalance, Position, PaperOrder, PaperSummary, PaperDashboard, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
   LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterLedgerResponse,
 } from "@/types/api";
 
 export type {
-  Account, PaperBalance, Position, PaperOrder, PaperSummary, SessionStatus,
+  Account, PaperBalance, Position, PaperOrder, PaperSummary, PaperDashboard, SessionStatus,
   TierInfo, TierStatus, TierActivityItem, TierActivity, StrategyRecord,
   LiveBalance, LivePosition, LiveOrder, LiveOrderResult, AsterLedgerResponse,
 };
@@ -251,6 +270,16 @@ export const paperApi = {
   getSummary: (accountId: number) =>
     apiRequest<PaperSummary>(`/paper/summary/${accountId}`),
 
+  /**
+   * 一屏数据（余额/持仓/订单/统计）——**单次请求**。
+   * [2026-09-18 前端刷新慢治理] 后端 `/api/paper/dashboard/{id}` 四节调用与单端点
+   * **同一份 helper**（口径一致，有对拍测试）。前端由 `useTradingData` 的单一轮询器
+   * 每 5s 调它一次，替代原先 4 个端点各 5s 轮询。
+   * 未初始化账户：`balance` 为 null 且带 `warnings`（不是 4xx）。
+   */
+  getDashboard: (accountId: number, status: "open" | "closed" = "open") =>
+    apiRequest<PaperDashboard>(`/paper/dashboard/${accountId}?status=${status}`),
+
   // 初始化账户
   initialize: (accountId: number, initialBalance: number) =>
     apiRequest<any>(`/paper/initialize`, { method: "POST", body: JSON.stringify({ account_id: accountId, initial_balance: initialBalance }) }),
@@ -264,8 +293,13 @@ export const paperApi = {
     apiRequest<any>(`/paper/reset/${accountId}`, { method: "POST" }),
 
   // 设置初始余额
-  setBalance: (accountId: number, balance: number) =>
-    apiRequest<any>(`/paper/set-balance`, { method: "POST", body: JSON.stringify({ account_id: accountId, initial_balance: balance }) }),
+  // [2026-10-03 用户口径] 默认 resetPositions=true ⇒ 改金额**连带重置**（清持仓/订单）；
+  // 后端 `set_initial_balance(reset_positions=...)` 的默认值也是 True。
+  setBalance: (accountId: number, balance: number, resetPositions: boolean = true) =>
+    apiRequest<any>(`/paper/set-balance`, {
+      method: "POST",
+      body: JSON.stringify({ account_id: accountId, initial_balance: balance, reset_positions: resetPositions }),
+    }),
 
   // 平仓
   closePosition: (accountId: number, symbol: string, side: string, quantity?: number) =>
@@ -274,6 +308,14 @@ export const paperApi = {
   // 手动下单
   placeOrder: (data: { account_id: number; symbol: string; side: string; quantity: number; leverage?: number; tp_price?: number; sl_price?: number }) =>
     apiRequest<any>(`/paper/order`, { method: "POST", body: JSON.stringify(data) }),
+
+  // [2026-10-03 用户需求] 一键平仓：平掉该账户全部 open 持仓（服务端逐笔走 close_position）
+  closeAll: (accountId: number) =>
+    apiRequest<{
+      ok: boolean; closed_count: number; failed_count: number; target_count: number;
+      closed: { position_id: number; symbol: string; side: string }[];
+      failed: { position_id: number; symbol: string; side: string; error: string }[];
+    }>(`/paper/close-all/${accountId}`, { method: "POST" }),
 
   // 完整重置（清空一切）
   fullReset: (accountId: number) =>
@@ -289,6 +331,36 @@ export const paperApi = {
       initial_balance: number;
       points: { time: number; value: number }[];
     }>(`/paper/equity-curve/${accountId}?period=${period}`),
+
+  // [2026-09-23 新方法] 已实现权益事件溯源序列（权威口径 + 末点对账 + 保极值降采样）
+  getEquitySeries: (accountId: number, period: "7d" | "30d" | "90d" | "all" = "30d") =>
+    apiRequest<{
+      account_id: number;
+      period: string;
+      source: string;
+      timezone: string;
+      initial_balance: number;
+      start_equity: number;
+      realized_end: number;
+      floating_now: number;
+      equity_total_now: number;
+      balance_total_equity: number;
+      peak_equity: number;
+      peak_at: number | null;
+      max_drawdown_usd: number;
+      max_drawdown_pct: number;
+      counts: { closed_in_window: number; closed_before_window: number; open_now: number };
+      costs_in_window: { fees: number; funding_net: number };
+      points: { t: number; v: number }[];
+      reconcile: {
+        realized_end: number;
+        floating_now: number;
+        realized_plus_floating: number;
+        balance_total_equity: number;
+        diff: number;
+        ok: boolean;
+      };
+    }>(`/paper/equity-series/${accountId}?period=${period}`),
 };
 
 // ═══ 实盘交易 ═══
@@ -357,6 +429,13 @@ export const sessionApi = {
     apiRequest<any>(`/full-auto/pause/${sessionId}`, { method: "POST" }),
   resume: (sessionId: string) =>
     apiRequest<any>(`/full-auto/resume/${sessionId}`, { method: "POST" }),
+  // [2026-10-03 用户需求] 一键停止全部自动交易：停掉所有 running/defensive/paused 会话，
+  // 并把所有账户的 auto_trading_enabled 置 false（统一总控用）。
+  stopAll: (alsoDisableAccounts: boolean = true) =>
+    apiRequest<{ success: boolean; stopped_sessions: string[]; accounts_disabled: number[]; failed: any[] }>(
+      `/full-auto/stop-all?also_disable_accounts=${alsoDisableAccounts ? "true" : "false"}`,
+      { method: "POST" },
+    ),
   status: (sessionId: string) =>
     apiRequest<any>(`/full-auto/status/${sessionId}`),
   healthCheck: (sessionId: string) =>
@@ -411,15 +490,6 @@ export const fullAutoApi = {
     apiRequest<StrategyRecord[]>(`/strategies?account_id=${accountId}&status=active`),
 };
 
-// ═══ 自动选币 ═══
-export const autoCoinApi = {
-  activeSymbols: () => apiRequest<any>("/auto-coin/active-symbols"),
-  status: (sessionId: string) => apiRequest<any>(`/auto-coin/${sessionId}/status`),
-  start: (sessionId: string) => apiRequest<any>(`/auto-coin/${sessionId}/start`, { method: "POST" }),
-  stop: (sessionId: string) => apiRequest<any>(`/auto-coin/${sessionId}/stop`, { method: "POST" }),
-  scanNow: (sessionId: string) => apiRequest<any>(`/auto-coin/${sessionId}/scan-now`, { method: "POST" }),
-};
-
 // ═══ AI 决策 ═══
 
 export const decisionApi = {
@@ -443,18 +513,7 @@ export const dashboardApi = {
 };
 
 // ═══ 策略配置 ═══
-
-export const scalpConfigApi = {
-  get: () => apiRequest<any>("/scalp-config/"),
-  update: (updates: Record<string, any>) =>
-    apiRequest<any>("/scalp-config/", { method: "PUT", body: JSON.stringify(updates) }),
-  presets: () => apiRequest<any>("/scalp-config/presets"),
-  currentPreset: () => apiRequest<any>("/scalp-config/current-preset"),
-  saveCustomPreset: (name: string, params: Record<string, any>, description?: string) =>
-    apiRequest<any>("/scalp-config/presets/custom", { method: "POST", body: JSON.stringify({ name, params, description }) }),
-  simulate: (params: any) =>
-    apiRequest<any>("/scalp-config/simulate", { method: "POST", body: JSON.stringify(params) }),
-};
+// [2026-09-17] scalpConfigApi 已随短线车道停用移除（后端 /api/scalp-config 同步下架）。
 
 export const strategyConfigApi = {
   get: (tier: "mid" | "long") => apiRequest<any>(`/strategy-config/${tier}`),
@@ -474,11 +533,29 @@ export const promptApi = {
 };
 
 /** VIP 共用 AI 选币看板 */
+export const factorsLabApi = {
+  status: () => apiRequest<any>("/factors-lab/status"),
+  config: () => apiRequest<any>("/factors-lab/config"),
+  library: (limit = 100) => apiRequest<any>(`/factors-lab/library?limit=${limit}`),
+  report: () => apiRequest<any>("/factors-lab/report"),
+  diversity: () => apiRequest<any>("/factors-lab/diversity"),
+  calibrate: () => apiRequest<any>("/factors-lab/calibrate", { method: "POST" }),
+  runRound: (scan = true) =>
+    apiRequest<any>("/factors-lab/round", {
+      method: "POST",
+      body: JSON.stringify({ scan }),
+    }),
+  scanArxiv: () => apiRequest<any>("/factors-lab/scan", { method: "POST" }),
+  feed: (body: { title: string; abstract: string; source?: string; url?: string }) =>
+    apiRequest<any>("/factors-lab/feed", { method: "POST", body: JSON.stringify(body) }),
+  unifiedReport: () => apiRequest<any>("/factors-lab/unified-strategy/report"),
+  unifiedRun: () => apiRequest<any>("/factors-lab/unified-strategy/run", { method: "POST" }),
+};
 export const coinSelectApi = {
   settings: () => apiRequest<any>("/coin-select/settings"),
   patchSettings: (body: Record<string, unknown>) =>
     apiRequest<any>("/coin-select/settings", { method: "PATCH", body: JSON.stringify(body) }),
-  board: (horizon?: "scalp" | "midlong", opts?: {
+  board: (horizon?: "mid" | "long", opts?: {
     min_score?: number;
     max_trap?: number;
     verdict?: string;
@@ -496,6 +573,8 @@ export const coinSelectApi = {
     return apiRequest<any>(`/coin-select/board${qs ? `?${qs}` : ""}`);
   },
   sessions: () => apiRequest<{ sessions: any[]; hint?: string | null }>("/coin-select/sessions"),
+  // [2026-09-18] 当前 AI 池全景（看板页与会话页共用的同一份账）
+  aiPools: () => apiRequest<any>("/coin-select/ai-pools"),
   adopt: (body: { symbol: string; horizon: string; session_id: string; candidate_id?: number }) =>
     apiRequest<any>("/coin-select/adopt", { method: "POST", body: JSON.stringify(body) }),
   scanNow: () => apiRequest<any>("/coin-select/scan-now", { method: "POST", timeout: 180000 }),
@@ -620,9 +699,6 @@ export const api = {
   getScalpSignals: (limit: number = 20) => signalApi.list(limit),
 
   // 策略配置
-  getScalpConfig: () => scalpConfigApi.get(),
-  updateScalpConfig: (updates: Record<string, any>) => scalpConfigApi.update(updates),
-  getScalpPresets: () => scalpConfigApi.presets(),
   getStrategyConfig: (tier: "mid" | "long") => strategyConfigApi.get(tier),
   updateStrategyConfig: (tier: "mid" | "long", updates: Record<string, any>) => strategyConfigApi.update(tier, updates),
 

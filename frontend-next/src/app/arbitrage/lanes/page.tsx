@@ -13,7 +13,7 @@ import { Suspense, useCallback, useMemo, useState, type ReactNode } from "react"
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   GitBranch, PauseCircle, PlayCircle, ShieldAlert, ArrowLeft, Wrench, RotateCw,
-  Wallet, Activity, TrendingUp,
+  Wallet, Activity, TrendingUp, Layers,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -22,11 +22,11 @@ import { confirmDialog } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import { ageFromAsOf, tradingApi, type LaneSummary } from "@/lib/trading-api";
 import {
-  PageShell, DataState, EdgeBadge, PromotionBoard, InventoryPanel,
+  PageShell, DataState, EdgeBadge, PromotionBoard, InventoryPanel, TradingBoard,
 } from "@/components/arbitrage";
 import {
   useLanes, useAttribution, usePortfolioSummary, useLaneDetail, useLanePromotion,
-  useShadowStatus, useShadowReport, useLaneConfig, usePositions,
+  useShadowStatus, useShadowReport, useLaneConfig, usePositions, useLaneBoard,
 } from "@/hooks/useLaneData";
 import { useLaneStream } from "@/hooks/useLaneStream";
 
@@ -228,6 +228,8 @@ function LaneDetail({ laneId }: { laneId: string }) {
   const report = useShadowReport(laneId, 30);
   const config = useLaneConfig(laneId);
   const positions = usePositions(laneId);
+  // [F247] 深度看板：2s 轮询（深度是 100ms 级数据，15s 看不出变化）
+  const board = useLaneBoard(laneId);
   const stream = useLaneStream();
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -427,6 +429,38 @@ function LaneDetail({ laneId }: { laneId: string }) {
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 挂单宽 0 表示该侧未挂（减仓侧等待成交或数据间歇）；10bp = 双边各 5bp。
+              </p>
+            </>
+          )}
+        </DataState>
+      </Card>
+
+      {/* [F247] ② 实时深度看板（纵向价格梯，上下显示）
+          —— 紧跟账户总览：做市最需要"一眼看懂盘口在哪、我方排在哪"。
+          深度是 100ms 级数据，故本块单独用 2s 轮询（其余块仍是 15–60s）。 */}
+      <Card className="glass p-4">
+        <BlockTitle icon={<Layers className="h-3.5 w-3.5" />} title="实时深度（20 档 · 我方挂单高亮）" />
+        <DataState
+          loading={board.loading}
+          error={board.error}
+          hasData={!!board.data}
+          onRetry={board.refresh}
+          empty={!!board.data && (board.data.cards ?? []).length === 0}
+          emptyHint="该车道未配置标的（meta.symbols 为空）"
+        >
+          {board.data && (
+            <>
+              <TradingBoard cards={board.data.cards ?? []} />
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                深度来自 <span className="font-mono">asterdex_depth_snapshots</span>
+                （10 币 × 20 档，p50 105ms）。无深度采集的币如实留白，不画假深度；
+                「队列前」= 我方挂单价前方（更优价）的累计名义额。
+                {((laneData?.meta?.symbols as string[] | undefined) ?? []).length > 0 && (
+                  <span className="ml-1">
+                    本车道标的：
+                    {((laneData?.meta?.symbols as string[] | undefined) ?? []).join(" / ")}
+                  </span>
+                )}
               </p>
             </>
           )}

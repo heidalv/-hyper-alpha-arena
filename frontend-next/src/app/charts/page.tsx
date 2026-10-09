@@ -384,17 +384,7 @@ export default function ChartsPage() {
           </div>
           <svg viewBox="0 0 340 150" className="w-full h-auto">
             <circle cx="120" cy="75" r="52" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="14" />
-            <circle
-              cx="120"
-              cy="75"
-              r="52"
-              fill="none"
-              stroke="url(#chartsGradCyanViolet)"
-              strokeWidth="14"
-              strokeDasharray="190 327"
-              transform="rotate(-90 120 75)"
-              strokeLinecap="round"
-            />
+            {/* [2026-09-17] 短线车道已停：静态示意图改为 中线/长线 两车道 */}
             <circle
               cx="120"
               cy="75"
@@ -402,8 +392,7 @@ export default function ChartsPage() {
               fill="none"
               stroke="#34D399"
               strokeWidth="14"
-              strokeDasharray="82 327"
-              strokeDashoffset="-190"
+              strokeDasharray="229 327"
               transform="rotate(-90 120 75)"
               strokeLinecap="round"
             />
@@ -414,26 +403,24 @@ export default function ChartsPage() {
               fill="none"
               stroke="#FBBF24"
               strokeWidth="14"
-              strokeDasharray="41 327"
-              strokeDashoffset="-272"
+              strokeDasharray="82 327"
+              strokeDashoffset="-229"
               transform="rotate(-90 120 75)"
               strokeLinecap="round"
             />
             <text x="104" y="72" fill="#EAF0FA" fontSize="16" fontWeight="700" fontFamily="JetBrains Mono, monospace">
-              58%
+              70%
             </text>
             <text x="98" y="88" fill="#6E7B98" fontSize="10">
-              短线
+              中线
             </text>
             <g fontSize="11">
-              <rect x="230" y="40" width="10" height="10" rx="3" fill="url(#chartsGradCyanViolet)" />
-              <text x="246" y="49" fill="#C9D4E8">短线 58%</text>
-              <rect x="230" y="62" width="10" height="10" rx="3" fill="#34D399" />
-              <text x="246" y="71" fill="#C9D4E8">中线 25%</text>
-              <rect x="230" y="84" width="10" height="10" rx="3" fill="#FBBF24" />
-              <text x="246" y="93" fill="#C9D4E8">长线 12%</text>
-              <rect x="230" y="106" width="10" height="10" rx="3" fill="rgba(255,255,255,0.2)" />
-              <text x="246" y="115" fill="#C9D4E8">预留 5%</text>
+              <rect x="230" y="40" width="10" height="10" rx="3" fill="#34D399" />
+              <text x="246" y="49" fill="#C9D4E8">中线 70%</text>
+              <rect x="230" y="62" width="10" height="10" rx="3" fill="#FBBF24" />
+              <text x="246" y="71" fill="#C9D4E8">长线 25%</text>
+              <rect x="230" y="84" width="10" height="10" rx="3" fill="rgba(255,255,255,0.2)" />
+              <text x="246" y="93" fill="#C9D4E8">预留 5%</text>
             </g>
           </svg>
         </Card>

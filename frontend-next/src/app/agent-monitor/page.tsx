@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,14 @@ import {
   RefreshCw, Loader2, Cpu, Zap, TrendingUp, Boxes,
   CheckCircle2, XCircle, AlertTriangle, Pause, Play,
   Server, Brain, Gauge, Layers, Wallet, ArrowUpRight, ArrowDownRight,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 import { apiRequest } from "@/lib/api";
 import { usePolling } from "@/hooks/usePolling";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AgentWallCanvas } from "@/components/monitor/AgentWallCanvas";
 import {
   LineChart as RLineChart, Line as RLine, BarChart as RBarChart, Bar as RBar,
   PieChart as RPieChart, Pie as RPie, Cell as RCell,
@@ -24,14 +27,36 @@ import {
 // 后端基地址(开发=localhost:8000, 生产=配置的域名)
 const BACKEND = getBackendUrl().replace(/\/$/, "");
 
-type Tab = "overview" | "stats" | "decisions" | "scheduler" | "logs";
+type Tab = "wall" | "overview" | "stats" | "decisions" | "scheduler" | "logs";
+const TAB_KEYS: Tab[] = ["wall", "overview", "stats", "decisions", "scheduler", "logs"];
 
 // ═══════════════════════════════════════════════════════════════════
 // 主页面
+//
+// [2026-10-01 合并] 原「Agent Wall」独立页（`/agent-wall`）并入本页，成为第一个 Tab
+// 「分析墙（画布）」；侧栏入口只保留一个「Agent 监控」，并归入「市场 & 分析」组。
+// 旧路由 `/agent-wall` 保留为跳转桩 → `/agent-monitor?tab=wall`（外部书签/文档不失效）。
+// 因此本页首次进入默认落在画布 Tab；`?tab=overview|stats|decisions|scheduler|logs`
+// 仍可直达原来的监视视图（深链由 useSearchParams 读取）。
 // ═══════════════════════════════════════════════════════════════════
 
 export default function AgentMonitorPage() {
-  const [tab, setTab] = useState<Tab>("overview");
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <AgentMonitorPageInner />
+    </Suspense>
+  );
+}
+
+function AgentMonitorPageInner() {
+  const searchParams = useSearchParams();
+  // 深链：`?tab=` 决定首屏 Tab（旧 /agent-wall 跳转桩带的就是 ?tab=wall），非法值回落画布。
+  // 用惰性初始化而不是 useEffect+setState：后者属于 react-hooks/set-state-in-effect，
+  // 且本页是纯客户端渲染（Suspense 边界内），首帧就能读到真实 query。
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = (searchParams.get("tab") || "").toLowerCase();
+    return (TAB_KEYS as string[]).includes(t) ? (t as Tab) : "wall";
+  });
 
   // 账户/会话两级选择（全局，供所有 Tab 跟随）
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -70,6 +95,8 @@ export default function AgentMonitorPage() {
   };
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
+    // [2026-10-01] 合并自原「Agent Wall」页：画布式多 Agent 分析墙（每节点独立滚屏 + 链路）
+    { key: "wall", label: "分析墙（画布）", icon: Network },
     { key: "overview", label: "运行总览", icon: Activity },
     { key: "stats", label: "执行统计", icon: BarChart3 },
     { key: "decisions", label: "决策流", icon: Radio },
@@ -77,22 +104,37 @@ export default function AgentMonitorPage() {
     { key: "logs", label: "实时日志", icon: Terminal },
   ];
 
+  /** 切 Tab 时把 `?tab=` 同步进地址栏（刷新/复制链接保持同一视图）。
+   *  用 history.replaceState 而非 router.replace：本页全客户端，不需要重新拉 RSC 载荷，
+   *  静态导出（Electron out/）下也最稳。 */
+  const switchTab = useCallback((k: Tab) => {
+    setTab(k);
+    if (typeof window === "undefined") return;
+    const url = `${window.location.pathname}?tab=${k}`;
+    if (`${window.location.pathname}${window.location.search}` !== url) {
+      window.history.replaceState(null, "", url);
+    }
+  }, []);
+
   return (
     <div className="p-4 space-y-4">
       <PageHeader
         icon={<Radar className="w-4 h-4" />}
-        title="Agent 运行监控"
-        subtitle="LLM 论题主脑 · 日内波段(=中线) / 长线趋势 两车道 · 哨兵盯盘"
-        refreshHint="会话状态 15s 轮询"
-        breadcrumb={[{ label: "交易核心" }, { label: "Agent 监控" }]}
+        title="Agent 监控"
+        subtitle="画布式多 Agent 分析墙（每节点独立滚屏 · 有向连线看链路健康）· LLM 论题主脑 · 日内波段(=中线) / 长线趋势 两车道 · 哨兵盯盘"
+        refreshHint={tab === "wall" ? "画布 3s 轮询" : "会话状态 15s 轮询"}
+        breadcrumb={[{ label: "市场 & 分析" }, { label: "Agent 监控" }]}
         actions={
-          <AccountSessionSelector
-            sessions={sessionsList}
-            selectedAccountId={selectedAccountId}
-            selectedSessionId={selectedSessionId}
-            onAccountChange={handleAccountChange}
-            onSessionChange={setSelectedSessionId}
-          />
+          // 账户/会话选择器只对监视类 Tab 有意义（画布 Tab 是全局的，不跟账户走）
+          tab === "wall" ? undefined : (
+            <AccountSessionSelector
+              sessions={sessionsList}
+              selectedAccountId={selectedAccountId}
+              selectedSessionId={selectedSessionId}
+              onAccountChange={handleAccountChange}
+              onSessionChange={setSelectedSessionId}
+            />
+          )
         }
       />
 
@@ -101,7 +143,7 @@ export default function AgentMonitorPage() {
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => switchTab(t.key)}
             className={cn(
               "relative flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors cursor-pointer",
               tab === t.key
@@ -115,6 +157,7 @@ export default function AgentMonitorPage() {
         ))}
       </div>
 
+      {tab === "wall" && <AgentWallCanvas />}
       {tab === "overview" && <OverviewTab sessionsData={sessionsList} selectedSessionId={selectedSessionId} />}
       {tab === "stats" && <StatsTab selectedAccountId={selectedAccountId} />}
       {tab === "decisions" && <DecisionsTab selectedAccountId={selectedAccountId} />}
@@ -274,7 +317,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
   // 长线 V2 规则化 L1 状态（证据）
   const longV2 = usePoll<any>(sessionId ? `${BACKEND}/api/ops/long-trend-v2?session_id=${sessionId}` : null, 15000);
 
-  const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, short: 300, mid: 45, long: 240 };
+  const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, mid: 45, long: 240 };
   const labels = tickIntervals.data?.labels ?? {};
   const jobs = scheduler.data?.jobs ?? [];
   const theses: any[] = mltoThesis.data?.theses ?? [];
@@ -290,12 +333,14 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       : null;
     const tierPositions = openPositions.filter((p: any) =>
       (p.timeframe_tier ?? "").toLowerCase() === tier ||
-      (tier === "short" && (p.trade_nature ?? "").toLowerCase() === "intraday")
+      // 日内(=日内波段)持仓归入中线车道（轮55口径：日内波段就是中线）
+      (tier === "mid" && (p.trade_nature ?? "").toLowerCase() === "intraday")
     );
     const tierPnl = tierPositions.reduce((s: number, p: any) => s + (Number(p.unrealized_pnl) || 0), 0);
     return { theses: tierTheses, accepted, recOpen, lastUpdate, positions: tierPositions, pnl: tierPnl };
   };
-  const lanes = { short: laneOf("short"), mid: laneOf("mid"), long: laneOf("long") };
+  // [轮55 2026-09-17] 只聚合 mid/long 两条车道（short 已判负期望关停）
+  const lanes = { mid: laneOf("mid"), long: laneOf("long") };
 
   // 心跳：positions 轮询成功 = 后端活
   const backendAlive = !positions.error && positions.data != null;
@@ -319,12 +364,14 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
       engine: labels.mid ?? "日内波段（中线）LLM 论题主脑",
       interval: intervals.mid, lane: lanes.mid,
       desc: "持仓 12h-48h · 论题 4h TTL · 18h 无进展复盘",
+      aiPool: (tierStatus.data?.lanes?.ai_mid ?? []) as string[],
     },
     {
       key: "long", name: "长线趋势", icon: TrendingUp, color: "warning" as const,
       engine: labels.long ?? "长线 LLM 论题主脑",
       interval: intervals.long, lane: lanes.long,
       desc: "持仓 3-7 天 · Chandelier 追踪 · 浮盈≥2% 推保本",
+      aiPool: (tierStatus.data?.lanes?.ai_long ?? []) as string[],
     },
   ];
 
@@ -370,7 +417,7 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
               </div>
 
               {/* 下次 tick 倒计时 */}
-              <NextTickCountdown job={t.key === "short" ? undefined : midlongJob} interval={t.interval} label={t.key === "short" ? "下次扫描" : "下次哨兵"} />
+              <NextTickCountdown job={midlongJob} interval={t.interval} label="下次哨兵" />
 
               {/* 三问：论题 / 持仓 / 盈亏 */}
               <div className="grid grid-cols-3 gap-2 pt-0.5">
@@ -386,6 +433,13 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
 
               <div className="text-xs text-muted-foreground space-y-0.5 pt-1 border-t border-border/30">
                 <div>{t.desc}</div>
+                {/* [2026-09-17] AI 选币池与后端决策循环同源（消除前后端割裂） */}
+                <div className="flex items-center gap-1">
+                  <span>AI 池:</span>
+                  <span className="font-mono">
+                    {t.aiPool.length ? t.aiPool.join(" / ") : "—"}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span>最近论题刷新</span>
                   <span className="tabular-nums">{lane.lastUpdate ? lane.lastUpdate.toLocaleTimeString("zh-CN", { hour12: false }) : "—"}</span>
@@ -496,6 +550,10 @@ function OverviewTab({ sessionsData, selectedSessionId }: { sessionsData: any[];
 
 function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: any; brainMode?: string }) {
   const [tierFilter, setTierFilter] = useState<string>("all");
+  // [2026-09-19 M1] 论题正文展开态。背景（排查实证）：`thesis_summary`（中位 280~285 字）
+  // 与 `reasoning_content`（中位 2853~3809 字、最长 4472）**早已随 slim=1 响应到达浏览器**，
+  // 但本表只渲染 8 个状态列、正文被丢弃；用户看到的"主脑分析"因此只剩状态数字。
+  const [openId, setOpenId] = useState<string | null>(null);
   const filtered = tierFilter === "all" ? theses : theses.filter((t: any) => t.tier === tierFilter);
   const lastUpdate = theses.length
     ? new Date(Math.max(...theses.map((t: any) => new Date(t.updated_at ?? 0).getTime()))).toLocaleTimeString("zh-CN", { hour12: false })
@@ -538,25 +596,69 @@ function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: an
                 <th className="text-left py-1 pr-2">平?</th>
                 <th className="text-right py-1 pr-2">失效价</th>
                 <th className="text-left py-1 pr-2">watch</th>
-                <th className="text-left py-1">run</th>
+                <th className="text-left py-1 pr-2">run</th>
+                <th className="text-left py-1">正文</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 24).map((t: any) => (
-                <tr key={`${t.symbol}-${t.tier}-${t.thesis_id}`} className="border-b border-border/30">
-                  <td className="py-1 pr-2 font-medium">{t.symbol}</td>
-                  <td className="py-1 pr-2">{tierName[t.tier] ?? t.tier}</td>
-                  <td className={cn(
-                    "py-1 pr-2",
-                    t.direction === "long" ? "text-profit" : t.direction === "short" ? "text-loss" : "",
-                  )}>{t.direction ?? "—"}</td>
-                  <td className="py-1 pr-2">{t.accepted && t.recommend_open ? "是" : t.accepted ? "观望" : "未过门"}</td>
-                  <td className="py-1 pr-2">{t.should_close ? "要平" : "—"}</td>
-                  <td className="py-1 pr-2 text-right num">{t.inv_price ?? "—"}</td>
-                  <td className="py-1 pr-2 truncate max-w-[8rem]" title={t.watch_reason ?? ""}>{t.watch_reason ?? (t.is_fresh ? "持有" : "过期")}</td>
-                  <td className="py-1 truncate max-w-[6rem]" title={t.analysis_run_id ?? ""}>{(t.analysis_run_id || "—").slice(0, 8)}</td>
-                </tr>
-              ))}
+              {filtered.slice(0, 24).map((t: any) => {
+                const rowKey = `${t.symbol}-${t.tier}-${t.thesis_id}`;
+                const isOpen = openId === rowKey;
+                const body = String(t.thesis_summary ?? "");
+                const reasoning = String(t.reasoning_content ?? "");
+                return (
+                  <Fragment key={rowKey}>
+                    <tr className="border-b border-border/30">
+                      <td className="py-1 pr-2 font-medium">{t.symbol}</td>
+                      <td className="py-1 pr-2">{tierName[t.tier] ?? t.tier}</td>
+                      <td className={cn(
+                        "py-1 pr-2",
+                        t.direction === "long" ? "text-profit" : t.direction === "short" ? "text-loss" : "",
+                      )}>{t.direction ?? "—"}</td>
+                      <td className="py-1 pr-2">{t.accepted && t.recommend_open ? "是" : t.accepted ? "观望" : "未过门"}</td>
+                      <td className="py-1 pr-2">{t.should_close ? "要平" : "—"}</td>
+                      <td className="py-1 pr-2 text-right num">{t.inv_price ?? "—"}</td>
+                      <td className="py-1 pr-2 truncate max-w-[8rem]" title={t.watch_reason ?? ""}>{t.watch_reason ?? (t.is_fresh ? "持有" : "过期")}</td>
+                      <td className="py-1 truncate max-w-[6rem]" title={t.analysis_run_id ?? ""}>{(t.analysis_run_id || "—").slice(0, 8)}</td>
+                      <td className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => setOpenId(isOpen ? null : rowKey)}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-xs cursor-pointer transition-colors",
+                            isOpen ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/40",
+                          )}
+                          title={body || "无正文"}
+                        >
+                          {isOpen ? "▾ 收起" : `▸ 展开${body ? ` (${body.length})` : ""}`}
+                        </button>
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="bg-muted/10">
+                        <td colSpan={9} className="py-2 pl-2 pr-2">
+                          <div className="text-xs text-muted-foreground mb-1">
+                            主脑论题正文（thesis_summary · {body.length} 字）
+                          </div>
+                          <div className="whitespace-pre-wrap leading-relaxed text-xs bg-background/40 rounded p-2 max-h-64 overflow-y-auto">
+                            {body || "（本论题无 thesis_summary）"}
+                          </div>
+                          {reasoning && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-muted-foreground cursor-pointer">
+                                展开主脑推理全文（reasoning_content · {reasoning.length} 字）
+                              </summary>
+                              <div className="whitespace-pre-wrap leading-relaxed text-xs bg-background/40 rounded p-2 mt-1 max-h-96 overflow-y-auto">
+                                {reasoning}
+                              </div>
+                            </details>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -587,13 +689,14 @@ function ThesisLedger({ theses, longV2, brainMode }: { theses: any[]; longV2: an
 
 function TierActivityPanels({ sessionId }: { sessionId?: string }) {
   const { data } = usePoll<any>(sessionId ? `${BACKEND}/api/full-auto/tier-activity/${sessionId}` : null, 10000);
-  const acts = data ?? { short: [], mid: [], long: [] };
+  // [轮55 修正] 日内波段=中线（同一车道），此前把 acts.mid 重复渲染成两列、
+  // acts.short 取了不用。现固定两列：日内波段(mid) + 长线趋势(long)。
+  const acts = data ?? { mid: [], long: [] };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       <TierActivityColumn title="日内波段" items={acts.mid ?? []} color="profit" icon={Boxes} />
-      <TierActivityColumn title="中线(论题)" items={acts.mid ?? []} color="profit" icon={Boxes} />
-      <TierActivityColumn title="固定长线" items={acts.long ?? []} color="warning" icon={Boxes} />
+      <TierActivityColumn title="长线趋势" items={acts.long ?? []} color="warning" icon={TrendingUp} />
     </div>
   );
 }
@@ -1016,7 +1119,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
   if (loading && !data) return <LoadingSpinner />;
 
   const jobs = data?.jobs ?? [];
-  const intervals = tickIntervals.data?.intervals ?? { short: 300, mid: 45, long: 240 };
+  const intervals = tickIntervals.data?.intervals ?? { coordinator: 30, mid: 45, long: 240 };
   const labels = tickIntervals.data?.labels ?? {};
   const running = data?.scheduler_running ?? false;
   const runningSessions: string[] = data?.running_sessions ?? [];
@@ -1059,7 +1162,7 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
         </div>
       </Card>
 
-      {/* 三车道 tick 配置 vs 实际 */}
+      {/* 两车道 tick 配置 vs 实际（mid 不再重复展示两卡） */}
       <Card className="p-4">
         <CardHead
           icon={<Clock className="w-3.5 h-3.5 text-cyan-300" />}
@@ -1067,11 +1170,10 @@ function SchedulerTab({ selectedSessionId }: { selectedSessionId: string | null 
           hint="秒 / tick"
           className="mb-3"
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
-            { label: labels.mid ?? "日内波段", val: intervals.mid, color: "text-profit" },
-            { label: labels.mid ?? "AI中线", val: intervals.mid ?? intervals.long, color: "text-profit" },
-            { label: labels.long ?? "固定长线", val: intervals.long, color: "text-warning" },
+            { label: labels.mid ?? "日内波段（中线）", val: intervals.mid, color: "text-profit" },
+            { label: labels.long ?? "长线趋势", val: intervals.long, color: "text-warning" },
           ].map(t => (
             <div key={t.label} className="text-center p-3 rounded-lg bg-muted/10">
               <div className="text-xs text-muted-foreground mb-1 truncate" title={t.label}>{t.label}</div>

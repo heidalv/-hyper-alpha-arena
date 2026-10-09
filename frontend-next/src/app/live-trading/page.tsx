@@ -469,8 +469,8 @@ export default function LiveTradingPage() {
                         {p.tier && p.tier.length ? (
                           <span className="inline-flex flex-wrap gap-1">
                             {p.tier.map((t) => (
-                              <Badge key={t} className={cn("text-[10px]", t === "short" ? "bg-cyan-400/15 text-cyan-300" : t === "mid" ? "bg-violet-400/15 text-violet-300" : "bg-amber-400/15 text-amber-300")}>
-                                {t === "short" ? "短线" : t === "mid" ? "中线" : "长线"}
+                              <Badge key={t} className={cn("text-[10px]", t === "short" ? "bg-cyan-400/10 text-cyan-300/60" : t === "mid" ? "bg-violet-400/15 text-violet-300" : "bg-amber-400/15 text-amber-300")}>
+                                {t === "short" ? "短线(停)" : t === "mid" ? "中线" : "长线"}
                               </Badge>
                             ))}
                           </span>

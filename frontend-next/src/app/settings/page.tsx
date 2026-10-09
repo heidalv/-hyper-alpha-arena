@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,7 +95,7 @@ function AccountsRedirect() {
       <h3 className="text-base font-semibold">账户管理已归口到「交易所管理」</h3>
       <p className="text-sm text-muted-foreground">
         账户的创建、凭证绑定、杠杆/风险、会话关联与删除，统一在
-        <a href="/exchange" className="text-primary underline ml-1">交易所管理 → 账户管理</a>
+        <a href="/control?tab=exchange" className="text-primary underline ml-1">交易所管理 → 账户管理</a>
         中操作（2026-08-28 账户体系统一重设计）。
       </p>
     </Card>
@@ -910,3 +910,4 @@ function GatesTab() {
     </div>
   );
 }
+

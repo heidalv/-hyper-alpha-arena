@@ -17,20 +17,22 @@ import { CooldownMatrixPanel, BlockEventStream } from "@/components/trading/Cool
 import type { Account, Position } from "@/types/api";
 import { fmtMoney } from "@/lib/format";
 import { sumBy, sumUnrealizedPnl } from "@/lib/stats";
+import { useActivePaperAccountId } from "@/hooks/useActivePaperAccountId";
 
-const TIER_KEYS = ["short", "mid", "long"] as const;
+// [2026-09-17] 短线车道已停（SCALP_OPEN_DISABLED）：车道视图收敛为 中线+长线。
+// scalp 持仓属存量遗留（只平不开），在构成条里非零时弱化显示，不再单列车道卡。
+const TIER_KEYS = ["mid", "long"] as const;
 type TierKey = (typeof TIER_KEYS)[number];
 
-const TIER_COLORS: Record<TierKey, string> = { short: "#6366f1", mid: "#22c55e", long: "#eab308" };
+const TIER_COLORS: Record<TierKey, string> = { mid: "#22c55e", long: "#eab308" };
 const TIER_LABELS: Record<TierKey, string> = {
-  short: "短线 Scalp",
-  mid: "中线(因子化)",
-  long: "固定长线",
+  mid: "中线(日内波段)",
+  long: "长线趋势",
 };
 
 function positionTierOf(p: Position, tierKey: TierKey): boolean {
-  if (tierKey === "short") return p.trade_nature === "scalp";
-  if (tierKey === "mid") return p.trade_nature === "swing" || p.timeframe_tier === "mid";
+  if (tierKey === "mid")
+    return p.trade_nature === "swing" || p.trade_nature === "intraday" || p.timeframe_tier === "mid";
   return p.trade_nature === "trend_follow" || p.trade_nature === "position" || p.timeframe_tier === "long";
 }
 
@@ -56,7 +58,9 @@ export default function DashboardPage() {
 
   // R5-2 魔法数字修复：不再回退到硬编码账户 ID=14；
   // 无 paper 账户时 activeAccountId=null，页面渲染空态引导。
-  const activeAccountId: number | null = selectedAccountId ?? paperAccounts[0]?.id ?? null;
+  // [2026-09-18 切页提速] 账户列表未返回时用"上次用过的账户"乐观兜底，
+  // 使资金/持仓请求与账户列表并行（原先必须等列表返回才发）。
+  const activeAccountId: number | null = useActivePaperAccountId(accounts, selectedAccountId);
 
   const { data: balance, isError: balanceError, dataUpdatedAt: balanceUpdatedAt } =
     usePaperBalance(activeAccountId);
@@ -133,7 +137,7 @@ export default function DashboardPage() {
         <Card className="border-border">
           <EmptyState
             title="暂无模拟交易账户"
-            description="创建 Paper 账户后即可查看权益曲线、持仓与三周期状态。"
+            description="创建 Paper 账户后即可查看权益曲线、持仓与双周期状态。"
             action={
               <a
                 href="/paper-trading"
@@ -209,12 +213,16 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex h-2 rounded-sm overflow-hidden bg-muted/20">
-          <div className="bg-primary" style={{ width: `${(Math.abs(scalpPnl) / grossPnl) * 100}%` }} title={`短线 scalp: ${fmtMoney(scalpPnl)}`} />
+          {scalpPnl !== 0 && (
+            <div className="bg-primary/60" style={{ width: `${(Math.abs(scalpPnl) / grossPnl) * 100}%` }} title={`短线(已停·存量): ${fmtMoney(scalpPnl)}`} />
+          )}
           <div className="bg-profit" style={{ width: `${(Math.abs(swingPnl) / grossPnl) * 100}%` }} title={`中线 swing: ${fmtMoney(swingPnl)}`} />
           <div className="bg-warning" style={{ width: `${(Math.abs(trendPnl) / grossPnl) * 100}%` }} title={`长线 trend: ${fmtMoney(trendPnl)}`} />
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-[10px] text-muted-foreground font-mono">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-primary" />短线 scalp<span className={scalpPnl >= 0 ? "text-profit" : "text-loss"}>{fmtMoney(scalpPnl)}</span></span>
+          {scalpPnl !== 0 && (
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-primary/60" />短线(已停·存量)<span className={scalpPnl >= 0 ? "text-profit" : "text-loss"}>{fmtMoney(scalpPnl)}</span></span>
+          )}
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-profit" />中线 swing<span className={swingPnl >= 0 ? "text-profit" : "text-loss"}>{fmtMoney(swingPnl)}</span></span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-warning" />长线 trend<span className={trendPnl >= 0 ? "text-profit" : "text-loss"}>{fmtMoney(trendPnl)}</span></span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-loss" />手续费<span className="text-loss">−${feePaid.toFixed(2)}</span></span>
@@ -254,13 +262,13 @@ export default function DashboardPage() {
       {/* Section: Tier Cards */}
       {tiers && (
         <div>
-          <SectionHeader title="三周期状态">
+          <SectionHeader title="双周期状态">
             <div className="flex gap-0.5">
               <button className="text-[9px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-foreground">预算分配</button>
               <button className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/25">风险敞口</button>
             </div>
           </SectionHeader>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {TIER_KEYS.map((tierKey) => {
               const t = tiers[tierKey];
               if (!t) return null;
@@ -415,8 +423,8 @@ export default function DashboardPage() {
                 {openPositions.length > 0 ? openPositions.map((p) => (
                   <tr key={p.id} className="border-b border-border/20 hover:bg-white/[0.04]">
                     <td className="px-3 py-2 font-mono text-xs">{p.strategy_id?.slice(0, 20) || "—"}</td>
-                    <td className="py-2"><span className={p.trade_nature === "scalp" ? "text-primary" : p.trade_nature === "swing" ? "text-profit" : "text-warning"}>{
-                      ({scalp:"短线",intraday:"短线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[p.trade_nature] || p.trade_nature
+                    <td className="py-2"><span className={p.trade_nature === "scalp" ? "text-primary/60" : p.trade_nature === "swing" || p.trade_nature === "intraday" ? "text-profit" : "text-warning"}>{
+                      ({scalp:"短线(存量)",intraday:"中线",swing:"中线",trend_follow:"长线",position:"长线"} as Record<string,string>)[p.trade_nature] || p.trade_nature
                     }</span></td>
                     <td className="py-2 font-mono font-semibold text-xs">{p.symbol}</td>
                     <td className="py-2"><span className={`text-[9px] px-1 py-0.5 rounded ${p.side === "long" ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss"}`}>{p.side === "long" ? "多" : "空"}</span></td>

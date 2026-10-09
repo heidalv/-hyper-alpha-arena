@@ -18,7 +18,11 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-type Horizon = "scalp" | "midlong";
+// [2026-09-17] 中线/长线是两个完全不同的交易周期，看板分开两套判定与展示：
+// mid = 中线波段（12h-48h）；long = 长线趋势（3-7 天）。短线已停无 scalp。
+type Horizon = "mid" | "long";
+
+const HORIZON_LABEL: Record<Horizon, string> = { mid: "中线推荐", long: "长线推荐" };
 
 type BoardItem = {
   id: number;
@@ -51,11 +55,13 @@ export default function CoinSelectPage() {
   const isAdmin = user?.role === "admin";
   const isVip = (user?.tier || "").toLowerCase() === "vip" || isAdmin;
 
-  const [horizon, setHorizon] = useState<Horizon>("scalp");
+  const [horizon, setHorizon] = useState<Horizon>("mid");
   const [enabled, setEnabled] = useState(false);
-  const [autoFollow, setAutoFollow] = useState(false);
-  const [defaultSession, setDefaultSession] = useState<string>("");
   const [items, setItems] = useState<BoardItem[]>([]);
+  // [2026-09-18] 大盘 regime（后端按 BTC 1d/4h EMA 结构客观计算，作为方向先验展示）
+  const [regime, setRegime] = useState<{ label_1d?: string; label_4h?: string; text?: string } | null>(null);
+  // [2026-09-18] 当前 AI 池（running 会话，与交易循环同源）：{mid:{symbols,detail,reason}, long:{...}}
+  const [aiPools, setAiPools] = useState<any>(null);
   const [lastScan, setLastScan] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionHint, setSessionHint] = useState<string | null>(null);
@@ -84,11 +90,6 @@ export default function CoinSelectPage() {
       setError(null);
       const settings = await coinSelectApi.settings();
       setEnabled(!!settings.enabled || settings.coin_select_enabled === "true");
-      setAutoFollow(
-        String(settings.auto_follow_scalp || "").toLowerCase() === "true" ||
-          settings.auto_follow_scalp === true
-      );
-      setDefaultSession(settings.default_session_id || "");
 
       const sess = await coinSelectApi.sessions();
       setSessions(sess.sessions || []);
@@ -109,8 +110,17 @@ export default function CoinSelectPage() {
           sort_by: sortBy,
         });
         setItems(board.items || []);
+        setRegime((board as any).regime || null);
         setLastScan(board.last_scan || null);
         setBoardDegraded(board.degraded || null);
+        // [2026-09-18] 拉当前 AI 池（与交易会话同源）——看板页与会话页同一份账
+        try {
+          const pools = await coinSelectApi.aiPools();
+          const run = (pools.sessions || [])[0] || null;
+          setAiPools(run ? run.pools : null);
+        } catch {
+          setAiPools(null);
+        }
       } else {
         setItems([]);
         setLastScan(null);
@@ -155,10 +165,6 @@ export default function CoinSelectPage() {
     try {
       const s = await coinSelectApi.patchSettings(patch);
       setEnabled(!!s.enabled || s.coin_select_enabled === "true");
-      setAutoFollow(
-        String(s.auto_follow_scalp || "").toLowerCase() === "true" || s.auto_follow_scalp === true
-      );
-      setDefaultSession(s.default_session_id || "");
       setMsg("设置已保存");
       await load();
     } catch (e: any) {
@@ -176,15 +182,14 @@ export default function CoinSelectPage() {
     setBusy(true);
     setMsg(null);
     try {
+      const h: Horizon = (item.horizon as Horizon) || horizon;
       await coinSelectApi.adopt({
         symbol: item.symbol,
-        horizon: item.horizon || horizon,
+        horizon: h,
         session_id: adoptSession,
         candidate_id: item.id,
       });
-      setMsg(
-        `已将 ${item.symbol} 加入${horizon === "scalp" ? "短线" : "长线"}会话`
-      );
+      setMsg(`已将 ${item.symbol} 加入${h === "long" ? "长线" : "中线"}跟投`);
       await load();
     } catch (e: any) {
       setError(e?.detail || e?.message || String(e));
@@ -198,7 +203,11 @@ export default function CoinSelectPage() {
     setMsg(null);
     try {
       const r = await coinSelectApi.scanNow();
-      setMsg(r.ok ? `扫描完成：短线 ${r.board_scalp} / 长线 ${r.board_midlong}` : r.reason || "扫描未完成");
+      setMsg(
+        r.ok
+          ? `扫描完成：中线 ${r.board_mid ?? 0} · 长线 ${r.board_long ?? 0}（已排除固定币）`
+          : r.reason || "扫描未完成",
+      );
       await load();
     } catch (e: any) {
       setError(e?.detail || e?.message || String(e));
@@ -231,7 +240,7 @@ export default function CoinSelectPage() {
         badge={<Badge variant="outline">平台共用 · 管理员 LLM</Badge>}
         subtitle="多因子扫描 + AI 审核 · 按信心排序推荐可交易标的"
         refreshHint="扫描任务 60s 轮询"
-        breadcrumb={[{ label: "交易核心" }, { label: "VIP AI 选币" }]}
+        breadcrumb={[{ label: "策略配置" }, { label: "VIP AI 选币" }]}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => load()} disabled={loading || busy}>
@@ -272,20 +281,6 @@ export default function CoinSelectPage() {
                 />
                 启用选币看板
                 {isAdmin && <span className="text-xs text-muted-foreground">（管理员始终可见）</span>}
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <Switch
-                  checked={autoFollow}
-                  disabled={busy || !enabled}
-                  onCheckedChange={(v) =>
-                    patchSettings({
-                      auto_follow_scalp: !!v,
-                      default_session_id: adoptSession || defaultSession || undefined,
-                    })
-                  }
-                />
-                自动跟投短线
-                <span className="text-xs text-muted-foreground">（默认关；长线永不自动）</span>
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -398,12 +393,61 @@ export default function CoinSelectPage() {
         </Card>
       )}
 
-      {/* 周期切换 */}
+      {/* [2026-09-18] 当前 AI 池（与交易会话同源——看板页与会话页同一份账） */}
+      {canUse && aiPools && (
+        <Card className="glass p-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/50 bg-white/[0.02]">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-profit" />
+              <span className="text-sm font-semibold">当前 AI 池</span>
+              <Badge variant="outline" className="chip-capsule">与交易会话同源 · 留存式</Badge>
+            </div>
+            <span className="text-[10px] text-muted-foreground">在池币持续采集与论题跟踪；看板 reject/证据超窗才淘汰</span>
+          </div>
+          <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(["mid", "long"] as Horizon[]).map((t) => {
+              const pool = aiPools?.[t] || { symbols: [], detail: [] };
+              return (
+                <div key={t}>
+                  <div className="text-[10px] text-muted-foreground mb-1">
+                    AI {t === "mid" ? "中线" : "长线"}池（{pool.symbols?.length || 0}）
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(pool.detail || []).length ? (
+                      (pool.detail || []).map((d: any) => (
+                        <span
+                          key={d.symbol}
+                          title={`最新判定: ${d.verdict ?? "无"} conf=${d.confidence ?? "-"} dir=${d.direction ?? "-"} · ${d.judged_age_h ?? "?"}h前`}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-mono border",
+                            d.verdict === "approve"
+                              ? "bg-profit/15 text-profit border-profit/30"
+                              : d.verdict === "reject"
+                                ? "bg-loss/15 text-loss border-loss/30"
+                                : "bg-muted/40 text-muted-foreground border-border/40",
+                          )}
+                        >
+                          {d.symbol}
+                          <span className="ml-1 opacity-70">{d.verdict ?? "?"}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">空（无合格候选）</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* 周期切换：中线/长线两套独立判定（短线已停；固定池币不再入板） */}
       {canUse && (
         <Card className="glass p-2">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">周期</span>
-            {(["scalp", "midlong"] as Horizon[]).map((h) => (
+            {(["mid", "long"] as Horizon[]).map((h) => (
               <Button
                 key={h}
                 size="sm"
@@ -411,9 +455,25 @@ export default function CoinSelectPage() {
                 className="text-xs h-7"
                 onClick={() => setHorizon(h)}
               >
-                {h === "scalp" ? "短线推荐" : "长线推荐"}
+                {HORIZON_LABEL[h]}
               </Button>
             ))}
+            <Badge variant="outline" className="chip-capsule">已排除固定币</Badge>
+            {regime?.label_1d && (
+              <Badge
+                variant="outline"
+                className={
+                  regime.label_1d === "uptrend"
+                    ? "chip-capsule text-profit border-profit/40"
+                    : regime.label_1d === "downtrend"
+                      ? "chip-capsule text-loss border-loss/40"
+                      : "chip-capsule text-warning border-warning/40"
+                }
+                title={regime.text}
+              >
+                大盘 {regime.label_1d === "uptrend" ? "上涨" : regime.label_1d === "downtrend" ? "下跌" : "震荡"}·方向先验
+              </Badge>
+            )}
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {loading ? "加载中…" : `${items.length} 个标的`}
             </span>
@@ -548,7 +608,7 @@ export default function CoinSelectPage() {
                       <th>状态</th>
                       <th className="r">扫描</th>
                       <th className="r">AI</th>
-                      <th>短/长</th>
+                      <th className="r">看板(中+长)</th>
                       <th className="r">耗时</th>
                       <th className="r">错误</th>
                     </tr>
@@ -560,7 +620,7 @@ export default function CoinSelectPage() {
                         <td>{s.status}</td>
                         <td className="num text-right">{s.candidates_scanned}</td>
                         <td className="num text-right">{s.candidates_ai}</td>
-                        <td className="text-muted-foreground">{s.board_scalp}/{s.board_midlong}</td>
+                        <td className="text-muted-foreground text-right">{s.board_midlong}</td>
                         <td className="num text-right">{s.duration_sec ?? "-"}</td>
                         <td className="num text-right text-loss truncate max-w-[180px]">
                           {s.error_message || ""}

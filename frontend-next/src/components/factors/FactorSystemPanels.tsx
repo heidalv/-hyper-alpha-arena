@@ -342,7 +342,7 @@ export function LlmProposePanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<LlmProposeResult | null>(null);
 
-  const propose = async (tier: "midlong" | "scalp") => {
+  const propose = async (tier: "midlong") => {
     setBusy(tier);
     setResult(null);
     try {
@@ -363,6 +363,7 @@ export function LlmProposePanel() {
           LLM 提案层
         </div>
         <div className="flex gap-2">
+          {/* [2026-09-17] 「LLM 提案（短线 1h）」已随短线车道停用移除 */}
           <button
             type="button"
             className={cn("px-2.5 py-1 rounded-md text-xs border transition-colors", busy ? "opacity-50" : "border-primary bg-primary/15 text-primary hover:bg-primary/25")}
@@ -370,14 +371,6 @@ export function LlmProposePanel() {
             onClick={() => void propose("midlong")}
           >
             {busy === "midlong" ? "提案中…" : "LLM 提案（中线 4h/1d）"}
-          </button>
-          <button
-            type="button"
-            className={cn("px-2.5 py-1 rounded-md text-xs border transition-colors", busy ? "opacity-50" : "border-border text-muted-foreground hover:text-foreground")}
-            disabled={!!busy}
-            onClick={() => void propose("scalp")}
-          >
-            {busy === "scalp" ? "提案中…" : "LLM 提案（短线 1h）"}
           </button>
         </div>
       </div>
