@@ -31,6 +31,10 @@ COLL_STRATEGY_LESSONS = "strategy_lessons"
 COLL_TRADING_WISDOM = "trading_wisdom"
 COLL_TRADE_MEMORY = "trade_memory"
 COLL_STATIC_KNOWLEDGE = "static_knowledge"
+# [2026-10-10 主脑接入高频学习] 金融/量化/合约的**基础参考卡片**（书与论文蒸馏）。
+# 与 static_knowledge 分开存：后者是 K 线形态与宏观事件，前者带出处、有适用/不适用
+# 条件，检索时要能分辨（模型必须说明它引用了哪一张卡片）。
+COLL_KNOWLEDGE_CARDS = "knowledge_cards"
 
 ALL_COLLECTIONS = [
     COLL_TRADE_DECISIONS,
@@ -38,7 +42,11 @@ ALL_COLLECTIONS = [
     COLL_TRADING_WISDOM,
     COLL_TRADE_MEMORY,
     COLL_STATIC_KNOWLEDGE,
+    COLL_KNOWLEDGE_CARDS,
 ]
+
+# 知识卡片数据文件（backend/data 下，随仓提交）
+KNOWLEDGE_CARDS_FILE = "data/knowledge_cards.json"
 
 # Embedding 模型名称（首次使用时自动下载 ~1.3GB）
 EMBEDDING_MODEL_NAME = "BAAI/bge-large-zh-v1.5"
@@ -468,6 +476,99 @@ class RAGKnowledgeService:
         finally:
             with self._index_busy_lock:
                 self._index_busy[COLL_STATIC_KNOWLEDGE] = False
+
+    # ------------------------------------------------------------------
+    #  知识卡片（书/论文蒸馏）索引
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def card_document(card: Dict[str, Any]) -> str:
+        """一条卡片 → 一段检索文本（纯函数，可单测）。
+
+        字段顺序有意固定：`claim` 在前（检索最相关），`not_when` 必须在文档里 ——
+        没有"什么时候不能用"的卡片正是本项目历史上最贵的一类错误
+        （把 Avellaneda–Stoikov 的"收盘必须平完"套到永续上）。
+        """
+        return (
+            f"知识卡片[{card.get('id', '')}] {card.get('title', '')}"
+            f"｜说法: {card.get('claim', '')}"
+            f"｜何时适用: {card.get('use_when', '')}"
+            f"｜何时不适用: {card.get('not_when', '')}"
+            f"｜来源: {card.get('source', '')}"
+            f"｜本仓对照: {card.get('verified_in_repo', '')}"
+        )
+
+    @staticmethod
+    def load_card_file() -> List[Dict[str, Any]]:
+        """读 `backend/data/knowledge_cards.json`；缺失/损坏 ⇒ 空列表（不抛）。"""
+        try:
+            p = _BACKEND_DIR / KNOWLEDGE_CARDS_FILE
+            raw = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            logger.debug("[RAG] 知识卡片文件不可读: %s", e)
+            return []
+        rows = raw.get("cards") if isinstance(raw, dict) else raw
+        if not isinstance(rows, list):
+            return []
+        return [c for c in rows if isinstance(c, dict) and c.get("id")]
+
+    def index_knowledge_cards(self, cards: Optional[List[Dict[str, Any]]] = None) -> int:
+        """把知识卡片全量写入 `knowledge_cards` collection。
+
+        与 `index_static_knowledge` 同款并发纪律：embedding 在**锁外**算，
+        只有 Chroma 写在 `_index_lock` 内；同源互斥（`_index_busy`）防重复触发。
+        """
+        if not self._ensure_ready():
+            return 0
+        if self._degraded:
+            return 0
+
+        with self._index_busy_lock:
+            if self._index_busy.get(COLL_KNOWLEDGE_CARDS):
+                return 0
+            self._index_busy[COLL_KNOWLEDGE_CARDS] = True
+
+        try:
+            items = cards if cards is not None else self.load_card_file()
+            ids, docs, metas = [], [], []
+            for card in items:
+                cid = str(card.get("id") or "").strip()
+                if not cid:
+                    continue
+                lanes = card.get("lanes") or ["all"]
+                if isinstance(lanes, str):
+                    lanes = [lanes]
+                topics = card.get("topics") or []
+                if isinstance(topics, str):
+                    topics = [topics]
+                ids.append(f"card_{cid}")
+                docs.append(self.card_document(card))
+                metas.append({
+                    "kind": "kb_card",
+                    "card_id": cid,
+                    # 冗余：`retrieve` 的 where 只能等值匹配，车道过滤在调用方做
+                    "lanes": ",".join(str(x) for x in lanes),
+                    "topics": ",".join(str(x) for x in topics),
+                    "source": str(card.get("source") or "")[:400],
+                })
+            if not docs:
+                return 0
+            embeddings = self._embed_texts(docs)
+            with self._index_lock:
+                count = self._write_collection(
+                    COLL_KNOWLEDGE_CARDS, ids, docs, embeddings, metas,
+                    replace_all=True,
+                )
+                self._last_index_time[COLL_KNOWLEDGE_CARDS] = datetime.now(timezone.utc)
+                self._doc_counts[COLL_KNOWLEDGE_CARDS] = count
+            logger.info("[RAG] 知识卡片索引完成: %d 张", count)
+            return count
+        except Exception as e:
+            logger.error("[RAG] 知识卡片索引异常: %s", e, exc_info=True)
+            return 0
+        finally:
+            with self._index_busy_lock:
+                self._index_busy[COLL_KNOWLEDGE_CARDS] = False
 
     # ------------------------------------------------------------------
     #  各数据源的索引实现
@@ -918,6 +1019,8 @@ class RAGKnowledgeService:
             db, COLL_TRADE_MEMORY
         )
         counts[COLL_STATIC_KNOWLEDGE] = self.index_static_knowledge()
+        # [2026-10-10 主脑接入高频学习] 知识卡片（书/论文蒸馏）随全量重建一起刷
+        counts[COLL_KNOWLEDGE_CARDS] = self.index_knowledge_cards()
         logger.info(f"[RAG] 全量重建完成: {counts}")
         return counts
 
@@ -981,3 +1084,49 @@ class RAGKnowledgeService:
 #  单例导出
 # ---------------------------------------------------------------------------
 rag_knowledge_service = RAGKnowledgeService()
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """运维入口（计划任务 `DSH_KB_CARDS` 用）：
+
+        python -m backend.services.rag_knowledge_service --index-cards
+
+    [2026-10-10 主脑接入高频学习] 卡片是**静态文件**，不需要高频重扫；放在每日
+    错峰时段跑一次即可。失败不抛（返回非 0 便于计划任务记录）。
+    """
+    import argparse
+    import sys
+
+    ap = argparse.ArgumentParser(description="RAG 知识库运维入口")
+    ap.add_argument("--index-cards", action="store_true",
+                    help="重建 knowledge_cards collection（书/论文蒸馏卡片）")
+    ap.add_argument("--stats", action="store_true", help="打印各 collection 条数")
+    args = ap.parse_args(argv)
+
+    # 直接以脚本路径运行时没有包上下文 ⇒ 把仓库根放回 sys.path
+    _root = _BACKEND_DIR.parent
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
+
+    if args.stats:
+        print(json.dumps(rag_knowledge_service.get_stats(), ensure_ascii=False, indent=2))
+        return 0
+    if args.index_cards:
+        n = rag_knowledge_service.index_knowledge_cards()
+        cards = rag_knowledge_service.load_card_file()
+        stats = rag_knowledge_service.get_stats()
+        print(f"knowledge_cards: 文件 {len(cards)} 张 -> collection {n} 条"
+              f"；ready={stats.get('ready')} degraded={stats.get('degraded')}")
+        return 0 if n > 0 else 1
+    ap.print_help()
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    import io
+    import sys as _sys
+
+    if hasattr(_sys.stdout, "buffer"):
+        _sys.stdout = io.TextIOWrapper(_sys.stdout.buffer, encoding="utf-8",
+                                       errors="replace", line_buffering=True)
+    raise SystemExit(main())

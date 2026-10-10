@@ -1,0 +1,629 @@
+{
+  "ts": 1791617548,
+  "cards": [
+    {
+      "id": "kb-harris-2003-01",
+      "title": "限价订单簿与被动流动性提供者的取舍",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "orderbook",
+        "liquidity_provision",
+        "limit_order",
+        "fill_probability"
+      ],
+      "claim": "订单簿是排队等待成交的报价集合：被动方用限价单提供流动性，代价是成交不确定、成交时可能正处在不利方向；主动方用市价单立即成交，代价是付出价差。排队越靠前，成交概率越高，但被逆向选择的风险也越大。",
+      "use_when": "判断某档报价该不该挂、挂多深、要不要为了抢队列而放弃调价时。",
+      "not_when": "不能把队列位置当作收益保证：靠前只提高成交概率，不改善成交后的价格方向。",
+      "source": "Larry Harris（2003）《Trading and Exchanges: Market Microstructure for Practitioners》，Oxford University Press，ISBN 9780195144703",
+      "source_url": "https://openlibrary.org/isbn/9780195144703"
+    },
+    {
+      "id": "kb-harris-2003-02",
+      "title": "做市商与投机者的角色分工",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "market_maker",
+        "speculator",
+        "fee_structure",
+        "inventory"
+      ],
+      "claim": "做市商靠反复买卖同一标的赚取买卖价差与返佣，几乎不持有方向性观点；投机者承担方向性风险以换取价格变动的收益。两者都由手续费结构和信息环境决定是否进入市场。",
+      "use_when": "给自己或对手方定位、判断收益来源是价差返佣还是方向敞口时。",
+      "not_when": "角色划分不是身份标签：同一账户可以在一个币种做市、在另一个币种投机，收益归因时必须按币种拆分。",
+      "source": "Larry Harris（2003）《Trading and Exchanges: Market Microstructure for Practitioners》，Oxford University Press，ISBN 9780195144703",
+      "source_url": "https://openlibrary.org/isbn/9780195144703"
+    },
+    {
+      "id": "kb-harris-2003-03",
+      "title": "价差是对逆向选择与库存风险的补偿",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "bid_ask_spread",
+        "adverse_selection",
+        "inventory_risk",
+        "order_processing_cost"
+      ],
+      "claim": "买卖价差由订单处理成本、库存持有成本和逆向选择成本三部分构成。逆向选择部分随着知情交易者比例、波动率和信息不对称程度上升而扩大，因此价差宽未必代表流动性差，可能只是风险补偿变高。",
+      "use_when": "判断当前价差是否值得提供流动性，以及价差突然走宽时该进攻还是该收手。",
+      "not_when": "该分解是概念框架而非可直接测量的量：三个成分需用统计模型估计，不能把估计值当精确成本。",
+      "source": "Larry Harris（2003）《Trading and Exchanges: Market Microstructure for Practitioners》，Oxford University Press，ISBN 9780195144703",
+      "source_url": "https://openlibrary.org/isbn/9780195144703"
+    },
+    {
+      "id": "kb-cartea-2015-01",
+      "title": "做市库存与报价偏移",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "inventory",
+        "quote_skew",
+        "reservation_price",
+        "market_making"
+      ],
+      "claim": "做市商的最优报价围绕保留价格展开，保留价格随库存线性偏离中间价：库存越偏，整个报价区间就越向减仓方向平移，以降低继续朝不利方向成交的概率。偏移幅度与库存、风险厌恶、波动率和剩余时间同向变化。",
+      "use_when": "需要把库存状态翻译成具体报价偏移量，或判断当前偏移幅度是否过小。",
+      "not_when": "该模型假设成交强度只由报价与中间价的距离决定，忽略排队位置；在小跳动资产上会明显高估偏移的效果。",
+      "source": "Álvaro Cartea, Sebastian Jaimungal, José Penalva（2015）《Algorithmic and High-Frequency Trading》，Cambridge University Press，ISBN 9781107091146",
+      "source_url": "https://openlibrary.org/isbn/9781107091146"
+    },
+    {
+      "id": "kb-cartea-2015-02",
+      "title": "执行成本：临时冲击与永久冲击",
+      "lanes": [
+        "mid",
+        "long"
+      ],
+      "topics": [
+        "market_impact",
+        "execution_cost",
+        "temporary_impact",
+        "permanent_impact"
+      ],
+      "claim": "大单拆分执行时会产生两类冲击：临时冲击由己方的流动性和需求造成，成交后会较快衰减；永久冲击是成交携带的信息，会留在价格里。最优执行在两类冲击、执行时机风险与延迟成本之间权衡，冲击成本通常随参与率非线性上升。",
+      "use_when": "为给定单量定滑点预算，或决定执行该更激进还是更耐心时。",
+      "not_when": "两类冲击要用成交与报价数据联合估计，不能直接读盘口深度当成本上限；极端行情参数会失效。",
+      "source": "Álvaro Cartea, Sebastian Jaimungal, José Penalva（2015）《Algorithmic and High-Frequency Trading》，Cambridge University Press，ISBN 9781107091146",
+      "source_url": "https://openlibrary.org/isbn/9781107091146"
+    },
+    {
+      "id": "kb-cartea-2015-03",
+      "title": "有限库存下的报价带宽",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "inventory_limit",
+        "quote_spread",
+        "risk_limit",
+        "market_making"
+      ],
+      "claim": "加上库存上下限后，最优报价不再无限随库存外移，而是被库存约束压成一条有限带宽：库存越接近上限，继续买入的意愿越低，报价越保守，极端时会选择单边报价。",
+      "use_when": "在风控硬上限或保证金约束下设定报价带宽和单边撤价阈值时。",
+      "not_when": "不能把风控上限直接当成模型库存上界：模型触及边界即停止成交，实际交易所仍会撮合已有挂单，也可能强平。",
+      "source": "Álvaro Cartea, Sebastian Jaimungal, José Penalva（2015）《Algorithmic and High-Frequency Trading》，Cambridge University Press，ISBN 9781107091146",
+      "source_url": "https://openlibrary.org/isbn/9781107091146"
+    },
+    {
+      "id": "kb-bouchaud-2018-01",
+      "title": "价差与订单流的实证量级",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "spread_magnitude",
+        "order_flow",
+        "market_impact",
+        "power_law"
+      ],
+      "claim": "实证上价差、订单流失衡与价格冲击都呈幂律标度：价差常在几个基点到几十个基点之间，订单流失衡对短期价格变化的解释力近似线性，冲击随时间缓慢衰减。这些量级为模型参数提供了先验量级，而不是精确常数。",
+      "use_when": "缺少本地标定数据时，用先验量级判断回测参数是否离谱。",
+      "not_when": "量级随标的流动性和时间尺度变化，小市值永续上同样的名义单量冲击可能大一到两个数量级，不能跨币种直接套用。",
+      "source": "Jean-Philippe Bouchaud, Julius Bonart, Jonathan Donier, Martin Gould（2018）《Trades, Quotes and Prices: Financial Markets Under the Microscope》，Cambridge University Press，ISBN 9781107156050",
+      "source_url": "https://doi.org/10.1017/9781316659335"
+    },
+    {
+      "id": "kb-bouchaud-2018-02",
+      "title": "冲击的凹性与平方根标度",
+      "lanes": [
+        "mid",
+        "long"
+      ],
+      "topics": [
+        "market_impact",
+        "square_root_law",
+        "metaorder",
+        "execution"
+      ],
+      "claim": "单笔母单的价格冲击随其规模呈凹性增长，经验上接近平方根关系。这意味着把单量翻倍不会让冲击翻倍，但把大单一次性打出仍然远比拆单执行昂贵，拆单的价值随单量增大而上升。",
+      "use_when": "估算大单的执行成本、判断拆单是否划算时。",
+      "not_when": "平方根标度是横截面与时间尺度的经验规律，不是单笔可保证的因果曲线；小单量和极端行情下会明显偏离。",
+      "source": "Jean-Philippe Bouchaud, Julius Bonart, Jonathan Donier, Martin Gould（2018）《Trades, Quotes and Prices: Financial Markets Under the Microscope》，Cambridge University Press，ISBN 9781107156050",
+      "source_url": "https://doi.org/10.1017/9781316659335"
+    },
+    {
+      "id": "kb-bouchaud-2018-03",
+      "title": "流动性随波动变化",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "liquidity",
+        "volatility",
+        "spread_widening",
+        "regime"
+      ],
+      "claim": "波动上升时做市商撤单、价差变宽、盘口变薄，市场深度与波动率通常负相关。这种变化往往先于或同步于价格的大幅移动，而不是滞后于它。",
+      "use_when": "做仓位规模和报价带宽的动态调整，或在波动跳升时决定是否先撤单时。",
+      "not_when": "不能把负相关当稳定常数：极端行情下流动性可能瞬间消失，历史标定的关系不再成立。",
+      "source": "Jean-Philippe Bouchaud, Julius Bonart, Jonathan Donier, Martin Gould（2018）《Trades, Quotes and Prices: Financial Markets Under the Microscope》，Cambridge University Press，ISBN 9781107156050",
+      "source_url": "https://doi.org/10.1017/9781316659335"
+    },
+    {
+      "id": "kb-hull-11e-01",
+      "title": "保证金与全仓逐仓的风险边界",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "margin",
+        "cross_margin",
+        "isolated_margin",
+        "leverage"
+      ],
+      "claim": "逐仓把风险限制在单个仓位的保证金内，该仓位的最坏结果不会蔓延到账户其余资金；全仓用整个账户余额共同承担，因此同样的仓位在两种模式下爆仓概率不同，全仓通常能撑更久但单次失误的代价更大。",
+      "use_when": "评估最大可承受仓位、比较不同保证金模式下的强平概率时。",
+      "not_when": "教科书以固定到期期货为对象；各交易所维持保证金率、阶梯和强平引擎规则差异很大，必须按实际交易所规则重新计算。",
+      "source": "John C. Hull《Options, Futures, and Other Derivatives》（第11版 Pearson，ISBN 9780136940166；第10版 ISBN 9780134472089）",
+      "source_url": "https://openlibrary.org/isbn/9780134472089"
+    },
+    {
+      "id": "kb-hull-11e-02",
+      "title": "强平不是止损",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "liquidation",
+        "stop_loss",
+        "margin_call",
+        "slippage"
+      ],
+      "claim": "强平是保证金不足或触发维持保证金线时由交易所引擎自动触发的被动平仓，止损是自己提交的主动订单。两者在触发条件、成交时机和成交价格上都不同：强平通常发生在最差的时刻，执行价格由当时盘口决定。",
+      "use_when": "设计风控层级、决定何时必须自己主动减仓而不是等保证金提醒时。",
+      "not_when": "不能把强平价当成可依赖的止损价：极端行情下强平会吃掉盘口，实际滑点远大于预期。",
+      "source": "John C. Hull《Options, Futures, and Other Derivatives》（第11版 Pearson，ISBN 9780136940166；第10版 ISBN 9780134472089）",
+      "source_url": "https://openlibrary.org/isbn/9780134472089"
+    },
+    {
+      "id": "kb-hull-11e-03",
+      "title": "资金费如何把永续锚到现货",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "perpetual_futures",
+        "funding_rate",
+        "basis",
+        "carry_cost"
+      ],
+      "claim": "永续合约没有到期日，缺少交割收敛机制，因此用周期性的资金费支付代替：多头与空头之间按期结算，方向由永续价格相对现货的偏离决定。资金费把持有成本变成持续现金流，从而把永续价格约束在现货附近。",
+      "use_when": "评估基差交易、长期持有永续仓位时，把资金费作为持有成本计入。",
+      "not_when": "资金费只是激励而非硬约束：多个交易所规则不同，资金费上限被触及或极端行情下锚定会失效，基差可长期存在。",
+      "source": "John C. Hull《Options, Futures, and Other Derivatives》（第11版 Pearson，ISBN 9780136940166；第10版 ISBN 9780134472089）",
+      "source_url": "https://openlibrary.org/isbn/9780134472089"
+    },
+    {
+      "id": "kb-lopezdeprado-2018-01",
+      "title": "净化与禁运切分：不能用同一段行情既训练又考试",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "purged_cv",
+        "embargo",
+        "lookahead_bias",
+        "backtest_overfitting"
+      ],
+      "claim": "金融标签带时间区间，样本之间在时间上重叠，普通交叉验证会把与测试集标签区间重叠的训练样本留在训练集里，造成信息泄漏。净化把重叠样本剔除，禁运在测试集前后再切掉一段，避免序列相关把未来信息漏回训练。",
+      "use_when": "任何按时间序列建模、做交叉验证或滚动回测的环节都必须先做这一步。",
+      "not_when": "净化会减少训练样本；样本本来就少时反复大量试参数会让结果不稳，此时应缩短搜索空间而不是取消净化。",
+      "source": "Marcos López de Prado（2018）《Advances in Financial Machine Learning》第7章 Cross-Validation in Finance，Wiley，ISBN 9781119482086",
+      "source_url": "https://openlibrary.org/isbn/9781119482086"
+    },
+    {
+      "id": "kb-lopezdeprado-2018-02",
+      "title": "多重检验要折损显著度",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "multiple_testing",
+        "deflated_sharpe",
+        "selection_bias",
+        "backtest_overfitting"
+      ],
+      "claim": "如果反复试验了很多策略变体，单次最高的夏普比率会因选择偏差而系统性偏高，看起来显著的结果可能只是搜索空间的极值。必须按试验次数、回测长度和收益分布特征对夏普比率做折损，才谈得上显著。",
+      "use_when": "在策略筛选阶段已经试过多个参数、多个币种、多个时段之后。",
+      "not_when": "折损修正的是选择偏差，修不了结构性错误：数据泄漏、成本假设错误、执行不可实现都无法靠它补救。",
+      "source": "Marcos López de Prado（2018）《Advances in Financial Machine Learning》，Wiley，ISBN 9781119482086",
+      "source_url": "https://openlibrary.org/isbn/9781119482086"
+    },
+    {
+      "id": "kb-narang-2013-01",
+      "title": "不同时间尺度策略的成本结构不同",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "time_horizon",
+        "cost_structure",
+        "latency",
+        "strategy_classification"
+      ],
+      "claim": "策略按持仓时间分层后，主导成本项完全不同：高频以手续费、延迟和排队位置为主，中频以价差与冲击为主，低频以资金费、冲击与隔夜跳空为主。同一套成本假设套到不同时间尺度上，误差方向都不同。",
+      "use_when": "为策略选择成本模型、给不同层级的策略设定可接受成本上限时。",
+      "not_when": "分层边界是连续谱：持仓数分钟的中间层同时受延迟和冲击影响，不能只按其中一侧建模。",
+      "source": "Rishi K. Narang（2013）《Inside the Black Box: A Simple Guide to Quantitative and High-Frequency Trading》第2版，Wiley，ISBN 9781118362419",
+      "source_url": "https://doi.org/10.1002/9781118662717"
+    },
+    {
+      "id": "kb-narang-2013-02",
+      "title": "不要把一种时间尺度的规矩套到另一种",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "latency",
+        "fill_assumption",
+        "strategy_classification",
+        "cost_structure"
+      ],
+      "claim": "每个时间尺度有自己的成交假设和失效条件：低频回测常用的按收盘价成交假设，在高频里等于假设零延迟和无限耐心，会系统性高估成交率与收益。把一层的经验参数搬到另一层，误差往往比参数本身的噪声还大。",
+      "use_when": "迁移或复用回测框架、成交模型、成本参数到另一个时间尺度之前。",
+      "not_when": "结论是错配会带来偏差，不是某个尺度的做法绝对正确；同一尺度内仍需按标的和交易所重新标定。",
+      "source": "Rishi K. Narang（2013）《Inside the Black Box: A Simple Guide to Quantitative and High-Frequency Trading》第2版，Wiley，ISBN 9781118362419",
+      "source_url": "https://doi.org/10.1002/9781118662717"
+    },
+    {
+      "id": "kb-glosten-milgrom-1985-01",
+      "title": "价差与知情交易",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "adverse_selection",
+        "bid_ask_spread",
+        "informed_trading",
+        "quote_driven_market"
+      ],
+      "claim": "即使没有库存成本和订单处理成本，只要做市商可能面对知情交易者，买卖价差仍然为正：报价必须在对手方拥有信息优势时做到盈亏平衡。价差宽度随知情交易者比例与信息价值上升而扩大。",
+      "use_when": "解释为何某品种价差不会收敛到接近零，以及在信息事件前后价差为何走宽时。",
+      "not_when": "这是报价驱动下的单期做市商模型；在竞争激烈的电子撮合市场，价差常被压到一个跳动甚至因返佣而为负，不能用它预测价差水平。",
+      "source": "Glosten, L. R., & Milgrom, P. R.（1985）Bid, ask and transaction prices in a specialist market with heterogeneously informed traders. Journal of Financial Economics, 14(1), 71-100. DOI: 10.1016/0304-405X(85)90044-3",
+      "source_url": "https://doi.org/10.1016/0304-405X(85)90044-3"
+    },
+    {
+      "id": "kb-kyle-1985-01",
+      "title": "深度与信息",
+      "lanes": [
+        "mid",
+        "long"
+      ],
+      "topics": [
+        "market_depth",
+        "price_impact",
+        "informed_trading",
+        "liquidity"
+      ],
+      "claim": "Kyle 模型给出市场深度的定义：价格对订单流的敏感度越小，深度越大。知情交易者会主动控制下单规模以隐藏信息，因此价格冲击是逐步释放的，深度决定了同样的信息需要多大的成交量才能被完全反映到价格里。",
+      "use_when": "估算某合约的名义单量承载能力，或从订单流反推价格里的信息含量时。",
+      "not_when": "模型假设单次集中撮合、单个风险中性知情者与线性定价规则；连续交易的永续合约不满足，估计出的深度只是局部线性近似。",
+      "source": "Kyle, A. S.（1985）Continuous auctions and insider trading. Econometrica, 53(6), 1315-1335. DOI: 10.2307/1913210",
+      "source_url": "https://doi.org/10.2307/1913210"
+    },
+    {
+      "id": "kb-ho-stoll-1981-01",
+      "title": "库存把报价中心挪开",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "inventory",
+        "quote_skew",
+        "reservation_price",
+        "dealer_pricing"
+      ],
+      "claim": "做市商持有过多多头时会同时下调买卖报价，用价格偏移而不是只扩大价差来减少继续买入、鼓励卖出。报价中心因此偏离中间价，偏离方向与库存符号相反、幅度随库存和风险厌恶上升。",
+      "use_when": "解释单边行情中盘口为何整体偏斜、或设计库存驱动的报价平移时。",
+      "not_when": "该模型是单期、垄断型风险厌恶做市商；现实中偏移还受排队位置、同业竞争和延迟影响，不能用来预测偏移点位。",
+      "source": "Ho, T., & Stoll, H. R.（1981）Optimal dealer pricing under transactions and return uncertainty. Journal of Financial Economics, 9(1), 47-73. DOI: 10.1016/0304-405X(81)90020-9",
+      "source_url": "https://doi.org/10.1016/0304-405X(81)90020-9"
+    },
+    {
+      "id": "kb-avellaneda-stoikov-2008-01",
+      "title": "报价随库存与波动移动",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "reservation_price",
+        "quote_skew",
+        "inventory",
+        "market_making"
+      ],
+      "claim": "最优报价围绕保留价格对称展开，保留价格随库存线性偏离中间价，偏移幅度正比于风险厌恶、波动率与剩余时间；同时报价价差随波动率和剩余时间扩大。库存与波动因此共同决定报价中心与带宽。",
+      "use_when": "高频做市里把库存和波动映射成报价偏移与价差带宽，或判断当前偏移是否过激时。",
+      "not_when": "该模型假设做市商在当天收盘必须平完库存、终期效用函数对库存施加硬约束，不能直接套永续合约；永续无收盘钟，应改用库存有上限的框架，否则会低估尾盘偏移。",
+      "source": "Avellaneda, M., & Stoikov, S.（2008）High-frequency trading in a limit order book. Quantitative Finance, 8(3), 217-224. DOI: 10.1080/14697680701381228",
+      "source_url": "https://doi.org/10.1080/14697680701381228"
+    },
+    {
+      "id": "kb-avellaneda-stoikov-2008-02",
+      "title": "指数成交强度与报价距离",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "fill_intensity",
+        "quote_distance",
+        "market_making",
+        "calibration"
+      ],
+      "claim": "模型中挂单成交强度随报价离中间价的距离指数衰减，参数需要按标的标定。这意味着报价往外挪一格带来的成交概率下降幅度，取决于该标的的成交强度衰减速度，而不是一个通用常数。",
+      "use_when": "需要为某个币种标定报价距离与成交概率的关系时。",
+      "not_when": "该假设忽略排队位置和撤单竞争；在小跳动资产上距离相同而队列位置不同，实际成交概率差别很大。",
+      "source": "Avellaneda, M., & Stoikov, S.（2008）High-frequency trading in a limit order book. Quantitative Finance, 8(3), 217-224. DOI: 10.1080/14697680701381228",
+      "source_url": "https://doi.org/10.1080/14697680701381228"
+    },
+    {
+      "id": "kb-gueant-lehalle-tapia-2013-01",
+      "title": "没有收盘钟的做市与库存上限",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "inventory_limit",
+        "no_terminal_liquidation",
+        "market_making",
+        "perpetual"
+      ],
+      "claim": "把做市问题放在无限期、同时对库存施加约束的框架下求解：没有收盘钟可以强制平完仓位，于是库存约束必须显式写进模型。结果表明最优报价在库存约束下是有界的，越接近库存上限报价越保守，极端时只在一侧报价。",
+      "use_when": "为永续合约做市，需要一套不依赖收盘平仓假设的报价规则时。",
+      "not_when": "交易所层面的库存上限就是强平线，模型里可自选的软约束与它不同源，两者必须分开设定。",
+      "source": "Guéant, O., Lehalle, C.-A., & Fernandez-Tapia, J.（2013）Dealing with the inventory risk: a solution to the market making problem. Mathematics and Financial Economics, 7(4), 477-507. DOI: 10.1007/s11579-012-0087-0（预印本 arXiv:1105.3115）",
+      "source_url": "https://doi.org/10.1007/s11579-012-0087-0"
+    },
+    {
+      "id": "kb-cont-stoikov-talreja-2010-01",
+      "title": "订单到达成簇，不是均匀泊松",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "order_arrival_clustering",
+        "poisson_process",
+        "orderbook",
+        "queueing"
+      ],
+      "claim": "订单与成交的到达在短时间窗口内明显成簇：一笔大单或一次价格跳变会引发连续的成交、挂单和撤单，事件强度此时远高于长期平均值。因此用固定速率的泊松过程描述盘口事件流会低估短窗口内的活动强度。",
+      "use_when": "设定撤单阈值、估算盘口被吃穿的风险，或按事件强度做短期风控时。",
+      "not_when": "该框架只描述到达过程的统计特征，含方向性结论；成簇也不能直接推成价格会延续还是反转。",
+      "source": "Cont, R., Stoikov, S., & Talreja, R.（2010）A Stochastic Model for Order Book Dynamics. Operations Research, 58(3), 549-563. DOI: 10.1287/opre.1090.0780",
+      "source_url": "https://doi.org/10.1287/opre.1090.0780"
+    },
+    {
+      "id": "kb-moallemi-yuan-2016-01",
+      "title": "排队位置的价值",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "queue_position",
+        "fill_probability",
+        "large_tick",
+        "adverse_selection"
+      ],
+      "claim": "在限价订单簿中排队时，队列位置本身就是一项资产：位置越靠前，成交概率越高，且成交后被逆向选择的程度相对更低。因此为改善报价而撤单重挂，等于把已有的队列位置折价卖掉，这是有成本的。",
+      "use_when": "判断是否值得为调价放弃队列位置，或在做成交模拟时给队列位置定价时。",
+      "not_when": "队列位置的价值对最小跳动与波动率的比值极其敏感，在价格单位很小的合约上该价值接近零，不能直接套用大跳动资产的估计。",
+      "source": "Moallemi, C. C., & Yuan, K.（2016）A Model for Queue Position Valuation in a Limit Order Book. SSRN Electronic Journal. DOI: 10.2139/ssrn.2996221",
+      "source_url": "https://doi.org/10.2139/ssrn.2996221"
+    },
+    {
+      "id": "kb-albers-2025-01",
+      "title": "挂单越好成交，成交之后越容易亏",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "fill_probability",
+        "post_fill_return",
+        "adverse_selection",
+        "queue_position"
+      ],
+      "claim": "在币安 BTC 永续的实盘实验中，做市单的成交概率与成交后收益存在系统性负相关：越容易成交的挂单，成交后价格越倾向朝不利方向继续移动。做市收益必须用成交概率与成交后收益的联合结果衡量，不能只看成交率。",
+      "use_when": "评估做市参数是否只在提高成交率却在恶化成交后收益，或诊断高成交率低盈亏时。",
+      "not_when": "该结论来自币安 BTC 永续的特定实验，不能外推成所有永续和交易所的常数；它也不等价于做市必然亏损。",
+      "source": "Albers, J., Cucuringu, M., Howison, S., & Shestopaloff, A. Y.（2025）The Market Maker's Dilemma: Navigating the Fill Probability vs. Post-Fill Returns Trade-Off. arXiv:2502.18625",
+      "source_url": "https://arxiv.org/abs/2502.18625"
+    },
+    {
+      "id": "kb-hasbrouck-1991-01",
+      "title": "成交怎样改写报价",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "price_discovery",
+        "trade_informativeness",
+        "quote_revision",
+        "var_model"
+      ],
+      "claim": "成交携带信息，做市商会根据成交方向与规模修正对有效价格的估计，因此报价的变化可以被成交解释。用成交与报价的向量自回归可以分解出成交的信息含量，成交的信息含量越高，随后报价修正幅度越大。",
+      "use_when": "判断订单流是否值得跟随，或衡量某交易场所的成交对价格的解释力时。",
+      "not_when": "模型基于做市商报价机制与序列相关的成交方向识别，纯电子撮合下的成交方向要用规则推断，推断误差会直接污染结论。",
+      "source": "Hasbrouck, J.（1991）Measuring the Information Content of Stock Trades. The Journal of Finance, 46(1), 179-207. DOI: 10.1111/j.1540-6261.1991.tb03749.x",
+      "source_url": "https://doi.org/10.1111/j.1540-6261.1991.tb03749.x"
+    },
+    {
+      "id": "kb-hasbrouck-1995-01",
+      "title": "信息份额：哪个市场在引领价格发现",
+      "lanes": [
+        "mid"
+      ],
+      "topics": [
+        "price_discovery",
+        "information_share",
+        "spot_futures",
+        "cointegration"
+      ],
+      "claim": "当同一标的在多个市场交易时，各市场对新信息的贡献可以用信息份额衡量：份额是某市场价格的创新对共同有效价格创新的贡献比例。它把价格发现从定性描述变成可比较的比例指标，可用于判断现货与永续谁在领先。",
+      "use_when": "要量化现货与永续之间的领先滞后关系，或选择以哪个市场价格作为做市基准时。",
+      "not_when": "信息份额要求市场之间共享同一个有效价格，采样频率、噪声与误差修正项设定会显著改变结果，单次估计的排名不能当稳定结构。",
+      "source": "Hasbrouck, J.（1995）One Security, Many Markets: Determining the Contributions to Price Discovery. The Journal of Finance, 50(4), 1175-1199. DOI: 10.1111/j.1540-6261.1995.tb04054.x",
+      "source_url": "https://doi.org/10.1111/j.1540-6261.1995.tb04054.x"
+    },
+    {
+      "id": "kb-dayri-rosenbaum-2015-01",
+      "title": "大价位资产的隐含价差与最优跳动",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "large_tick",
+        "implicit_spread",
+        "tick_size",
+        "queue_position"
+      ],
+      "claim": "当最小跳动相对价格与波动率都很大时，有效价差几乎总等于一个跳动，此时真正决定交易成本的是隐含价差这个量。隐含价差刻画了大跳动资产的有效成本水平，并可用于定义最优跳动；跳动过大或过小都会偏离最优。",
+      "use_when": "判断某永续的跳动相对波动是否偏大、是否适合以价格网格做市时。",
+      "not_when": "隐含价差是从成交与报价数据反推的统计量，会随市场状态漂移，不能当固定常数；它也不能用来预测跳动以后必然会在哪个方向调整。",
+      "source": "Dayri, K., & Rosenbaum, M.（2012，v2 2013）Large tick assets: implicit spread and optimal tick size. arXiv:1207.6325 [q-fin.TR]（被 hftbacktest 队列做市教程引用）",
+      "source_url": "https://arxiv.org/abs/1207.6325"
+    },
+    {
+      "id": "kb-hftbacktest-large-tick-01",
+      "title": "大跳动资产的网格做市与队列建模",
+      "lanes": [
+        "hft"
+      ],
+      "topics": [
+        "large_tick",
+        "grid_trading",
+        "queue_position",
+        "half_spread"
+      ],
+      "claim": "大跳动资产的价格变动被最小跳动限制，成交大多发生在最优买卖价上，价格层级很少变化。此时利润主要来自稳定地占住最优价位的队列位置，半价差可以取略小于半个跳动，报价很少需要真正外移。",
+      "use_when": "在跳动以基点计的永续上做高频网格做市，或评估这类标的的队列位置是否值得付费时。",
+      "not_when": "该模式依赖大跳动这一前提；跳动很小的合约价位数不断变化，网格与占队逻辑不适用。",
+      "source": "nkaz001《hftbacktest》文档：Queue-Based Market Making in Large Tick Size Assets（该文引用 Dayri & Rosenbaum 的隐含价差与最优跳动结果）",
+      "source_url": "https://hftbacktest.readthedocs.io/en/latest/tutorials/Queue-Based%20Market%20Making%20in%20Large%20Tick%20Size%20Assets.html"
+    },
+    {
+      "id": "kb-cont-kukanov-stoikov-2014-01",
+      "title": "订单流失衡与短期价格变化",
+      "lanes": [
+        "hft",
+        "mid"
+      ],
+      "topics": [
+        "order_flow_imbalance",
+        "price_impact",
+        "market_depth",
+        "short_term_alpha"
+      ],
+      "claim": "短时间窗口内的价格变化主要由最优买卖价上供求失衡的订单流决定，价格变化与订单流失衡近似线性，斜率与市场深度成反比。这个关系在多个时间尺度与多只股票上稳定，比用成交量解释价格变化更稳健。",
+      "use_when": "构建短期公允价、判断盘口失衡是否值得跟随，或需要短周期冲击系数时。",
+      "not_when": "线性关系只在很短的窗口内成立，且斜率需要按标的与时段重估；把日频或更长尺度上的成交量冲击直接当同一关系用会失准。",
+      "source": "Cont, R., Kukanov, A., & Stoikov, S.（2014）The Price Impact of Order Book Events. Journal of Financial Econometrics, 12(1), 47-88. DOI: 10.1093/jjfinec/nbt003（预印本 arXiv:1011.6402）",
+      "source_url": "https://arxiv.org/abs/1011.6402"
+    },
+    {
+      "id": "kb-perp-funding-2023-01",
+      "title": "永续的资金费与无套利定价",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "perpetual_futures",
+        "funding_rate",
+        "basis",
+        "no_arbitrage"
+      ],
+      "claim": "永续无到期日，价格锚定由周期性的资金费支付完成：多头按永续与现货的价差比例付给空头。在无摩擦市场可以推出无套利价格，在有交易成本的市场只能得到价格区间，因此在成本约束下永续与现货之间出现持续偏离是正常的。",
+      "use_when": "判断基差交易是否还有空间，或评估资金费能否补偿持有成本时。",
+      "not_when": "该模型针对线性、反向等标准永续设定；若交易所的资金费结算频率、上下限或计价方式不同，公式须重推，不能直接套用。",
+      "source": "Ackerer, D., Hugonnier, J., & Jermann, U.（2024）Perpetual Futures Pricing. arXiv:2310.11771",
+      "source_url": "https://arxiv.org/abs/2310.11771"
+    },
+    {
+      "id": "kb-he-manela-2022-01",
+      "title": "资金费锚定在加密市场并不完美",
+      "lanes": [
+        "mid",
+        "long"
+      ],
+      "topics": [
+        "perpetual_futures",
+        "funding_rate",
+        "basis_arbitrage",
+        "crypto_market"
+      ],
+      "claim": "实证上加密永续相对现货的偏离比传统外汇市场更大、跨币种同向变动、并随时间收窄，说明资金费只是一个激励而非硬约束。偏离幅度本身就是一个可观测的市场状态变量，而不是应当忽略的噪声。",
+      "use_when": "评估跨交易所或现货永续基差机会，或给资金费假设加现实折损时。",
+      "not_when": "该结论基于特定样本期与交易所，样本外的偏离幅度与持续时间会变；不能用历史偏离均值当作未来回归速度。",
+      "source": "He, S., Manela, A., Ross, O., & von Wachter, V.（2022，v7 2026）Fundamentals of Perpetual Futures. arXiv:2212.06888",
+      "source_url": "https://arxiv.org/abs/2212.06888"
+    },
+    {
+      "id": "kb-perp-liquidation-2024-01",
+      "title": "强平距离改变库存风险的性质",
+      "lanes": [
+        "all"
+      ],
+      "topics": [
+        "liquidation_distance",
+        "leverage",
+        "inventory_risk",
+        "margin"
+      ],
+      "claim": "永续的保证金机制把库存风险变成有硬边界的状态变量：真正决定风险的指标是到强平线的距离与波动率的比值，而不是仓位大小本身。强平通常集中发生在价格已经剧烈变动、盘口最薄的时刻，会把库存风险一次性转成被动成交与滑点。",
+      "use_when": "设定永续做市的库存上限、判断报价偏移模型何时已不适用时。",
+      "not_when": "各交易所维持保证金阶梯、强平引擎与标记价格口径都不同，同一套强平距离公式不能跨交易所套用；强平价也不是止损价。",
+      "source": "He, S., Manela, A., Ross, O., & von Wachter, V.（2022，v7 2026）Fundamentals of Perpetual Futures. arXiv:2212.06888",
+      "source_url": "https://arxiv.org/abs/2212.06888"
+    }
+  ],
+  "unverified": [
+    {
+      "title": "Bouchaud 等《Trades, Quotes and Prices》里具体冲击与价差的数值表格",
+      "why": "只核对到书目的题名、作者、年份与 ISBN（OpenLibrary 与 Cambridge 书页），未能打开正文核对具体数字表格，因此不写含具体数值的卡片，只写机制与量级方向。"
+    },
+    {
+      "title": "Cont 等（2010）关于订单到达成簇程度的定量刻画",
+      "why": "订单到达成簇这一现象在《A Stochastic Model for Order Book Dynamics》的摘要与模型设定中确认存在，但未能打开全文核对具体聚类参数，因此卡片只写机制方向，不给聚类强度数值。"
+    },
+    {
+      "title": "hftbacktest 队列做市教程中引用的其它文献",
+      "why": "该教程引用多篇文献，本次只核对成功 Dayri & Rosenbaum 的隐含价差与最优跳动一篇（arXiv:1207.6325），其余未能定位到原始出处，故不建卡。"
+    },
+    {
+      "title": "交易所官方的资金费与强平规则文档",
+      "why": "卡片的 source_url 要求是 DOI、arXiv 编号或出版社官网页面之一；交易所帮助中心页面不属于该范围，因此资金费与强平相关卡片改用可核对的 arXiv 原始论文，交易所具体参数需另行查阅。"
+    }
+  ]
+}

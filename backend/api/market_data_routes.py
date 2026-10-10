@@ -720,14 +720,15 @@ def get_ticker_bar(symbols: str = Query("BTC,ETH,SOL", description="逗号分隔
         raise HTTPException(status_code=400, detail="crypto symbol list cannot be empty")
 
     _start_ticker_cache_refresher()
-    # [2026-08-28 全币安] 顶部条跟随当前决策交易所：active=binance 时价格/涨跌幅
-    # 全量走币安永续（1s 价格通道 + 24hr 统计通道），否则维持 asterdex 通道。
+    # 请求线程只读内存。跨进程拉行情由上面的保温线程做。
+    # 以前缓存一过期，这个接口就在请求里同步等网络（1.5~2s），再叠上别的慢请求，
+    # 切页时浏览器 6 个连接被占满，数据要等将近 8 秒。
     if _active_exchange_cached() == "binance":
-        all_prices = _dc_binance_all_prices()
-        all_stats = _dc_binance_stats()
+        all_prices = dict(_DC_BINANCE_ALL_CACHE.get("data") or {})
+        all_stats = dict(_DC_BINANCE_STATS_CACHE.get("data") or {})
     else:
-        all_prices = _dc_all_prices()
-        all_stats = _dc_ticker_stats()
+        all_prices = dict(_DC_ALL_PRICES_CACHE.get("data") or {})
+        all_stats = dict(_DC_STATS_CACHE.get("data") or {})
 
     # 内嵌模式（无数据中心进程）降级：走 data_center 秒级 ticker
     if not all_prices:

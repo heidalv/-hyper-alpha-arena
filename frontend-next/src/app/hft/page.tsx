@@ -21,17 +21,15 @@
  * 运行态取不到时显示"—"而不是 0（0 会被误读为"没有持仓"）。
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Layers, Radio, Target } from "lucide-react";
+import { Layers, Radio } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { fmtNum } from "@/lib/format";
 import { DataState, PageShell, TradingBoard } from "@/components/arbitrage";
 import { HftControlPanel } from "@/components/hft/HftControlPanel";
-import { EquitySeriesCard } from "@/components/charts/EquitySeriesCard";
 import { HftFillsTable } from "@/components/hft/HftFillsTable";
 import { HftPositionsPanel } from "@/components/hft/HftPositionsPanel";
 import {
-  useHftOverview, useHftBoard, useHftUniverseLive, useHftAccount, useHftConfig, useHftFills,
+  useHftOverview, useHftBoard, useHftAccount, useHftConfig, useHftFills,
   useHftEvolution, useHftHero,
 } from "@/hooks/useHftData";
 
@@ -39,8 +37,10 @@ function isStaleTs(ts: number | null, ms = 120_000): boolean {
   return ts != null && Date.now() - ts > ms;
 }
 
-/** 选币器全量评估间隔（秒）。与后端 MM_UNIVERSE_RADAR_SEC 一致(实时化后=60s)。 */
-const EVAL_INTERVAL_SEC = 60;
+/** 选币器全量评估间隔（秒）。与后端 MM_UNIVERSE_RADAR_SEC 一致（PP 时代=300s）。
+ *  [2026-10-10 修] 此前恒为 60（旧方向链实时化时代的遗留）：后端已调到 300s，
+ *  倒计时按 60s 循环 ⇒ 「下次 0:54」这类永远对不上的假倒计时。 */
+const EVAL_INTERVAL_SEC = 300;
 function useNextEvalCountdown(universeAsOf?: string | null): number | null {
   const [left, setLeft] = useState<number | null>(null);
   useEffect(() => {
@@ -84,8 +84,6 @@ export default function HftPage() {
   const overview = useHftOverview();
   const hero = useHftHero();
   const evo = useHftEvolution();
-  // [2026-09-27] 分币种实盘判定取代旧的「选币评分 + 硬闸拒绝」两张卡（已停用口径）
-  const live = useHftUniverseLive();
   const account = useHftAccount();
   const config = useHftConfig(true);
   const fills = useHftFills(50, 24);
@@ -110,7 +108,7 @@ export default function HftPage() {
       icon={<Radio className="h-4 w-4" />}
       mode="polling"
       asOf={ov?.as_of ?? null}
-      onRefresh={() => { overview.refresh(); live.refresh(); board.refresh(); account.refresh(); config.refresh(); }}
+      onRefresh={() => { overview.refresh(); board.refresh(); account.refresh(); config.refresh(); }}
       refreshing={overview.loading && !overview.data}
       breadcrumb={[{ label: "交易核心" }, { label: "实盘高频交易" }, { label: "模拟高频交易" }]}
       className="mx-auto w-full max-w-[1600px]"
@@ -224,7 +222,7 @@ export default function HftPage() {
               </span>
               {ov.universe_source === "universe_optimizer" ? (
                 <span className="text-sm text-muted-foreground">
-                  末位淘汰 <span className="text-foreground">趋势强度换币</span>
+                  末位淘汰 <span className="text-foreground">rt_bp 往返账换币</span>
                   {ov.universe_as_of ? ` · 上次 ${ov.universe_as_of.slice(11, 16)}` : ""}
                   {nextEvalSec != null && (
                     <span className="font-mono font-semibold text-cyan-300">
@@ -285,11 +283,18 @@ export default function HftPage() {
               </span>
             </span>
             <span className="text-muted-foreground">
-              闸门提案 <span className="font-medium text-foreground">{evo.data.gate_proposals.length}</span>
-              {evo.data.gate_proposals.length > 0 && (
-                <span className="text-warning">
-                  {" · "}{evo.data.gate_proposals.map((g) => `${g.param} ${g.current}→${g.proposed} (t=${g.t})`).join("; ")}
-                </span>
+              闸门提案{" "}
+              {evo.data.stub_fields?.includes("gate_proposals") ? (
+                <span className="text-muted-foreground/70" title="该字段在后端是硬编码空数组，尚未接线">未接线</span>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground">{evo.data.gate_proposals.length}</span>
+                  {evo.data.gate_proposals.length > 0 && (
+                    <span className="text-warning">
+                      {" · "}{evo.data.gate_proposals.map((g) => `${g.param} ${g.current}→${g.proposed} (t=${g.t})`).join("; ")}
+                    </span>
+                  )}
+                </>
               )}
             </span>
             {evo.data.bandit.proposed.length > 0 && (
@@ -300,13 +305,30 @@ export default function HftPage() {
               </span>
             )}
             <span className="text-muted-foreground">
-              待判 <span className="font-medium text-foreground">{evo.data.pending_verdicts.length}</span>
+              待判{" "}
+              {/* [2026-10-10] 由真实队列（logs/self_tuner_pending.json）驱动；空 ≠ 有问题，
+                  但**要看得出是空还是没接线**。 */}
+              <span className="font-medium text-foreground">{evo.data.pending_verdicts.length}</span>
               {evo.data.pending_verdicts.length > 0 && (
                 <span className="text-muted-foreground">
                   {" · "}{evo.data.pending_verdicts.map((p) => `${p.param}=${p.new}`).join(" ")}
                 </span>
               )}
             </span>
+            {(evo.data.advisor_recent?.length ?? 0) > 0 && (
+              <span className="text-muted-foreground">
+                顾问近 {evo.data.advisor_recent!.length} 轮：
+                <span className="text-foreground">
+                  {evo.data.advisor_recent!
+                    .slice(0, 3)
+                    .map((a) => `${a.lane ?? "?"}:${a.decision ?? "?"}`)
+                    .join(" ")}
+                </span>
+                <a className="ml-1 underline text-cyan-400" href="/intelligent-learning?tab=advisor">
+                  看详情
+                </a>
+              </span>
+            )}
             <span className="text-muted-foreground">
               定律 <span className="text-foreground">{evo.data.playbook_laws}</span>
             </span>
@@ -421,207 +443,8 @@ export default function HftPage() {
         </DataState>
       </Card>
 
-      {/* ── ⓪ 账户收益曲线（HFT 净收益，lane_ledger 事件溯源；2026-09-23 用户要求）── */}
-      <EquitySeriesCard
-        source="hft"
-        title="账户收益曲线（HFT 净收益）"
-        initialPeriod="30d"
-        className="min-h-[260px]"
-      />
+      {/* ── 分币种实盘判定、账户收益曲线、执行状态三卡已按用户要求移除（2026-10-10）── */}
 
-      {/* ── ① 分币种实盘判定（现行口径）──
-          [2026-09-27] 取代旧的「选币评分（点差×吞吐）」+「硬闸拒绝」两张卡：
-          那两张属已停用的机械选币口径（"入选"列恒空），且硬闸与现行宇宙自相矛盾
-          （ETH/ARB 既在宇宙里、又被列"点差过窄/更新过少⇒拒绝"）。
-          现行选币口径 = 事件研究排名（h355b/h370）+ 分币种实盘判定去留（#2 试跑），
-          本表就是判定要用的同一套数字。 */}
-      <Card className="glass p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
-              <Target className="h-3.5 w-3.5" />
-            </span>
-            分币种实盘判定（#2 试跑口径）
-          </h2>
-          <span className="text-[11px] text-muted-foreground">
-            {live.data
-              ? `${live.data.totals.legs} 腿 / ${live.data.hours_elapsed ?? "—"}h · 净 ${live.data.totals.net_bp >= 0 ? "+" : ""}${live.data.totals.net_bp}bp · 每腿 ${live.data.totals.net_bp_per_leg ?? "—"}bp · 腿速 ${live.data.totals.legs_per_hour ?? "—"}/h`
-              : "加载中…"}
-          </span>
-        </div>
-        <DataState
-          loading={live.loading}
-          error={live.error}
-          hasData={!!live.data}
-          onRetry={live.refresh}
-        >
-          {live.data && (
-            <>
-              {/* [h850 用户"这两个有bug 没有做滚屏导致页面被拉长"] 分币种表会随币数
-                 无限增长(现在 30+ 行)⇒ 加 max-h + overflow-y-auto,表体内部滚动。 */}
-              <div className="max-h-[420px] overflow-x-auto overflow-y-auto">
-                <table className="data-table w-full text-xs">
-                  <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
-                    <tr className="text-left text-[10px] text-muted-foreground">
-                      <th className="py-1 pr-2">标的</th>
-                      <th className="py-1 pr-2 text-right">腿数</th>
-                      <th className="py-1 pr-2 text-right">净 bp</th>
-                      <th className="py-1 pr-2 text-right">bp/腿</th>
-                      <th className="py-1 pr-2 text-right">腿速/h</th>
-                      <th className="py-1 pr-2 text-right">净额 $</th>
-                      <th className="py-1 pr-2 text-right">价格腿 $</th>
-                      <th className="py-1 pr-2 text-right">价差腿 $</th>
-                      <th className="py-1 pr-2 text-center">判定</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {live.data.rows.map((r) => (
-                      <tr key={r.symbol} className="border-t border-muted/20">
-                        <td className="py-1 pr-2 font-medium">{r.symbol}</td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums">{r.legs}</td>
-                        <td
-                          className={cn(
-                            "py-1 pr-2 text-right font-mono tabular-nums",
-                            r.net_bp > 0 ? "text-profit" : r.net_bp < 0 ? "text-loss" : "text-muted-foreground"
-                          )}
-                        >
-                          {r.net_bp >= 0 ? "+" : ""}
-                          {fmtNum(r.net_bp, 2)}
-                        </td>
-                        <td
-                          className={cn(
-                            "py-1 pr-2 text-right font-mono tabular-nums",
-                            (r.net_bp_per_leg ?? 0) > 0
-                              ? "text-profit"
-                              : (r.net_bp_per_leg ?? 0) < 0
-                                ? "text-loss"
-                                : "text-muted-foreground"
-                          )}
-                        >
-                          {r.net_bp_per_leg == null ? "—" : fmtNum(r.net_bp_per_leg, 4)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                          {r.legs_per_hour == null ? "—" : fmtNum(r.legs_per_hour, 1)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums">
-                          {fmtNum(r.net_usd, 3)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                          {fmtNum(r.price_usd, 3)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                          {fmtNum(r.spread_usd, 3)}
-                        </td>
-                        <td className="py-1 pr-2 text-center">
-                          <span
-                            className={cn(
-                              "rounded border px-1.5 py-[1px] text-[10px]",
-                              r.hint === "保留"
-                                ? "border-profit/40 bg-profit/10 text-profit"
-                                : r.hint === "摘除候选"
-                                  ? "border-loss/40 bg-loss/10 text-loss"
-                                  : "border-muted/40 bg-muted/20 text-muted-foreground"
-                            )}
-                          >
-                            {r.hint}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">{live.data.note}</p>
-            </>
-          )}
-        </DataState>
-      </Card>
-
-      {/* ── ③ 执行状态（挂单/持仓来自运行态；取不到如实留白） ── */}
-      <Card className="glass p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
-              <Activity className="h-3.5 w-3.5" />
-            </span>
-            执行状态（我方挂单 / 持仓）
-          </h2>
-          <span className="text-[11px] text-muted-foreground">
-            来自引擎运行态；未运行时显示 —
-          </span>
-        </div>
-        <DataState loading={board.loading} error={board.error} hasData={!!board.data} onRetry={board.refresh}>
-          {board.data && (
-            /* 高度约束 + 表头吸顶：避免行数增长时把页面无限撑长 */
-            <div className="max-h-[360px] overflow-auto rounded border border-muted/30">
-              <table className="data-table w-full text-xs">
-                <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
-                  <tr className="text-left text-[10px] text-muted-foreground">
-                    <th className="py-1.5 pl-2 pr-2">标的</th>
-                    <th className="py-1.5 pr-2 text-right">我方买</th>
-                    <th className="py-1.5 pr-2 text-right">距中价</th>
-                    <th className="py-1.5 pr-2 text-right">队列前</th>
-                    <th className="py-1.5 pr-2 text-right">我方卖</th>
-                    <th className="py-1.5 pr-2 text-right">距中价</th>
-                    <th className="py-1.5 pr-2 text-right">队列前</th>
-                    <th className="py-1.5 pr-2 text-right">持仓</th>
-                    <th className="py-1.5 pr-2 text-right">浮盈</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(board.data.cards ?? []).map((c) => {
-                    const m = c.mine;
-                    const p = c.position;
-                    return (
-                      <tr key={c.symbol} className="border-t border-muted/20">
-                        <td className="py-1 pl-2 pr-2 font-medium">{c.symbol}</td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-cyan-300">
-                          {m.bid == null ? "—" : fmtNum(m.bid, 6)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                          {m.bid_width_bp == null ? "—" : `${fmtNum(m.bid_width_bp, 2)}bp`}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums">
-                          {m.bid_queue_ahead_usd == null ? "—" : `$${fmtNum(m.bid_queue_ahead_usd, 0)}`}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-cyan-300">
-                          {m.ask == null ? "—" : fmtNum(m.ask, 6)}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums text-muted-foreground">
-                          {m.ask_width_bp == null ? "—" : `${fmtNum(m.ask_width_bp, 2)}bp`}
-                        </td>
-                        <td className="py-1 pr-2 text-right font-mono tabular-nums">
-                          {m.ask_queue_ahead_usd == null ? "—" : `$${fmtNum(m.ask_queue_ahead_usd, 0)}`}
-                        </td>
-                        <td
-                          className={cn(
-                            "py-1 pr-2 text-right font-mono tabular-nums",
-                            p.qty > 0 ? "text-profit" : p.qty < 0 ? "text-loss" : "text-muted-foreground"
-                          )}
-                        >
-                          {p.qty === 0 ? "0" : fmtNum(p.qty, 6)}
-                        </td>
-                        <td
-                          className={cn(
-                            "py-1 pr-2 text-right font-mono tabular-nums",
-                            (p.unrealized_usd ?? 0) > 0
-                              ? "text-profit"
-                              : (p.unrealized_usd ?? 0) < 0
-                                ? "text-loss"
-                                : "text-muted-foreground"
-                          )}
-                        >
-                          {p.unrealized_usd == null ? "—" : `$${fmtNum(p.unrealized_usd, 4)}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </DataState>
-      </Card>
     </PageShell>
   );
 }

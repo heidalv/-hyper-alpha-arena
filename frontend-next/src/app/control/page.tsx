@@ -13,8 +13,8 @@
  *
  * 本页把三件事收在一处，并给出**一键停手**：
  *   1) 全局统计 + 「全部停止交易」（停全部 running/defensive/paused 会话 + 关全部账户开关）
- *   2) 逐账户：模式 / 启用 / 自动交易开关（即时生效）/ 绑定会话及其状态
- *   3) 逐会话：状态 + 停止 / 恢复
+ *   2) 逐账户：模式 / 启用 / 自动交易开关（即时生效）/ 绑定会话及其状态 / 删除
+ *   3) 逐账户操作只有一套：在跑 → 一个「停会话」；没在跑 → 一个「恢复」（只拉起最近停下的那条）；再加「删除」
  */
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/lib/confirm";
-import { sessionApi } from "@/lib/api";
+import { accountApi, sessionApi } from "@/lib/api";
 import {
   useAccounts, useSessions, useUpdateAccount, useStopSession, useResumeSession,
 } from "@/hooks/useTradingData";
@@ -34,10 +34,19 @@ import { ExchangeManagerPanel } from "@/components/exchange/ExchangeManagerPanel
 import { LaneConfigPanel } from "@/components/config/LaneConfigPanel";
 import {
   Power, ShieldCheck, ShieldOff, Loader2, RefreshCw, Play, Square, AlertTriangle, CheckCircle2,
-  Bot, Server, SlidersHorizontal,
+  Bot, Server, SlidersHorizontal, Trash2,
 } from "lucide-react";
 
 const LIVE_STATUS = ["running", "defensive", "paused"];
+
+/** 会话短标签：币种 + 编号尾号，避免两个「恢复」长得一模一样、分不清是哪条。 */
+function sessionTag(s: { session_id?: string; symbols?: string[] }): string {
+  const id = String(s.session_id || "");
+  const tail = id.length > 4 ? id.slice(-4) : id;
+  const syms = Array.isArray(s.symbols) ? s.symbols.filter(Boolean).slice(0, 2) : [];
+  const head = syms.length ? syms.join(",") : "会话";
+  return tail ? `${head}·${tail}` : head;
+}
 
 /** 页内四区（[2026-10-03 用户需求] AI 策略只保留会话管理 → 与会话管理、交易所管理一并并入本页）。 */
 type ControlTab = "control" | "sessions" | "exchange" | "lanes";
@@ -72,11 +81,27 @@ export default function ControlPage() {
   const rows = useMemo(
     () =>
       ((accounts ?? []) as any[]).map((a) => {
-        const bound = ((sessions ?? []) as any[]).filter(
-          (s) => s.account_id === a.id || s.paper_account_id === a.id,
-        );
+        // 同一条会话只保留一次（列表里若重复返回，不能画出两个一样的按钮）
+        const seen = new Set<string>();
+        const bound: any[] = [];
+        for (const s of (sessions ?? []) as any[]) {
+          if (s.account_id !== a.id && s.paper_account_id !== a.id) continue;
+          const sid = String(s.session_id || "");
+          if (sid && seen.has(sid)) continue;
+          if (sid) seen.add(sid);
+          bound.push(s);
+        }
+        bound.sort((x, y) => {
+          const xl = LIVE_STATUS.includes(String(x.status)) ? 0 : 1;
+          const yl = LIVE_STATUS.includes(String(y.status)) ? 0 : 1;
+          if (xl !== yl) return xl - yl;
+          const xt = String(x.stopped_at || x.started_at || x.created_at || "");
+          const yt = String(y.stopped_at || y.started_at || y.created_at || "");
+          return yt.localeCompare(xt);
+        });
         const live = bound.filter((s) => LIVE_STATUS.includes(String(s.status)));
-        return { a, bound, live };
+        const stopped = bound.filter((s) => !LIVE_STATUS.includes(String(s.status)));
+        return { a, bound, live, stopped };
       }),
     [accounts, sessions],
   );
@@ -123,6 +148,20 @@ export default function ControlPage() {
     await run(`auto-${id}`,
       () => updateMut.mutateAsync({ id, data: { auto_trading_enabled: next } as any }),
       `账户「${name}」自动交易已${next ? "开启" : "关闭"}`);
+  };
+
+  /** 从总控列表移除账户：后端会先停掉正在跑的会话，再关自动交易。历史记录保留。 */
+  const deleteAccount = async (id: number, name: string, liveCount: number) => {
+    if (!(await confirmDialog({
+      title: `删除账户「${name}」？`,
+      description: liveCount > 0
+        ? `后端会先停掉 ${liveCount} 个正在跑的会话（含防守、暂停），再把这个账户的全部绑定会话删掉，然后把账户从列表里拿掉并关掉自动交易。以前的成交记录还留着。`
+        : "后端会把这个账户的绑定会话删掉，再把账户从列表里拿掉并关掉自动交易。以前的成交记录还留着。",
+      tone: "danger",
+      confirmText: "删除",
+      requireText: "删除",
+    }))) return;
+    await run(`del-${id}`, () => accountApi.delete(id), `账户「${name}」已删除，绑定会话已停止并清除`);
   };
 
   return (
@@ -225,7 +264,7 @@ export default function ControlPage() {
           <h2 className="text-sm font-medium">账户</h2>
           <span className="text-xs text-muted-foreground">
             两个独立事实：<strong>状态</strong>=现在有没有在跑（有 running/defensive 会话才显示「运行中」）；
-            <strong>自动交易</strong>=允不允许自动开仓（开关即时生效）。会话本身要单独「停会话」。
+            <strong>自动交易</strong>=允不允许自动开仓（开关即时生效）。操作每行只有一套：在跑显示「停会话」，没在跑才显示一个「恢复」。
           </span>
         </div>
         {accountsLoading ? (
@@ -234,7 +273,8 @@ export default function ControlPage() {
           <div className="text-center py-6 text-sm text-muted-foreground">暂无账户</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="data-table w-full text-xs">
+            {/* width:max-content 盖过 .data-table 的 width:100%，避免操作列被撑到最右边、中间空一大块 */}
+            <table className="data-table text-xs" style={{ width: "max-content" }}>
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left py-2 px-2">账户</th>
@@ -242,11 +282,11 @@ export default function ControlPage() {
                   <th className="text-left py-2 px-2">状态</th>
                   <th className="text-left py-2 px-2">自动交易</th>
                   <th className="text-left py-2 px-2">绑定会话</th>
-                  <th className="text-right py-2 px-2">操作</th>
+                  <th className="text-left py-2 px-2">操作</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ a, bound, live }) => (
+                {rows.map(({ a, bound, live, stopped }) => (
                   <tr key={a.id} className="border-b border-border/40">
                     <td className="py-2 px-2">
                       <div className="font-medium">{a.name}</div>
@@ -297,58 +337,89 @@ export default function ControlPage() {
                         {a.auto_trading_enabled ? "开" : "关"}
                       </Button>
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-2 px-2 align-top" style={{ whiteSpace: "normal" }}>
                       {bound.length === 0 ? (
                         <span className="text-muted-foreground">无</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {bound.map((s: any) => (
-                            <span
-                              key={s.session_id}
-                              className={cn(
-                                "text-[10px] px-1.5 py-0.5 rounded font-mono",
-                                LIVE_STATUS.includes(String(s.status))
-                                  ? "bg-loss/15 text-loss"
-                                  : "bg-muted/40 text-muted-foreground",
-                              )}
-                              title={`${s.session_id} · ${s.status}`}
-                            >
-                              {String(s.status)} {s.active_count ? `·${s.active_count}` : ""}
-                            </span>
-                          ))}
+                        <div className="flex flex-col gap-1">
+                          {bound.map((s: any) => {
+                            const running = LIVE_STATUS.includes(String(s.status));
+                            return (
+                              <div key={s.session_id} className="flex items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0.5 rounded font-mono shrink-0",
+                                    running
+                                      ? "bg-loss/15 text-loss"
+                                      : "bg-muted/40 text-muted-foreground",
+                                  )}
+                                  title={`${s.session_id} · ${s.status}`}
+                                >
+                                  {String(s.status)} {s.active_count ? `·${s.active_count}` : ""}
+                                </span>
+                                <span
+                                  className="text-[10px] font-mono text-muted-foreground shrink-0"
+                                  title={String(s.session_id || "")}
+                                >
+                                  {sessionTag(s)}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-2 text-right">
-                      <div className="flex justify-end gap-1">
-                        {live.map((s: any) => (
+                    <td className="py-2 px-2 align-top">
+                      {/* 每种按钮最多一个，顺序固定：停会话 → 恢复 → 删除 */}
+                      <div className="flex items-center gap-1">
+                        {live.length > 0 && (
                           <Button
-                            key={s.session_id}
                             variant="outline"
                             size="sm"
                             className="h-6 text-[11px] text-loss"
+                            data-testid={`acct-stop-${a.id}`}
                             disabled={busy !== null}
-                            onClick={() => run(`stop-${s.session_id}`,
-                              () => stopMut.mutateAsync(s.session_id),
-                              `会话 ${s.session_id} 已停止`)}
+                            title={live.length > 1
+                              ? `停止这 ${live.length} 个正在跑的会话`
+                              : `停止会话 ${sessionTag(live[0])}`}
+                            onClick={() => run(`stop-acct-${a.id}`, async () => {
+                              for (const s of live) await stopMut.mutateAsync(s.session_id);
+                            }, live.length > 1 ? `已停止 ${live.length} 个会话` : `会话 ${sessionTag(live[0])} 已停止`)}
                           >
                             <Square className="w-3 h-3 mr-1" />停会话
                           </Button>
-                        ))}
-                        {bound.filter((s: any) => !LIVE_STATUS.includes(String(s.status))).map((s: any) => (
+                        )}
+                        {live.length === 0 && stopped[0] && (
                           <Button
-                            key={s.session_id}
                             variant="outline"
                             size="sm"
                             className="h-6 text-[11px]"
+                            data-testid={`acct-resume-${a.id}`}
                             disabled={busy !== null}
-                            onClick={() => run(`resume-${s.session_id}`,
-                              () => resumeMut.mutateAsync(s.session_id),
-                              `会话 ${s.session_id} 已恢复运行`)}
+                            title={stopped.length > 1
+                              ? `只恢复最近停下的 ${sessionTag(stopped[0])}，另外 ${stopped.length - 1} 条已停的不动`
+                              : `恢复会话 ${sessionTag(stopped[0])}`}
+                            onClick={() => run(`resume-${stopped[0].session_id}`,
+                              () => resumeMut.mutateAsync(stopped[0].session_id),
+                              `会话 ${sessionTag(stopped[0])} 已恢复运行`)}
                           >
                             <Play className="w-3 h-3 mr-1" />恢复
                           </Button>
-                        ))}
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[11px] text-loss"
+                          data-testid={`acct-delete-${a.id}`}
+                          disabled={busy !== null}
+                          title="删除这个账户：后端先停掉并清除绑定会话，成交记录保留"
+                          onClick={() => deleteAccount(a.id, a.name, live.length)}
+                        >
+                          {busy === `del-${a.id}`
+                            ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            : <Trash2 className="w-3 h-3 mr-1" />}
+                          删除
+                        </Button>
                       </div>
                     </td>
                   </tr>

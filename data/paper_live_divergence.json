@@ -1,7 +1,7 @@
 [
   {
     "file": "backend/services/full_auto/midlong_helpers.py",
-    "line": 400,
+    "line": 422,
     "test": "_mode != 'paper' and (not cfg['allow_live'])",
     "kind": "GUARD",
     "line_n": 2,
@@ -9,7 +9,7 @@
   },
   {
     "file": "backend/services/full_auto/midlong_helpers.py",
-    "line": 527,
+    "line": 549,
     "test": "_trade_mode == 'paper'",
     "kind": "ROUTING",
     "line_n": 2,
@@ -17,7 +17,7 @@
   },
   {
     "file": "backend/services/full_auto/midlong_helpers.py",
-    "line": 1243,
+    "line": 1267,
     "test": "_pb_skip and _pb_mode == 'paper'",
     "kind": "LOG/OTHER",
     "line_n": 1,
@@ -25,7 +25,7 @@
   },
   {
     "file": "backend/services/full_auto/midlong_helpers.py",
-    "line": 1075,
+    "line": 1099,
     "test": "_acct_pf and _is_live_mid",
     "kind": "ROUTING",
     "line_n": 2,
@@ -73,7 +73,7 @@
   },
   {
     "file": "backend/services/full_auto/proposal_execution.py",
-    "line": 156,
+    "line": 213,
     "test": "session_mode not in ('running', 'defensive') or action not in ('buy', 'sell')",
     "kind": "GUARD",
     "line_n": 2,
@@ -81,7 +81,7 @@
   },
   {
     "file": "backend/services/full_auto/proposal_execution.py",
-    "line": 461,
+    "line": 551,
     "test": "_trade_mode == 'live'",
     "kind": "GUARD",
     "line_n": 12,
@@ -265,7 +265,7 @@
   },
   {
     "file": "backend/services/mlto/brain.py",
-    "line": 2256,
+    "line": 2328,
     "test": "(os.getenv('MIDLONG_BRAIN_MODE', 'llm') or 'llm').strip().lower() != 'llm'",
     "kind": "LOG/OTHER",
     "line_n": 1,
@@ -273,7 +273,7 @@
   },
   {
     "file": "backend/services/mlto/brain.py",
-    "line": 2070,
+    "line": 2142,
     "test": "_owm_apply_mode() == 'shadow'",
     "kind": "LOG/OTHER",
     "line_n": 1,

@@ -44,6 +44,20 @@ def _port_in_use(port: int) -> bool:
         return False
 
 
+def _backend_python() -> str:
+    r"""[2026-10-10 三连杀修复] 子进程解释器一律用 .runtime 直跑（零 DSH 托管
+    stub 跳——托管 stub 被清理时会把整链以 0xFFFFFFFF 连坐）。
+    若本包装器自己就是 .venv stub 启动的（sys.executable 是 stub 路径），
+    就换成 .runtime\Python312\python.exe（依赖由 PYTHONPATH=venv site-packages
+    提供，start-backend-noreload.cmd 已设置）。"""
+    exe = sys.executable or ""
+    if exe and ".venv" in exe.replace("\\", "/"):
+        rt = ROOT / ".runtime" / "Python312" / "python.exe"
+        if rt.exists():
+            return str(rt)
+    return exe
+
+
 def main() -> int:
     if _port_in_use(PORT):
         _log(f"skip start: port {PORT} already in use")
@@ -51,10 +65,10 @@ def main() -> int:
     t0 = time.time()
     _log(f"starting backend pid={__import__('os').getpid()} port={PORT}")
     child = subprocess.Popen(
-        [sys.executable, str(ROOT / "scripts" / "run_uvicorn_dev.py")],
+        [_backend_python(), str(ROOT / "scripts" / "run_uvicorn_dev.py")],
         cwd=str(ROOT),
     )
-    _log(f"backend child pid={child.pid}")
+    _log(f"backend child pid={child.pid} exe={_backend_python()}")
     rc = child.wait()
     dt = time.time() - t0
     _log(f"backend exited rc={rc} uptime={dt:.0f}s")

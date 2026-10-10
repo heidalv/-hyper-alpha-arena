@@ -9,7 +9,7 @@ import {
   Shield, Settings, Activity, ChevronLeft,
   Server, ArrowRightLeft,
   FlaskConical as Factor, FileText,
-  Radar, Coins, Workflow, Cpu, PieChart, Radio, Power,
+  Radar, Coins, Workflow, Cpu, PieChart, Radio, Power, BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shouldHandleNavClick, softNavigate } from "@/lib/app-nav";
@@ -107,7 +107,16 @@ const NAV_GROUPS: NavGroup[] = [
       // [2026-10-03 用户指令] 「周期报告 并入 智能学习」⇒ 本组不再单列「周期报告」入口，
       // 内容成为智能学习中心的页内 Tab（深链 /intelligent-learning?tab=reports；
       // 旧路由 /reports 保留为跳转桩）。
-      { href: "/intelligent-learning", label: "智能学习", icon: Workflow },
+      // [2026-10-10 学习进化前端升级] 新增两个子项直达深链：
+      //   学习入口（高频往返→主脑的进度/游标/补扫）、车道顾问（每轮一个旋钮+引用卡片+回滚）。
+      // 父项仍是 /intelligent-learning（默认页签「链路总览」）。
+      {
+        href: "/intelligent-learning", label: "智能学习", icon: Workflow,
+        children: [
+          { href: "/intelligent-learning?tab=inlet", label: "学习入口", icon: Radio },
+          { href: "/intelligent-learning?tab=advisor", label: "车道顾问", icon: BrainCircuit },
+        ],
+      },
       { href: "/compute", label: "算力中心", icon: Cpu },
       // [2026-10-01 用户指令] Agent 监控（含原 Agent Wall 画布）归入本组。
       // 画布 = 页内第一个 Tab「分析墙（画布）」；深链 /agent-monitor?tab=wall。

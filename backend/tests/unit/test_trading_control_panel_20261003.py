@@ -119,6 +119,22 @@ def test_legacy_routes_are_redirect_stubs():
     assert "import { SessionManager }" not in SRC_STRATEGY, "AI 策略页不得再渲染组件（已成为桩）"
 
 
+def test_control_account_row_has_delete_and_session_actions_are_not_piled():
+    """用户口径（2026-10-10）：总控账户列表要有删除键；
+    操作列每种按钮最多一个（在跑=停会话，没在跑=一个恢复，再加删除），
+    不能按已停会话的条数堆出一排一模一样的「恢复」。"""
+    assert "accountApi.delete(" in SRC_PAGE, "删除必须走账户删除接口"
+    assert 'requireText: "删除"' in SRC_PAGE, "删除必须要求输入确认词"
+    assert "acct-delete-" in SRC_PAGE, "每一行要有删除按钮"
+    assert "sessionTag(" in SRC_PAGE, "多个会话必须能靠短标签区分"
+    assert "live.length === 0 && stopped[0]" in SRC_PAGE, "没在跑时只恢复最近一条，不能一条会话一个恢复按钮"
+    assert "bound.filter((s: any) => !LIVE_STATUS.includes" not in SRC_PAGE, "操作列不得再按已停会话循环出重复按钮"
+    # 操作列表头在绑定会话之后，单元格里是删除，不再是 justify-end 的一排按钮
+    ops_head = SRC_PAGE.split(">绑定会话<")[1].split("</thead>")[0]
+    assert ">操作<" in ops_head
+    assert "text-right" not in ops_head, "操作列不要右对齐撑到表格最右边"
+
+
 def test_command_palette_retargeted():
     """搜索面板不得再指向已合并的旧页面（否则点了会先跳桩再跳，体验倒退）。"""
     assert 'href: "/strategy"' not in SRC_PALETTE, "仍指向 /strategy"

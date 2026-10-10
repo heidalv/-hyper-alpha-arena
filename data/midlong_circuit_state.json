@@ -60,10 +60,10 @@
     "banned_until": 0
   },
   "14:ETH": {
-    "consec_losses": 4,
-    "day": "2026-10-09",
-    "day_pnl": -2.5766,
-    "banned_until": 1791521820.3366046
+    "consec_losses": 1,
+    "day": "2026-10-10",
+    "day_pnl": -1.0087,
+    "banned_until": 0
   },
   "14:BTC": {
     "consec_losses": 1,
@@ -96,10 +96,10 @@
     "banned_until": 0
   },
   "14:UNI": {
-    "consec_losses": 3,
-    "day": "2026-10-02",
-    "day_pnl": -4.1299,
-    "banned_until": 1790935137.4961236
+    "consec_losses": 1,
+    "day": "2026-10-10",
+    "day_pnl": -2.5073,
+    "banned_until": 0
   },
   "14:ASTER": {
     "consec_losses": 2,

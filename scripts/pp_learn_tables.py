@@ -25,8 +25,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
-                              errors="replace", line_buffering=True)
 
 from backend.services.market_maker.pp_situation import bucket_key  # noqa: E402
 import psycopg  # noqa: E402
@@ -141,6 +139,62 @@ def situation_table() -> dict:
     return doc
 
 
+def lesson_from_tables(sym: dict, sit: dict) -> dict:
+    """把选币表和桶表翻译成车道真正会执行的结论。
+
+    判据与 runner 相同：样本够 20 笔，并且成功率低于打平线，
+    或者赚的时候不比亏的时候大，这个币就不再新开、这个桶就休息。
+    样本不够就继续做，用来攒数。
+    """
+    from backend.services.market_maker.flow_universe import PP_MIN_N, pp_membership
+    from backend.services.market_maker.pp_situation import bucket_negative
+
+    coins = []
+    for name, st in sorted(
+            (sym or {}).items(),
+            key=lambda kv: -float((kv[1] or {}).get("n") or 0)):
+        role = pp_membership(name, st, 0.0, {}, min_n=PP_MIN_N)
+        row = dict(st or {})
+        row["symbol"] = name
+        row["role"] = role
+        coins.append(row)
+    resting = []
+    for cname, sides in (sit.get("coins") or {}).items():
+        if not isinstance(sides, dict):
+            continue
+        for side, buckets in sides.items():
+            if not isinstance(buckets, dict):
+                continue
+            for key, row in buckets.items():
+                if bucket_negative(row, PP_MIN_N):
+                    item = dict(row or {})
+                    item.update({"symbol": cname, "side": side, "bucket": key})
+                    resting.append(item)
+    n_rt = sum(int((v or {}).get("n") or 0) for v in (sym or {}).values())
+    return {
+        "ts": time.time(),
+        "mode": "pingpong",
+        "source": "rt_bp",
+        "n_roundtrips": n_rt,
+        "min_n": PP_MIN_N,
+        "coins": coins,
+        "resting_buckets": resting,
+        "rule": (
+            "学习样本是正在跑的重复来回：开仓价到平仓价（rt_bp），"
+            "不是拿了几个小时的旧账。样本满 20 笔后，成功率低于打平线，"
+            "或赚的时候不比亏的时候大，这个币就不再新开，这个盘口桶就休息。"
+            "样本不够的继续做，用来攒数。"
+        ),
+    }
+
+
+def write_learn_lesson(sym: dict, sit: dict) -> dict:
+    lesson = lesson_from_tables(sym, sit)
+    path = ROOT / "data" / "flow_learn_last.json"
+    path.write_text(json.dumps(lesson, ensure_ascii=False, indent=2), encoding="utf-8")
+    return lesson
+
+
 def main() -> int:
     ts = time.time()
     sym = symbol_stats()
@@ -160,8 +214,16 @@ def main() -> int:
         json.dumps({"ts": ts, "lane": LANE, **sit}, ensure_ascii=False, indent=2),
         encoding="utf-8")
     print(f"  ✓ pp_situation_last.json：{len(sit.get('coins') or {})} 币 / {n_bk} 桶")
+    lesson = write_learn_lesson(sym, sit)
+    roles: dict = {}
+    for row in lesson["coins"]:
+        roles[row["role"]] = roles.get(row["role"], 0) + 1
+    print(f"  ✓ flow_learn_last.json：{lesson['n_roundtrips']} 笔来回  "
+          f"角色 {roles}  休息桶 {len(lesson['resting_buckets'])}")
     return 0
 
 
 if __name__ == "__main__":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
+                                  errors="replace", line_buffering=True)
     raise SystemExit(main())

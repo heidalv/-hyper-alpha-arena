@@ -1,4 +1,4 @@
-"""AI因子: 插针影线不对称反转 | 置信:62% | 利用上下影线不对称度（下影主导=买方防守，上影主导=卖方拒绝）的短期均值，与短期收益方向交互，捕捉插针后的均值回归 alpha。不对称度为正且近期下跌时看多，为负且近期上涨时看空。"""
+"""AI因子: 插针影线不对称反转 | 置信:62% | 基于生产同源的插针判定：下影线主导（买方防守）预示短期反弹，上影线主导（卖方拒绝）预示短期回落。用影线不对称度的滚动均值与短期收益方向交互，捕捉插针后的均值回归 alpha。"""
 import pandas as pd
 import numpy as np
 from backend.services.factor_engine.factor_base import BaseFactor, FactorMetadata
@@ -7,16 +7,16 @@ from backend.services.factor_engine.factor_registry import register_factor
 
 @register_factor()
 class PinBarAsymmetryReversal(BaseFactor):
-    """利用上下影线不对称度（下影主导=买方防守，上影主导=卖方拒绝）的短期均值，与短期收益方向交互，捕捉插针后的均值回归 alpha。不对称度为正且近期下跌时看多，为负且近期上涨时看空。"""
+    """基于生产同源的插针判定：下影线主导（买方防守）预示短期反弹，上影线主导（卖方拒绝）预示短期回落。用影线不对称度的滚动均值与短期收益方向交互，捕捉插针后的均值回归 alpha。"""
 
     def get_metadata(self) -> FactorMetadata:
         return FactorMetadata(
             factor_id="ai_gen_pin_bar_reversal_asym",
             name="Pin Bar Asymmetry Reversal",
             display_name="插针影线不对称反转",
-            description="利用上下影线不对称度（下影主导=买方防守，上影主导=卖方拒绝）的短期均值，与短期收益方向交互，捕捉插针后的均值回归 alpha。不对称度为正且近期下跌时看多，为负且近期上涨时看空。",
+            description="基于生产同源的插针判定：下影线主导（买方防守）预示短期反弹，上影线主导（卖方拒绝）预示短期回落。用影线不对称度的滚动均值与短期收益方向交互，捕捉插针后的均值回归 alpha。",
             category="technical",
-            subcategory="contrarian",
+            subcategory="mean_reversion",
             version="1.0.0-ai",
             author="AI Generated (D7)",
         )
@@ -27,5 +27,5 @@ class PinBarAsymmetryReversal(BaseFactor):
         lower = data[['open','close']].min(axis=1) - data['low']
         asym = (lower - upper) / body
         ret = data['close'].pct_change(3)
-        result = (asym.rolling(5).mean() * (-ret)).clip(-1, 1)
+        result = (asym.rolling(5).mean() * (1 - ret.rolling(5).mean() * 50)).clip(-1, 1)
         return result

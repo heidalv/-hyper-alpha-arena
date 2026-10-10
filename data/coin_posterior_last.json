@@ -1,51 +1,19 @@
 {
-  "ts": 1791565083.1729145,
+  "ts": 1791651483.4118261,
   "half_life_h": 24.0,
   "per_coin": {
     "ETH": {
-      "n": 134,
-      "mean_bp": -1.871,
-      "std_bp": 5.216,
-      "bands": {},
-      "switch_cost_bp": null,
-      "in_universe": true
-    },
-    "NEAR": {
-      "n": 28,
-      "mean_bp": -9.358,
-      "std_bp": 30.539,
-      "bands": {},
-      "switch_cost_bp": null,
-      "in_universe": false
-    },
-    "PLAY": {
       "n": 15,
-      "mean_bp": -12.416,
-      "std_bp": 43.137,
+      "mean_bp": -0.09,
+      "std_bp": 2.653,
       "bands": {},
       "switch_cost_bp": null,
       "in_universe": true
-    },
-    "PUMP": {
-      "n": 27,
-      "mean_bp": 6.144,
-      "std_bp": 21.076,
-      "bands": {},
-      "switch_cost_bp": null,
-      "in_universe": true
-    },
-    "QNT": {
-      "n": 11,
-      "mean_bp": -6.422,
-      "std_bp": 22.762,
-      "bands": {},
-      "switch_cost_bp": null,
-      "in_universe": false
     }
   },
   "summary": {
-    "coins_with_data": 5,
-    "in_universe": 3,
+    "coins_with_data": 1,
+    "in_universe": 1,
     "switch_cost_median_bp": null
   }
 }

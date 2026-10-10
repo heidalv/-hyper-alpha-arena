@@ -2256,6 +2256,8 @@ from .api.kline_routes import router as kline_router
 from .api.learning_core_routes import router as learning_core_router  # 统一进化学习内核
 from .api.learning_loop_routes import router as learning_loop_router
 from .api.learning_health_routes import router as learning_health_router  # v6 8.3: 真实闭环健康 + wisdom 五步统计
+# [2026-10-10 学习进化前端升级] 高频入口 / 车道顾问 / 知识卡片 的只读视图
+from .api.learning_lane_routes import router as learning_lane_router
 from .api.llm_config_routes import router as llm_config_router
 from .api.llm_usage_routes import router as llm_usage_router
 from .api.market_flow_routes import router as market_flow_router
@@ -2354,6 +2356,7 @@ app.include_router(rl_router)
 app.include_router(evolution_router)
 app.include_router(learning_loop_router)
 app.include_router(learning_health_router)  # /api/learning/health + /api/learning/wisdom/stats
+app.include_router(learning_lane_router)  # /api/learning/lane/{inlet,advisor,kb/cards}
 app.include_router(intelligent_learning_router)
 app.include_router(learning_core_router)  # 统一进化学习内核 /api/learning/*
 app.include_router(dashboard_router)  # 交易矩阵仪表盘 /api/dashboard/*

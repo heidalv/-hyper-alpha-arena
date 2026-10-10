@@ -79,6 +79,23 @@ def _exit_ticks(learned: Optional[float]) -> int:
     return max(1, int(round(v)))
 
 
+def _exit_tight_after() -> float:
+    """[2026-10-10] 老仓位离场贴价化：持仓超过该秒数后，平仓单从「后一档」
+    前移到**贴价**（买一/卖一）——仍 maker、0 费，但排在队首，成交概率大增，
+    消灭"20 分钟干等不平静"的仓。回滚：MM_PP_EXIT_TIGHT_AFTER_SEC=0。"""
+    v = _env_float("MM_PP_EXIT_TIGHT_AFTER_SEC", 480.0)
+    return max(0.0, float(v) if v is not None else 480.0)
+
+
+def _exit_taker_after() -> float:
+    """[2026-10-10 用户三次反馈"持仓 XX 分钟还没平"] 时间上限吃单：
+    贴价也出不去的老仓（实测 LYN 33 分钟/ADA 26 分钟/PONS 23 分钟）
+    超过该秒数 ⇒ 吃对手价平仓。代价 = 4bp 吃单费，换确定性离场
+    （资金占用 + 拖久反转风险更贵）。回滚：MM_PP_EXIT_TAKER_AFTER_SEC=0。"""
+    v = _env_float("MM_PP_EXIT_TAKER_AFTER_SEC", 900.0)
+    return max(0.0, float(v) if v is not None else 900.0)
+
+
 def _bucket_min_n(learned: Optional[float]) -> float:
     v = _env_float("MM_PP_BUCKET_MIN_N", 20.0)
     if v is None:
@@ -430,7 +447,27 @@ def pingpong_decision(
             continue
         ahead = _pp(side, "ahead")
         vol_at = float(vol_at_bid if side == "buy" else vol_at_ask or 0.0)
-        if ahead > 0:
+        # [2026-10-10 腿速修复] 打穿 = 立即成交：真实盘口里，价格一旦**穿过**
+        # 我方挂单价（买:seg_low < px / 卖:seg_high > px），该价位的全部队列
+        # 已被吃掉 ⇒ 我方必成交，不存在"还要等队列"这回事。队列检查只对
+        # 「刚好碰到但没打穿」的贴价情形生效（那里才有排队份额问题）。
+        # [2026-10-10 下午打平修复] 但**深打穿**（> N tick）是趋势冲击：接这种
+        # 飞刀 = 每次成交都在逆选择时刻（ETH 72 笔 47% 胜率的根源）。深打穿
+        # 撤单不接，只接 ≤N tick 的浅打穿。回滚:MM_PP_MAX_SWEEP_TICKS=0。
+        _through = (seg_low < px) if side == "buy" else (seg_high > px)
+        _deep = False
+        if _through and tick > 0:
+            _max_sw = int(os.getenv("MM_PP_MAX_SWEEP_TICKS", "2") or 2)
+            if _max_sw > 0:
+                _pen = (px - seg_low) if side == "buy" else (seg_high - px)
+                if _pen > _max_sw * tick * (1.0 + 1e-9):
+                    _deep = True
+                    _clear_side(side)
+                    dec.skip = f"pp_deep_sweep({side})"
+                    continue
+        if _through:
+            queue_ok = True
+        elif ahead > 0:
             cum = _pp(side, "cum") + max(vol_at, 0.0)
             _set_pp(side, "cum", cum)
             queue_ok = cum > ahead
@@ -493,15 +530,37 @@ def pingpong_decision(
             _apply(side, _vpx(state.symbol, px), abs(pos), "taker_stop",
                    float(taker_fee_bp or 0.0), True)
             return None
+        # ── [2026-10-10] 真实持仓时长（贴价/时间上限共用）──
+        _ot_exit = float(getattr(state, "opened_ts_true", 0.0) or 0.0)
+        if _ot_exit <= 1e9:
+            _ot_exit = float(getattr(state, "opened_ts", 0.0) or 0.0)
+        # ── [2026-10-10 用户三次反馈] 时间上限吃单：贴价也出不去的仓
+        # （LYN 33min/ADA 26min/PONS 23min 实测）超过 _exit_taker_after()
+        # 秒 ⇒ 吃对手价平仓，确定性离场。回滚：MM_PP_EXIT_TAKER_AFTER_SEC=0。
+        _taker_after = _exit_taker_after()
+        if _taker_after > 0 and _ot_exit > 1e9 \
+                and (float(now) - _ot_exit) >= _taker_after:
+            _side_t = "sell" if pos > 0 else "buy"
+            _px_t = bid if _side_t == "sell" else ask
+            if _px_t > 0:
+                _apply(_side_t, _vpx(state.symbol, _px_t), abs(pos),
+                       "taker_timeout", float(taker_fee_bp or 0.0), True)
+                return None
         # 反向平仓单：多头 → 卖 @ 卖一 + N tick；空头 → 买 @ 买一 − N tick。
         # 不改成对手价；离场单不撤（穿透前撤单规则只对进场单生效）。
         _tick_n = tick * _exit_ticks(pp_exit_ticks) if tick > 0 else 0.0
+        # [2026-10-10 老仓贴价化] 持仓超过 _exit_tight_after() 秒 ⇒ 平仓单
+        # 前移到贴价（买一/卖一，仍 maker 0 费）：老仓位不再无限期干等。
+        _tight = (_exit_tight_after() > 0 and _ot_exit > 1e9
+                  and (float(now) - _ot_exit) >= _exit_tight_after())
         if pos > 0:
-            side, px_exit = "sell", (ask + _tick_n if _tick_n > 0 else ask)
+            side, px_exit = "sell", (
+                ask if _tight else (ask + _tick_n if _tick_n > 0 else ask))
             if px_exit < ask * (1.0 - 1e-12):
                 px_exit = ask
         else:
-            side, px_exit = "buy", (bid - _tick_n if _tick_n > 0 else bid)
+            side, px_exit = "buy", (
+                bid if _tight else (bid - _tick_n if _tick_n > 0 else bid))
             if px_exit > bid * (1.0 + 1e-12):
                 px_exit = bid
         px_exit = _vpx(state.symbol, px_exit)
@@ -593,8 +652,9 @@ def pingpong_decision(
     dec.action = "quote" if (dec.bid or dec.ask) else (
         getattr(dec, "action", "") or "pause")
     # 结算里留下的撤单标记优先保留（观测穿透前撤单频率），否则写本拍结论。
+    # 深打穿撤单(pp_deep_sweep)同理保留，否则会被下面的重新挂单标签盖掉。
     # 桶门拦截与挂单并存时两者都可见（"+".join）。
-    if not str(dec.skip or "").startswith("pp_cancel"):
+    if not str(dec.skip or "").startswith(("pp_cancel", "pp_deep_sweep")):
         _final_skip = "+".join(blocked) if blocked else (skip or "pp_no_quote")
         dec.skip = _final_skip
     if not filled:

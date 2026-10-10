@@ -190,9 +190,18 @@ def rag_reindex(req: RAGReindexRequest, db: Session = Depends(_get_db)):
 
     source_type 为空时全量重建所有 collection，
     指定值时只重建对应的 collection。
+
+    [2026-10-10 前端升级] `knowledge_cards` 走 `index_knowledge_cards()`：
+    它读的是**静态文件** `backend/data/knowledge_cards.json`，不是数据库源，
+    因此不走 `index_from_db`。此前没有任何分支支持它 ⇒ 前端/运维点"重建卡片索引"
+    会拿 `index_from_db("knowledge_cards")` → `_build_index_payload` 打
+    「未知源类型」→ 静默返回 0（看起来像"重建成功但没有文档"）✗。
     """
     try:
-        from backend.services.rag_knowledge_service import rag_knowledge_service
+        from backend.services.rag_knowledge_service import (
+            COLL_KNOWLEDGE_CARDS,
+            rag_knowledge_service,
+        )
 
         if not rag_knowledge_service.is_ready:
             raise HTTPException(
@@ -200,14 +209,25 @@ def rag_reindex(req: RAGReindexRequest, db: Session = Depends(_get_db)):
                 detail="RAG 服务未初始化。请先调用 POST /api/rag/init",
             )
 
+        if req.source_type == COLL_KNOWLEDGE_CARDS:
+            count = rag_knowledge_service.index_knowledge_cards()
+            cards = rag_knowledge_service.load_card_file()
+            return {"source_type": COLL_KNOWLEDGE_CARDS, "indexed": count,
+                    "file_count": len(cards),
+                    "collections": COLL_KNOWLEDGE_CARDS}
+
         if req.source_type:
             count = rag_knowledge_service.index_from_db(
                 db, req.source_type, incremental=False
             )
-            return {"source_type": req.source_type, "indexed": count}
-        else:
-            counts = rag_knowledge_service.full_reindex(db)
-            return {"full_reindex": True, "counts": counts}
+            out = {"source_type": req.source_type, "indexed": count}
+            if not count:
+                # 静默 0 分不清"源里真没数据"与"这个源名根本不认识" ⇒ 显式提示
+                out["warning"] = "unknown_source_type_or_empty"
+            return out
+
+        counts = rag_knowledge_service.full_reindex(db)
+        return {"full_reindex": True, "counts": counts}
 
     except HTTPException:
         raise

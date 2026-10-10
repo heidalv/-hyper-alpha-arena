@@ -1,57 +1,59 @@
 {
   "task": "trend_chart_review",
   "symbol": "VIRTUAL",
-  "ts_ms": 1791557699871,
+  "ts_ms": 1791602009032,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.55,
+  "consensus_score": 0.42,
   "final": {
-    "direction": "bearish",
+    "direction": "neutral",
     "strength": 4,
-    "confidence": 0.55,
-    "structure": "1w 自 90 期高点回撤 -72.5% 后于区间下沿（90 期位置 19%）横盘筑底，1d 反弹至 0.87 附近受阻回落、重心下移，4h 已跌破 EMA9/21/50 呈阶梯下行，短线处于下跌中继而非底部反转。",
-    "timeframe_alignment": "三周期方向背离：1w 趋势标签 bullish（EMA9 上方、摆动结构 HH/HL）、1d 中性偏弱（价格失守 EMA9/21，仅靠 EMA200 上方 5.04% 支撑）、4h 明确 bearish（EMA 空头排列、RSI14 28.4、MACD 柱 -0.08545），大周期偏多但中小周期同步走弱，属「大级别反弹遇阻、小级别回撤」结构。",
+    "confidence": 0.42,
+    "structure": "1w 自90期高点回撤-71.5%后于区间下沿20%位置横盘筑底，EMA9/21走平微上翘；1d 在EMA200上方(+11.53%)但价格跌破EMA9/21，处于反弹后回踩；4h 自0.89附近高点回落，EMA9/21/50空头排列，重心下移，最新一根小幅反弹但仍在EMA21下方",
+    "timeframe_alignment": "周线偏多(trend_1w=bullish, EMA9/21多头)、日线中性偏弱(价格在EMA9/21下方但EMA200上方，RSI44.7)、4h明确偏空(ema_trend_4h=bearish, RSI37, MACD柱-0.0809)，三周期方向不一致，属大级别筑底+中级别回踩+小级别下行的背离组合，非共振",
     "key_levels": [
       {
-        "level": 0.6752,
+        "level": 0.6913,
         "type": "support",
-        "note": "24h 低点，4h 下跌段最近低点，跌破则打开向 1d EMA200 方向的下行空间"
+        "note": "24h低点，4h近期低点区域，跌破则4h下行结构延续"
       },
       {
-        "level": 0.7126,
+        "level": 0.723,
         "type": "support",
-        "note": "1d 收盘价与 4h 现价所在位置，多空短线争夺线，失守则确认 4h 破位"
+        "note": "4h最新收盘价，短线多空分水岭"
       },
       {
-        "level": 0.7636,
+        "level": 0.7382,
         "type": "resistance",
-        "note": "24h 高点，4h 反弹首个压力，需放量收复才缓解空头结构"
+        "note": "1d/1w最新收盘价，需站上并收复EMA9/21(1d EMA9约-3.3%)才转强"
       },
       {
-        "level": 0.87,
+        "level": 0.7432,
         "type": "resistance",
-        "note": "1d 近期反弹高点区域，对应 1d EMA9/21 上方压力带，未收复前反弹定性为修复"
+        "note": "24h高点，短线反弹第一压力"
       }
     ],
-    "invalidation": "若 4h 收盘重新站上 0.7636 并伴随成交量放大、同时 1d 收复 EMA9/21（约 0.76-0.77 区域），则 4h 空头结构作废，转为中性偏多；反之若 1d 收盘跌破 0.6752，则 1d 中性判断作废、确认向 EMA200 下方运行。",
-    "position_advice": "no_new_long",
+    "invalidation": "若4h收盘有效跌破0.6913（24h低点）并伴随放量，则周线筑底假设作废，转为下行延续；反之若1d收盘站上0.7432并收复EMA9/21，则4h空头结构作废，转多",
+    "position_advice": "none",
     "key_factors": [
-      "4h EMA9/21/50 空头排列，RSI14 28.4 进入超卖但 MACD 柱仍为负，属弱势而非背离反转",
-      "1d 价格失守 EMA9(-7.17%)/EMA21(-5.90%)，仅靠 EMA200(+7.22%) 上方 5.04% 支撑，ADX14 53.7 显示趋势强度高",
-      "1w 90 期区间位置仅 19%、自高点回撤 -72.5%，处长期低位但摆动结构 LL→LH→HL→HH→HL 尚未确认底部",
-      "量能萎缩：1d 量 z=-2.1、4h 量 z=-1.1，反弹缺乏增量资金配合",
-      "资金费中性（binance -0.0027%、bybit 0.0%），无极端多空拥挤信号",
-      "24h 多头爆仓 76,417 USD、空头爆仓 0，短线多头被动出清压力仍在",
-      "context pack regime=ranging、confidence 仅 0.3，方向性信号本身偏弱"
+      "三周期方向背离：1w偏多、1d中性、4h偏空，无共振",
+      "1w 90期区间位置仅20%，回撤自高点-71.5%，处深度回撤后的低位区",
+      "1d 仍在EMA200上方(+11.53%)，中期结构未破，但价格跌破EMA9/21",
+      "4h EMA9/21/50空头排列，RSI37、MACD柱为负，短线动能偏弱",
+      "量能萎缩：1d量z=-2.7、1w量z=-0.4、4h量z=-0.7，反弹缺乏量价配合",
+      "资金费各所均为+0.005%/8h左右，多头略拥挤但幅度温和，无极端信号",
+      "24h多空爆仓比显示空头爆仓125 vs 多头7，短线有轧空扰动",
+      "regime=ranging且confidence仅0.3，方向性置信度低"
     ],
-    "summary": "VIRTUAL 呈现「大周期低位、中小周期转弱」的分歧结构：1w 仍处 EMA9 上方且摆动结构偏多，但 1d 已失守 EMA9/21、4h 完全空头排列并跌破 0.72 一线，量能持续萎缩（1d 量 z=-2.1），资金费中性、24h 仅有多头爆仓，说明当前是反弹遇阻后的回撤而非放量破位。方向上偏空但强度有限（strength 4），confidence 0.55 反映 1w 与 4h 的周期背离。关键支撑 0.6752（24h 低点）与 0.7126（现价/1d 收盘），关键阻力 0.7636（24h 高点）与 0.87（1d 反弹高点）。操作上不建议新开多（no_new_long），等待 4h 收复 0.7636 或 1d 回踩 0.6752 出现放量止跌信号再评估；若已持多，跌破 0.6752 应减仓。数据不足项：context pack 未提供订单簿/持仓结构（position_structure 为空）与 VIRTUAL 与 BTC 的相关性数据，无法交叉验证资金面与联动性。"
+    "summary": "VIRTUAL 周线处深度回撤后的低位筑底区（区间位置20%），EMA9/21走平微翘，大级别偏多但动能不足；日线在EMA200上方运行、中期结构未破，但价格已跌破EMA9/21且量能显著萎缩（量z=-2.7），反弹力度存疑；4h自0.89附近高点回落，EMA9/21/50空头排列、RSI37、MACD柱为负，短线重心下移。三周期方向不一致，属背离而非共振，叠加regime=ranging与低置信度，当前不具备清晰的方向性交易优势。关键支撑0.6913（24h低点）/0.723，关键阻力0.7382/0.7432。数据不足项：图中EMA9/21具体数值未在context pack中给出，仅以文本给出的偏离百分比为准；无BTC相关性数据（corr_to_btc为空），无法评估大盘联动风险。建议观望，等待4h结构修复（站回EMA21）或跌破0.6913给出方向确认。",
+    "position_advice_note": "none"
   },
   "charts": [
-    "VIRTUAL 1w (bars=82, last_close=0.7128)",
-    "VIRTUAL 1d (bars=230, last_close=0.7126)",
-    "VIRTUAL 4h (bars=110, last_close=0.7164)"
+    "VIRTUAL 1w (bars=82, last_close=0.7382)",
+    "VIRTUAL 1d (bars=230, last_close=0.7382)",
+    "VIRTUAL 4h (bars=110, last_close=0.723)"
   ],
   "notes": [
-    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.42 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ]
 }

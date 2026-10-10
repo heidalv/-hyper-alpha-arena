@@ -1,58 +1,52 @@
 {
   "task": "trend_chart_review",
   "symbol": "ASTER",
-  "ts_ms": 1791557724591,
+  "ts_ms": 1791602027821,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.55,
+  "consensus_score": 0.35,
   "final": {
-    "direction": "bearish",
-    "strength": 4,
-    "confidence": 0.55,
-    "structure": "1d 自 90 期高点回撤 19.6% 后于区间下半部（位置 39%）横向整理，摆动结构 LL→LH→HL→HH→LH 显示反弹高点逐级下移，4h 重心继续下移并跌破 EMA9/21/50，属弱势震荡偏下行结构",
-    "timeframe_alignment": "1w 偏多（trend_1w=bullish、EMA 多头、价格仍高于 EMA200 约 2.95%）与 1d/4h 偏空形成背离：1d 价格位于 EMA9/21/50 下方、MACD 柱为负、RSI14 39.9；4h EMA 趋势 bearish、RSI14 40.7、MACD 柱 -0.0242、90 期区间位置仅 23%。三周期未共振，中期多头结构尚未被破坏但短中期动能一致向下",
+    "direction": "neutral",
+    "strength": 3,
+    "confidence": 0.35,
+    "structure": "1w 自高位深跌后长期横盘筑底、EMA9/21 走平粘合；1d 反弹后于 0.70-0.73 区间反复震荡、重心略下移；4h 呈下降通道式回落、反弹高点逐级降低（LH 序列），整体为区间内的弱势整理。",
+    "timeframe_alignment": "周线偏多（trend_1w/ema_trend_1w=bullish，价格在 EMA200 上方 +5.73%）与日线/4h 偏空（ema_trend_4h=bearish，4h 摆动结构 LL→LH→LH→LL→LH，MACD 柱为负）背离；日线 RSI14≈45-49 中性、ADX14=11.3 表明无趋势，三周期未形成共振，属区间震荡中的周期错配。",
     "key_levels": [
       {
-        "level": 0.6684,
+        "level": 0.6872,
         "type": "support",
-        "note": "24h 区间低点，也是 4h 近期下探低点区域，失守则打开向 1d 区间下沿的空间"
+        "note": "24h 低点，亦为 4h 近期摆动低点区域，跌破则 4h 下降结构确认"
       },
       {
-        "level": 0.6973,
-        "type": "support",
-        "note": "1d 最新收盘价，多空当前争夺位；4h 收盘 0.6949 已略低于该位，属弱支撑"
-      },
-      {
-        "level": 0.7155,
+        "level": 0.7163,
         "type": "resistance",
-        "note": "24h 区间高点，反弹需先收复此处才能缓解 4h 空头排列"
+        "note": "日线最新收盘/区间中轴，多空分水岭，站上才谈得上转强"
       },
       {
-        "level": 0.7179,
+        "level": 0.7187,
         "type": "resistance",
-        "note": "由 dist_ema200_pct=2.95% 与 last=0.6973 推算的 1d EMA200 近似位，中期多空分水岭"
+        "note": "24h 高点，短线反弹的第一道压制"
       }
     ],
-    "invalidation": "若 1d 收盘重新站上 EMA21 并有效突破 0.7155（24h 高点），或 4h 出现放量收复 EMA50 且 MACD 柱转正，则本偏空判断作废；反之若 1d 收盘跌破 0.6684 并伴随量能放大，则弱势下行确认",
-    "position_advice": "no_new_long",
+    "invalidation": "若 1d 收盘有效跌破 0.6872（24h 低点）并伴随放量，则区间震荡判断作废、转为下行趋势；反之若 1d 放量收盘站上 0.7187 并连续收于 0.7163 上方，则弱势整理判断作废、转为向上突破。",
+    "position_advice": "none",
     "key_factors": [
-      "1d 摆动结构 LH 下移、价格位于 EMA9/21/50 下方，EMA9 -2.52%、EMA21 -3.09%",
-      "4h EMA 趋势 bearish、MACD 柱 -0.0242、区间位置 23%，短周期动能最弱",
-      "1w 仍为 bullish 且价格高于 EMA200 约 2.95%，中期支撑未破，构成周期背离",
-      "量能萎缩：1d 量 z=-1.7、4h 量 z=-1.1，反弹缺乏量价配合",
-      "资金费微正（各所 0.0041%~0.005%/8h），多头拥挤度低，不构成极端反向信号",
-      "24h 多头爆仓 24.76 万美元 vs 空头仅 0.11 万美元，短线多头承压明显",
-      "regime=ranging、ADX14=11，趋势强度弱，方向性交易胜率受限"
+      "1w 结构：深跌后长期横盘，EMA9/21 粘合走平，价格位于 EMA200 上方但低于 EMA50（dist_ema50_1w=-10.74%），属筑底而非趋势",
+      "1d 摆动结构 LL→LH→HL→HH→LH，20 期收益 -2.97%，90 期区间位置 46%，自 90 期高点回撤 -17.4%，方向不明",
+      "4h 摆动结构 LL→LH→LH→LL→LH 且 ema_trend_4h=bearish，MACD 柱 -0.0229，短线偏空",
+      "ADX14=1d 11.3、regime=ranging（confidence 0.3），趋势强度极低，突破易失败",
+      "量能萎缩：1d 量 z=-2.1、4h 量 z=-0.7，反弹缺乏成交量确认",
+      "资金费各所一致 +0.005%/8h，无极端拥挤；24h 多空爆仓规模均很小（long 8170 / short 11796 USD），无挤压驱动",
+      "ATR14 1d=4.97%、1w=11.71%，波动大而方向弱，区间内追单风险收益比差"
     ],
-    "summary": "ASTER 处于 1w 偏多、1d/4h 偏空的周期背离状态：日线自 90 期高点回撤 19.6% 后落在区间下半部（39%），反弹高点逐级下移，价格压在 EMA9/21/50 之下，4h 更弱（区间位置 23%、EMA 空头排列、MACD 柱为负），量能持续萎缩（1d 量 z=-1.7），属弱势震荡偏下行而非趋势性下跌。上方 0.7155 与 EMA200 近似位 0.7179 构成压力，下方 0.6684 为关键支撑。综合 strength=4、confidence=0.55，建议不新开多（no_new_long），等待 1d 收盘站回 EMA21 或跌破 0.6684 后再定方向。风险提示：context pack 未提供 4h EMA200 数值（n/a），4h 长周期均线位置数据不足；1w 图仅 56 根 K 线，长周期结构样本有限。",
-    "key_factors_note": ""
+    "summary": "ASTER 处于周线筑底、日线区间震荡、4h 弱势回落的三周期错配状态：周线 EMA 结构仍偏多且价格在 EMA200 上方，但日线 ADX 仅 11.3、RSI 中性、量能显著萎缩（量 z=-2.1），4h 反弹高点逐级降低、EMA 空头排列，属典型无趋势区间。关键位为下方 0.6872（24h 低点）与上方 0.7163/0.7187（日线收盘与 24h 高点）。在放量突破或跌破前不具方向性优势，建议观望；若跌破 0.6872 则转空、站上 0.7187 则转多。注意：本判断基于日线/4h 数值与图形结构，1w 图仅 56 根 bar、样本有限，长周期结论置信度偏低。"
   },
   "charts": [
-    "ASTER 1w (bars=56, last_close=0.6973)",
-    "ASTER 1d (bars=230, last_close=0.6973)",
-    "ASTER 4h (bars=110, last_close=0.6949)"
+    "ASTER 1w (bars=56, last_close=0.7163)",
+    "ASTER 1d (bars=230, last_close=0.7163)",
+    "ASTER 4h (bars=110, last_close=0.7001)"
   ],
   "notes": [
-    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.35 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ]
 }

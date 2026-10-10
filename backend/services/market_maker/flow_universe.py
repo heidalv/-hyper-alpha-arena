@@ -212,7 +212,27 @@ def exit_only_symbols(trading: Sequence[str], positions: Dict[str, float]) -> Li
 #   样本够且两关都过 ⇒ eligible；样本不足 ⇒ 冷启动照跑攒数（watch/keep）。
 # ══════════════════════════════════════════════════════════════════════
 PP_MIN_N = 20.0
-PP_EDGE_MIN_BP = 1.0   # 换位需要的新币领先幅度（rt_bp 口径）
+# [2026-10-10 换币顺畅化] 换位优势 1bp→5bp：1bp 的领先在 rt_bp 的噪声量级里，
+# 两个差不多的币会在相邻两轮来回换位（鞭抽），名单永远定不住。
+PP_EDGE_MIN_BP = 5.0   # 换位需要的新币领先幅度（rt_bp 口径）
+
+
+def fixed_symbols() -> set:
+    """[2026-10-10 用户规则] 固定币：永远在册，不参与换币。
+
+    [2026-10-10 用户选 A] 默认只固定 **BTC**：ETH 在 1-tick 价差上被打穿
+    成交 = 逆选择黑洞（实测 72 笔胜率 47.2%、每笔 +0.27bp 白干），撤出
+    固定席位，改由 rt_bp 证据决定去留（桶门照常对它生效）。
+    回滚：MM_PP_FIXED_SYMBOLS="BTC,ETH"。
+    """
+    import os as _os
+    raw = _os.getenv("MM_PP_FIXED_SYMBOLS", "BTC")
+    if raw is None:
+        raw = "BTC"
+    raw = str(raw).strip()
+    if not raw:
+        return set()   # 空串 = 无固定币（显式关闭）
+    return {_bare(s) for s in raw.replace(" ", "").split(",") if s.strip()}
 
 
 def pp_breakeven(avg_win_bp: float, avg_loss_bp: float) -> float:
@@ -225,9 +245,18 @@ def pp_breakeven(avg_win_bp: float, avg_loss_bp: float) -> float:
 
 def pp_membership(symbol: str, stats: Optional[Dict[str, Any]], now_ts: float,
                   admitted_at: Optional[Dict[str, float]],
-                  min_n: float = PP_MIN_N) -> str:
-    """返回 eligible / keep / watch / drop（rt_bp 口径）。"""
-    del symbol, now_ts, admitted_at
+                  min_n: float = PP_MIN_N,
+                  has_position: bool = False) -> str:
+    """返回 eligible / keep / watch / drop（rt_bp 口径）。
+
+    [2026-10-10 修] `has_position=True` ⇒ 一律 keep：有仓只减不加（设计原话），
+    持仓币绝不能被移出名单——否则旧孤儿逻辑会 taker 砍仓（夜里实测 4 次
+    orphan_taker：ETH/BTC/PUMP/US 负证据被判 drop 后持仓被强吃）。
+    等 ping-pong 被动平仓、回到空仓，下一轮刷新才允许 drop。
+    """
+    del now_ts, admitted_at
+    if has_position:
+        return "keep"
     if not isinstance(stats, dict):
         return "watch"
     try:
@@ -255,12 +284,38 @@ def select_pp_slots(
     admitted_at: Optional[Dict[str, float]],
     now_ts: float,
     slot_cap: int = SLOT_CAP,
+    positions: Optional[Dict[str, float]] = None,
+    dropped_at: Optional[Dict[str, float]] = None,
 ) -> Tuple[List[str], List[str]]:
     """按 PP 往返账选交易位：不够格的位子留空。与 select_trading_slots 同骨架，
-    只是把证据换成 rt_bp 统计。"""
+    只是把证据换成 rt_bp 统计。持仓币受保护（不 drop，见 pp_membership）。
+
+    [2026-10-10 换币顺畅化] `dropped_at` = 负证据摘除时间戳：
+    冷却期（MM_PP_DROP_COOLDOWN_SEC，默认 6h）内该币不得重新进场——
+    era 重置/统计清零后不会再立刻把刚踢掉的垃圾币补回来。
+    """
+    import os as _os
+
     coins = ((pp_stats or {}).get("coins") or {}) if isinstance(pp_stats, dict) else {}
     admitted_at = admitted_at or {}
+    positions = positions or {}
+    dropped_at = {str(k).upper(): float(v) for k, v in (dropped_at or {}).items()}
     pool_set = {_bare(s) for s in pool}
+    fixed = fixed_symbols()
+    new_in: List[str] = []
+    _cooldown = float(_os.getenv("MM_PP_DROP_COOLDOWN_SEC", "21600") or 21600)
+
+    def _in_cooldown(sym: str) -> bool:
+        if _cooldown <= 0:
+            return False
+        dt = dropped_at.get(sym)
+        return dt is not None and (float(now_ts) - float(dt)) < _cooldown
+
+    def has_pos(sym: str) -> bool:
+        try:
+            return abs(float(positions.get(sym) or 0.0)) > 1e-12
+        except (TypeError, ValueError):
+            return False
 
     def stats_of(sym: str) -> Optional[Dict[str, Any]]:
         s = coins.get(sym)
@@ -276,7 +331,13 @@ def select_pp_slots(
     kept: List[str] = []
     for raw in current:
         sym = _bare(raw)
-        state = pp_membership(sym, stats_of(sym), now_ts, admitted_at)
+        if sym in fixed:
+            kept.append(sym)   # [2026-10-10] 固定币永远在册（不参与换币）
+            continue
+        if _in_cooldown(sym) and not has_pos(sym):
+            continue          # 摘除冷却期内不得回名单（有仓仍保，见下）
+        state = pp_membership(sym, stats_of(sym), now_ts, admitted_at,
+                              has_position=has_pos(sym))
         if state == "drop":
             continue
         if sym not in pool_set:
@@ -285,17 +346,30 @@ def select_pp_slots(
             continue
         if state in ("eligible", "keep", "watch"):
             kept.append(sym)
+    # [2026-10-10] 固定币无条件在册：即使当前名单里没有（被旧逻辑换掉过）
+    # 也要恢复席位。
+    for sym in sorted(fixed):
+        if sym not in kept:
+            kept.append(sym)
+            new_in.append(sym)
     kept.sort(key=edge, reverse=True)
-    kept = kept[: int(slot_cap)]
+    # 截断时固定币优先：固定席位 + 剩余槽位给轮换币
+    _fixed_kept = [s for s in kept if s in fixed]
+    _rot_kept = [s for s in kept if s not in fixed]
+    kept = _fixed_kept + _rot_kept[: max(0, int(slot_cap) - len(_fixed_kept))]
 
     challengers = []
     for raw in pool:
         sym = _bare(raw)
-        if pp_membership(sym, stats_of(sym), now_ts, admitted_at) == "eligible":
+        if sym in fixed:
+            continue   # 固定币不需要挑战席位
+        if _in_cooldown(sym):
+            continue   # 摘除冷却期内不得回名单
+        if pp_membership(sym, stats_of(sym), now_ts, admitted_at,
+                         has_position=has_pos(sym)) == "eligible":
             challengers.append(sym)
     challengers.sort(key=edge, reverse=True)
 
-    new_in: List[str] = []
     for sym in challengers:
         if sym in kept:
             continue
@@ -303,7 +377,11 @@ def select_pp_slots(
             kept.append(sym)
             new_in.append(sym)
             continue
-        victim = min(kept, key=edge)
+        # 换位受害者必须是「非固定且无仓」的币
+        _victims = [s for s in kept if s not in fixed and not has_pos(s)]
+        if not _victims:
+            continue
+        victim = min(_victims, key=edge)
         victim_age = float(now_ts) - float(admitted_at.get(victim) or 0.0)
         victim_state = pp_membership(victim, stats_of(victim), now_ts, admitted_at)
         if victim_state != "watch" and victim_age < DWELL_SEC:

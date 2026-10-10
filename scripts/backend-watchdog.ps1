@@ -9,7 +9,9 @@
 [CmdletBinding()]
 param(
     [int]$HealthPort = 8000,
-    [int]$IntervalSec = 30,
+    # [2026-10-10] 30s→10s：后端被外部杀掉后尽快拉起(5 次失败 = 50s，
+    # 加上 40-60s 启动,总空窗 ~2 分钟;此前 30s×5 检测 + vbs 不落地 = 12 分钟)。
+    [int]$IntervalSec = 10,
     [int]$FailThreshold = 5,
     [int]$HealthTimeoutSec = 8,
     [int]$GraceAfterRestartSec = 90
@@ -81,12 +83,14 @@ function Get-BackendPortPid {
 }
 
 function Start-Backend {
-    # [h768 2026-10-03] 不再经 cmd.exe（cmd 一定分配控制台 ⇒ 每次重启弹黑框，
-    # 而 -WindowStyle Hidden 对控制台程序不生效）。改走 start-backend-hidden.vbs:
-    # WScript.Shell.Run(..., 0) 的 SW_HIDE 对控制台程序有效（run-quiet.vbs 同原理）。
-    Write-WdLog "backend down -> starting via start-backend-hidden.vbs (windowless)"
-    $vbs = Join-Path $RepoRoot 'scripts\start-backend-hidden.vbs'
-    Start-Process -FilePath 'wscript.exe' -ArgumentList '//B', '//Nologo', $vbs -WindowStyle Hidden
+    # [2026-10-10 修] 不再走 wscript 隐藏启动：实测 .vbs 直启 python **不落地**
+    # （与数据中台 vbs 启动失败同款症状），后端被杀后空窗 10 分钟起不来。
+    # 改走**已验证有效**的 .cmd 路径：Start-Process 最小化窗口拉起
+    # start-backend-noreload.cmd（其内部带端口守卫 + run_uvicorn_tracked
+    # 生命周期记录）。回滚：恢复上一版 wscript 调用。
+    Write-WdLog "backend down -> starting via start-backend-noreload.cmd (minimized)"
+    $cmd = Join-Path $RepoRoot 'scripts\start-backend-noreload.cmd'
+    Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', ('"' + $cmd + '"') -WindowStyle Minimized
 }
 
 Write-WdLog "backend watchdog started (port=$HealthPort interval=${IntervalSec}s threshold=${FailThreshold}s)"

@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getBackendUrl } from "@/lib/backend-config";
 import { SectionCard, RefreshButton } from "@/components/operations/IlcUi";
+import { getAdvisor, getInletStatus } from "@/lib/learningLaneApi";
 
 const BACKEND = getBackendUrl().replace(/\/$/, "");
 
@@ -66,6 +67,9 @@ export function ChainOverviewPanel({ onGoTab }: { onGoTab?: (tab: string) => voi
   const [replay, setReplay] = useState<any>({});
   const [rl, setRl] = useState<any>({});
   const [events, setEvents] = useState<any[]>([]);
+  // [2026-10-10] 新增两环的证据：高频入口（PP→主脑）与车道顾问
+  const [inlet, setInlet] = useState<any>({});
+  const [advisor, setAdvisor] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -80,16 +84,21 @@ export function ChainOverviewPanel({ onGoTab }: { onGoTab?: (tab: string) => voi
         fetch(`${BACKEND}/api/learning/replay/stats`).then((r) => r.json()),
         fetch(`${BACKEND}/api/learning/rl/status`).then((r) => r.json()),
         fetch(`${BACKEND}/api/learning/events`).then((r) => r.json()),
+        // 走 lib 里的 apiRequest（带 Bearer）：新接口在鉴权路由下
+        getInletStatus(),
+        getAdvisor({ limit: 100 }),
       ]);
-      const [h, l, d, rp, r, ev] = rs;
+      const [h, l, d, rp, r, ev, inl, adv] = rs;
       if (h.status === "fulfilled") setHealth(h.value ?? {});
       if (l.status === "fulfilled") setLoop(l.value ?? {});
       if (d.status === "fulfilled") setDash(d.value ?? {});
       if (rp.status === "fulfilled") setReplay(rp.value ?? {});
       if (r.status === "fulfilled") setRl(r.value ?? {});
       if (ev.status === "fulfilled") setEvents(ev.value?.events ?? []);
+      if (inl.status === "fulfilled") setInlet(inl.value ?? {});
+      if (adv.status === "fulfilled") setAdvisor(adv.value ?? {});
       const failed = rs.filter((x) => x.status === "rejected").length;
-      if (failed) setErr(`${failed}/6 个接口请求失败（详见下方缺失环节）`);
+      if (failed) setErr(`${failed}/8 个接口请求失败（详见下方缺失环节）`);
     } finally {
       setLoading(false);
     }
@@ -132,6 +141,24 @@ export function ChainOverviewPanel({ onGoTab }: { onGoTab?: (tab: string) => voi
   // 面板此前只显示布尔值 ⇒ 用户看不到"为什么还是影子"。这里如实展示。
   const shadowBlock = String((rl?.shadow as { live_block_reason?: string } | undefined)?.live_block_reason ?? "");
   const loopEnabled = loop?.enabled === true && loop?.paused !== true;
+
+  // ── [2026-10-10] ⑩ 高频 → 主脑（PP 往返进统一入口） ──────────────────
+  const inletHealth = String(inlet?.health || "unknown");
+  const inletCursorPresent = inlet?.cursor?.present === true;
+  const inletPending = inlet?.pending_from_cursor;
+  const inletTotal = inlet?.ledger?.roundtrips_since_era ?? null;
+  const inletIngested = inlet?.cursor?.ingested_total ?? null;
+
+  // ── [2026-10-10] ⑪ 车道顾问（每轮一个旋钮 + 引用卡片 + 改后回滚） ────
+  const advCounts: Record<string, number> = advisor?.decision_counts || {};
+  const advRows = Object.values(advCounts).reduce((a, b) => a + b, 0);
+  const advApplied = advCounts.applied || 0;
+  const advNoCite = (advisor?.journal || []).filter(
+    (j: { decision?: string; cited?: string[] }) =>
+      j.decision === "rejected" && (j.cited || []).length === 0).length;
+  const advPending = (advisor?.pending_verdicts || []).length;
+  const advRolled = (advisor?.verdict_history || []).filter(
+    (v: { rolled_back?: boolean; verdict?: string }) => v.rolled_back || v.verdict === "rollback").length;
 
   const stages: Stage[] = [
     {
@@ -194,6 +221,37 @@ export function ChainOverviewPanel({ onGoTab }: { onGoTab?: (tab: string) => voi
       detail: `合成占比 ${synthPct.toFixed(0)}%${shadowOnly ? ` · RL 仅影子（${shadowBlock || "shadow_only，未上实盘"}）` : shadowBlock ? ` · RL 可接管但被拦：${shadowBlock}` : ""}`,
       level: replayTotal === 0 ? "bad" : synthPct > 90 ? "warn" : "ok",
     },
+    {
+      // [2026-10-10] 新增：高频往返进统一入口（此前高频从不进主脑，是链路里唯一缺失的一环）
+      key: "inlet", name: "⑩ 高频 → 主脑", tab: "inlet",
+      value: inletIngested === null || inletTotal === null
+        ? `往返 ${inletTotal ?? "—"} / 已进 —`
+        : `已进 ${inletIngested} / ${inletTotal}`,
+      detail: inletHealth === "bad"
+        ? `入口 tick 未注册（后端未重启）⇒ ${String(inlet?.health_reason || "").slice(0, 60)}`
+        : inletHealth === "off"
+          ? "入口按开关关闭（MM_PP_TO_BRAIN=0）"
+          : !inletCursorPresent
+            ? "游标文件不存在 ⇒ 入口从未成功跑过一轮（可到「学习入口」页签手动补扫）"
+            : (inletPending ?? 0) > 0
+              ? `还有 ${inletPending} 笔待补（每次上限 ${
+                  (inlet?.budget as { limit_per_tick?: number } | undefined)?.limit_per_tick ?? "?"} 笔）`
+              : `已追平 era 起的全部往返 · 最近推进 ${
+                  inlet?.cursor?.applied_at_iso ? String(inlet.cursor.applied_at_iso).slice(11, 19) : "—"}`,
+      level: inletHealth === "bad" ? "bad" : inletHealth === "off" ? "unknown"
+        : (!inletCursorPresent || (inletPending ?? 0) > 0) ? "warn" : "ok",
+    },
+    {
+      // [2026-10-10] 新增：每条车道每轮只提一个旋钮，必须引用卡片编号，改后变差就退回
+      key: "advisor", name: "⑪ 车道顾问", tab: "advisor",
+      value: advRows === 0 ? "无记录" : `${advRows} 轮 / 改参 ${advApplied}`,
+      detail: advRows === 0
+        ? "尚无顾问记录：某车道攒够约 20 笔或距上轮 1 小时才会跑一轮（没有提案 ≠ 没在学）"
+        : `不作废 ${advRows - advNoCite}/${advRows} 有引用` +
+          ` · 待判 ${advPending} · 已回滚 ${advRolled}` +
+          (advNoCite ? ` · ${advNoCite} 轮因未引用被作废` : ""),
+      level: advRows === 0 ? "warn" : (advNoCite > 0 && advApplied === 0) ? "warn" : "ok",
+    },
   ];
 
   const badCount = stages.filter((s) => s.level === "bad").length;
@@ -229,8 +287,8 @@ export function ChainOverviewPanel({ onGoTab }: { onGoTab?: (tab: string) => voi
         </div>
       )}
 
-      {/* 九环链路 */}
-      <SectionCard title="学习进化链路（点击任一环跳到对应页签深挖）" action={<Activity className="w-3.5 h-3.5 text-primary" />}>
+      {/* 链路（11 环；点击任一环跳到对应页签深挖） */}
+      <SectionCard title="学习进化链路（11 环 · 点击任一环跳到对应页签深挖）" action={<Activity className="w-3.5 h-3.5 text-primary" />}>
         {loading && stages.every((s) => s.level === "unknown") ? (
           <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : (

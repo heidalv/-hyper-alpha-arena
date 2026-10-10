@@ -178,5 +178,17 @@
   "PLAY|C_with_f60|2026-10-10": {
     "day": "2026-10-10",
     "key": "C_with_f60"
+  },
+  "US|A_against_f60|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "A_against_f60"
+  },
+  "PLAY|B_against_f60|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "B_against_f60"
+  },
+  "CASHCAT|C_against_f120|2026-10-10": {
+    "day": "2026-10-10",
+    "key": "C_against_f120"
   }
 }

@@ -48,6 +48,7 @@ JOB_HEARTBEAT = "learning_loop_heartbeat"  # P2-1 WS 心跳
 JOB_FACTOR_DECAY = "learning_loop_factor_decay"  # P0-2 因子衰减评估（接线 factor_decay_monitor）
 JOB_LIVE_OUTCOME_BACKFILL = "learning_loop_live_outcome_backfill"  # P1-4 live 仓位级 7 天补扫
 JOB_FUSION_MAINTENANCE = "fusion_maintenance"  # 阶段4：pwin 桶衰减验证 + 归因状态落盘（自动地板熔断）
+JOB_HFT_BRAIN = "learning_loop_hft_brain"  # [2026-10-10 主脑接入高频学习] PP 往返 → 主脑
 
 # 默认 tick 周期（秒），可被 .env 覆盖
 DEFAULT_INTERVALS: Dict[str, int] = {
@@ -59,9 +60,38 @@ DEFAULT_INTERVALS: Dict[str, int] = {
     JOB_FACTOR_DECAY: 6 * 3600,  # P0-2 每 6h 评估因子衰减（可 env 覆盖）
     JOB_LIVE_OUTCOME_BACKFILL: 10 * 60,  # P1-4 live 补扫每 10min
     JOB_FUSION_MAINTENANCE: 6 * 3600,  # 阶段4：每 6h 桶验证（可 env 覆盖）
+    # [2026-10-10] 高频入口：每 5min 把账本里新出现的 PP 平仓腿补进主脑。
+    # 与 outcome_batch 同频（后者扫的是 strategy_trades，管中/长线）。
+    JOB_HFT_BRAIN: 5 * 60,
 }
 
 _METRIC_HISTORY = 200
+
+# ── [2026-10-10 前端升级] `trigger_job` 的别名表：**唯一来源** ─────────────
+# 此前 `api/learning_loop_routes.py` 自己硬编码了一份 `_VALID_JOBS`（只有 4 个），
+# 与服务层实际支持的 7 个 job 漂移 ⇒ 手册里承诺的 `factor_decay` /
+# `live_outcome_backfill` / `hft_brain` 手动触发一律 400。现在两边都从这里取。
+# 值留空串，由 `LearningLoopService.trigger_job` 在实例上按名字解析（避免模块级类引用）。
+JOB_TRIGGER_ALIASES: Dict[str, str] = {
+    "outcome_batch": "_tick_outcome_batch",
+    "paper_outcome_backfill": "_tick_paper_outcome_backfill",
+    "kelly_portfolio": "_tick_kelly_portfolio",
+    "coordinator": "_tick_coordinator",
+    "factor_decay": "_tick_factor_decay",
+    "live_outcome_backfill": "_tick_live_outcome_backfill",
+    "hft_brain": "_tick_hft_brain",
+}
+# tick 方法名 → 内部 job_id（`_metrics` / `_last_tick_at` 的键）。
+# 手动触发时按它把"路由别名"翻译成"内部 job_id"，否则读不到该 tick 的 extra。
+_JOB_ID_BY_TICK: Dict[str, str] = {
+    "_tick_outcome_batch": JOB_OUTCOME_BATCH,
+    "_tick_paper_outcome_backfill": JOB_PAPER_OUTCOME_BACKFILL,
+    "_tick_kelly_portfolio": JOB_KELLY_PORTFOLIO,
+    "_tick_coordinator": JOB_COORDINATOR,
+    "_tick_factor_decay": JOB_FACTOR_DECAY,
+    "_tick_live_outcome_backfill": JOB_LIVE_OUTCOME_BACKFILL,
+    "_tick_hft_brain": JOB_HFT_BRAIN,
+}
 
 
 class LearningLoopService:
@@ -93,14 +123,12 @@ class LearningLoopService:
         self._metrics: Dict[str, Deque[Dict[str, Any]]] = defaultdict(
             lambda: deque(maxlen=_METRIC_HISTORY)
         )
+        # [2026-10-10 前端升级] 这里必须**列全** `DEFAULT_INTERVALS` 的每个 job：
+        # `last_tick_map()` 是照这个 dict 生成的，漏掉的 job 在
+        # `/api/learning/loop/status` 与健康面板里**根本不会出现**（不是 dead，
+        # 是"看不见"）—— 静默环最坏的形态。JOB_FUSION_MAINTENANCE 此前就是这样漏的。
         self._last_tick_at: Dict[str, Optional[datetime]] = {
-            JOB_OUTCOME_BATCH: None,
-            JOB_PAPER_OUTCOME_BACKFILL: None,
-            JOB_KELLY_PORTFOLIO: None,
-            JOB_COORDINATOR: None,
-            JOB_HEARTBEAT: None,
-            JOB_FACTOR_DECAY: None,
-            JOB_LIVE_OUTCOME_BACKFILL: None,
+            job: None for job in DEFAULT_INTERVALS
         }
         self._last_coord_action: Dict[str, Any] = {}
         logger.info("[LearningLoop] 实例化完成")
@@ -170,6 +198,13 @@ class LearningLoopService:
                 interval_seconds=intervals[JOB_FUSION_MAINTENANCE],
                 task_id=JOB_FUSION_MAINTENANCE,
             )
+            # [2026-10-10 主脑接入高频学习] 高频入口：ping-pong 往返 → 主脑。
+            # 复用本中枢（用户设计原话："触发放在学习循环里，不另开定时器"）。
+            task_scheduler.add_interval_task(
+                task_func=self._tick_hft_brain,
+                interval_seconds=intervals[JOB_HFT_BRAIN],
+                task_id=JOB_HFT_BRAIN,
+            )
             self._registered = True
             logger.info(
                 f"[LearningLoop] tick 已注册：outcome={intervals[JOB_OUTCOME_BATCH]}s "
@@ -234,6 +269,11 @@ class LearningLoopService:
                 JOB_FUSION_MAINTENANCE: int(getattr(
                     settings, "FUSION_MAINTENANCE_INTERVAL_S",
                     DEFAULT_INTERVALS[JOB_FUSION_MAINTENANCE],
+                )),
+                # [2026-10-10 主脑接入高频学习] 高频入口 tick 周期
+                JOB_HFT_BRAIN: int(getattr(
+                    settings, "LEARNING_LOOP_HFT_BRAIN_INTERVAL_S",
+                    DEFAULT_INTERVALS[JOB_HFT_BRAIN],
                 )),
             }
         except Exception:
@@ -482,6 +522,34 @@ class LearningLoopService:
             "failed": failed,
         }
 
+    def _tick_hft_brain(self) -> None:
+        """[2026-10-10 主脑接入高频学习] 把账本里新落库的 PP 平仓腿补进主脑。
+
+        为什么需要它：中线/长线平仓由事件级 hook + `_tick_outcome_batch` 消费，而高频
+        ping-pong 的来回**从不进 `strategy_trades`**（它是 `lane_ledger` 车道账），
+        所以此前完全没有入口。这里复用一个 5min tick 把 `lane_ledger` 里
+        `meta_json->>'rt_bp' IS NOT NULL` 的新行按往返汇成 `TradeOutcome` 交给
+        `unified_learning.process_outcome`（实现见 `market_maker/pp_brain.py`）。
+
+        失败语义：整 tick fail-soft（只记 `_record_tick(success=False)`），
+        绝不抛出到调度器线程；入口自己的开关是 `MM_PP_TO_BRAIN`。
+        """
+        if self._paused:
+            return
+        job = JOB_HFT_BRAIN
+        t0 = time.time()
+        success = True
+        extra: Dict[str, Any] = {}
+        try:
+            from backend.services.market_maker import pp_brain
+            extra = pp_brain.run_once() or {}
+            success = bool(extra.get("ok", True))
+        except Exception as e:
+            success = False
+            logger.warning("[LearningLoop] hft_brain 失败: %s", e)
+        finally:
+            self._record_tick(job, t0, success, extra)
+
     def _tick_fusion_maintenance(self) -> None:
         """阶段4 — 每 6h：pwin≥0.55 桶近 24h 衰减验证 + 归因/熔断状态落盘。
 
@@ -587,25 +655,44 @@ class LearningLoopService:
         return self._paused
 
     def trigger_job(self, job: str) -> Dict[str, Any]:
-        """手动触发一个 tick（测试 / 运维用）。"""
-        mapping = {
-            "outcome_batch": self._tick_outcome_batch,
-            "paper_outcome_backfill": self._tick_paper_outcome_backfill,
-            "kelly_portfolio": self._tick_kelly_portfolio,
-            "coordinator": self._tick_coordinator,
-            "factor_decay": self._tick_factor_decay,
-            "live_outcome_backfill": self._tick_live_outcome_backfill,
-        }
-        fn = mapping.get(job)
+        """手动触发一个 tick（测试 / 运维用）。
+
+        [2026-10-10 前端升级] 返回里补 `extra`：该 tick 的 `_record_tick` 摘要
+        （例如高频入口的 `scanned/ingested/failed/cursor`）。前端「手动补扫」按钮
+        要能立刻告诉操作者**这次到底推进了多少**，而不是只说 ok。
+        """
+        attr = JOB_TRIGGER_ALIASES.get(job)
+        fn = getattr(self, attr, None) if attr else None
         if fn is None:
-            return {"ok": False, "error": f"unknown job: {job}"}
+            return {"ok": False,
+                    "error": f"unknown job: {job}",
+                    "valid": sorted(JOB_TRIGGER_ALIASES)}
         t0 = time.time()
         try:
             fn()
-            return {"ok": True, "elapsed_ms": int((time.time() - t0) * 1000)}
         except Exception as e:
             logger.error(f"[LearningLoop] 手动触发 {job} 失败: {e}", exc_info=True)
             return {"ok": False, "error": str(e)}
+        # `_metrics` 的键是**内部 job_id**（如 `learning_loop_hft_brain`），而
+        # 这里的入参是**路由别名**（`hft_brain`）⇒ 必须经别名表翻译成 job_id，
+        # 否则永远读不到 extra（实测踩到：返回 extra={} 而 metrics 里明明有）。
+        # 用别名表而不是 `fn.__name__`：测试里 tick 会被 monkeypatch 成 lambda，
+        # 名字就丢了；别名表是静态事实，不受替换影响。
+        job_id = _JOB_ID_BY_TICK.get(attr or "", job)
+        extra: Dict[str, Any] = {}
+        with self._state_lock:
+            dq = self._metrics.get(job_id)
+            if dq:
+                extra = dict(dq[-1].get("extra") or {})
+        elapsed = int((time.time() - t0) * 1000)
+        result: Dict[str, Any] = {"ok": True, "job": job, "elapsed_ms": elapsed}
+        # 便利字段：让前端不必知道各 job 的 extra 形状
+        for key in ("ingested", "scanned", "skipped_rows", "failed", "processed",
+                    "backfilled", "cursor"):
+            if key in extra:
+                result[key] = extra[key]
+        result["extra"] = extra
+        return result
 
     # ─────────────────────────────
     #  状态 / 指标查询

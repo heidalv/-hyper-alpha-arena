@@ -1,6 +1,6 @@
 {
   "agent": "event_impact",
-  "ts_ms": 1791498601553,
+  "ts_ms": 1791585000367,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "event_impact",
     "days": 60,
-    "n": 74,
-    "n_scored": 38,
-    "avg_score": 0.7105263157894737,
-    "avg_brier": 0.2528947368421052,
+    "n": 77,
+    "n_scored": 41,
+    "avg_score": 0.7073170731707317,
+    "avg_brier": 0.2514634146341463,
     "by_kind": [
       {
         "kind": "event_impact",
-        "n": 74,
-        "n_scored": 38,
-        "avg_score": 0.7105263157894737,
-        "avg_brier": 0.2528947368421052,
-        "last_ms": 1791412213646
+        "n": 77,
+        "n_scored": 41,
+        "avg_score": 0.7073170731707317,
+        "avg_brier": 0.2514634146341463,
+        "last_ms": 1791498602268
       }
     ],
     "verdict": {
@@ -57,13 +57,13 @@
         "n_used": 9,
         "n_raw": 13,
         "significant": false,
-        "optimal_hold_h": 54,
-        "mean_at_opt": 0.010798,
-        "mean_lo_at_opt": -0.005591,
-        "hit_rate": 0.625,
+        "optimal_hold_h": 55,
+        "mean_at_opt": 0.008091,
+        "mean_lo_at_opt": -0.007259,
+        "hit_rate": 0.5556,
         "wilson": [
-          0.3057,
-          0.8632
+          0.2666,
+          0.8112
         ],
         "significant_horizons": [],
         "conclusive": false
@@ -71,7 +71,7 @@
       {
         "event_type": "announcement.delisting",
         "n_used": 47,
-        "n_raw": 157,
+        "n_raw": 158,
         "significant": false,
         "optimal_hold_h": 4,
         "mean_at_opt": 0.003178,
@@ -87,15 +87,15 @@
       {
         "event_type": "announcement.futures_listing",
         "n_used": 21,
-        "n_raw": 141,
+        "n_raw": 147,
         "significant": false,
         "optimal_hold_h": 72,
-        "mean_at_opt": 0.089402,
-        "mean_lo_at_opt": -0.048608,
-        "hit_rate": 0.55,
+        "mean_at_opt": 0.083505,
+        "mean_lo_at_opt": -0.048276,
+        "hit_rate": 0.5238,
         "wilson": [
-          0.3421,
-          0.7418
+          0.3237,
+          0.7166
         ],
         "significant_horizons": [],
         "conclusive": false
@@ -119,7 +119,7 @@
       {
         "event_type": "announcement.listing",
         "n_used": 45,
-        "n_raw": 161,
+        "n_raw": 163,
         "significant": false,
         "optimal_hold_h": 69,
         "mean_at_opt": 0.028797,
@@ -182,16 +182,16 @@
       },
       {
         "event_type": "funding.extreme",
-        "n_used": 2391,
-        "n_raw": 19976,
+        "n_used": 2392,
+        "n_raw": 20000,
         "significant": true,
         "optimal_hold_h": 28,
-        "mean_at_opt": 0.028415,
-        "mean_lo_at_opt": 0.007567,
-        "hit_rate": 0.4783,
+        "mean_at_opt": 0.028375,
+        "mean_lo_at_opt": 0.007568,
+        "hit_rate": 0.4787,
         "wilson": [
-          0.453,
-          0.5038
+          0.4534,
+          0.5042
         ],
         "significant_horizons": [
           24
@@ -203,13 +203,13 @@
         "n_used": 52,
         "n_raw": 58,
         "significant": true,
-        "optimal_hold_h": 18,
-        "mean_at_opt": 0.014517,
-        "mean_lo_at_opt": -0.001064,
-        "hit_rate": 0.7838,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.010861,
+        "mean_lo_at_opt": 0.004725,
+        "hit_rate": 0.7308,
         "wilson": [
-          0.628,
-          0.8861
+          0.5975,
+          0.8323
         ],
         "significant_horizons": [
           1
@@ -218,16 +218,16 @@
       },
       {
         "event_type": "liquidation.large",
-        "n_used": 975,
-        "n_raw": 1036,
+        "n_used": 988,
+        "n_raw": 1049,
         "significant": false,
         "optimal_hold_h": 14,
-        "mean_at_opt": 0.005206,
-        "mean_lo_at_opt": 0.000585,
-        "hit_rate": 0.5215,
+        "mean_at_opt": 0.004283,
+        "mean_lo_at_opt": -6.1e-05,
+        "hit_rate": 0.5005,
         "wilson": [
-          0.489,
-          0.5538
+          0.4691,
+          0.5319
         ],
         "significant_horizons": [],
         "conclusive": true
@@ -282,32 +282,32 @@
       },
       {
         "event_type": "news.high_impact",
-        "n_used": 42,
-        "n_raw": 45,
+        "n_used": 46,
+        "n_raw": 49,
         "significant": false,
         "optimal_hold_h": 1,
-        "mean_at_opt": 0.000358,
-        "mean_lo_at_opt": -0.000767,
-        "hit_rate": 0.5366,
+        "mean_at_opt": 0.000492,
+        "mean_lo_at_opt": -0.000585,
+        "hit_rate": 0.5556,
         "wilson": [
-          0.3875,
-          0.6794
+          0.4118,
+          0.6906
         ],
         "significant_horizons": [],
         "conclusive": true
       },
       {
         "event_type": "position.oi_jump",
-        "n_used": 1401,
-        "n_raw": 2853,
+        "n_used": 1413,
+        "n_raw": 2918,
         "significant": true,
         "optimal_hold_h": 72,
-        "mean_at_opt": 0.088128,
-        "mean_lo_at_opt": 0.04612,
-        "hit_rate": 0.5144,
+        "mean_at_opt": 0.088012,
+        "mean_lo_at_opt": 0.046041,
+        "hit_rate": 0.5139,
         "wilson": [
-          0.4855,
-          0.5432
+          0.485,
+          0.5428
         ],
         "significant_horizons": [
           24,
@@ -318,32 +318,32 @@
       },
       {
         "event_type": "smart_money.move",
-        "n_used": 224,
-        "n_raw": 229,
+        "n_used": 229,
+        "n_raw": 234,
         "significant": false,
         "optimal_hold_h": 58,
-        "mean_at_opt": 0.002081,
-        "mean_lo_at_opt": -0.000777,
-        "hit_rate": 0.5118,
+        "mean_at_opt": 0.00201,
+        "mean_lo_at_opt": -0.000846,
+        "hit_rate": 0.5093,
         "wilson": [
-          0.4448,
-          0.5785
+          0.4428,
+          0.5756
         ],
         "significant_horizons": [],
         "conclusive": true
       },
       {
         "event_type": "whale.large",
-        "n_used": 313,
-        "n_raw": 313,
+        "n_used": 323,
+        "n_raw": 323,
         "significant": false,
         "optimal_hold_h": 6,
-        "mean_at_opt": 0.001825,
-        "mean_lo_at_opt": 0.000827,
-        "hit_rate": 0.5209,
+        "mean_at_opt": 0.001821,
+        "mean_lo_at_opt": 0.00083,
+        "hit_rate": 0.5208,
         "wilson": [
           0.4655,
-          0.5758
+          0.5755
         ],
         "significant_horizons": [],
         "conclusive": true
@@ -352,16 +352,16 @@
     "significant": [
       {
         "event_type": "funding.extreme",
-        "n_used": 2391,
-        "n_raw": 19976,
+        "n_used": 2392,
+        "n_raw": 20000,
         "significant": true,
         "optimal_hold_h": 28,
-        "mean_at_opt": 0.028415,
-        "mean_lo_at_opt": 0.007567,
-        "hit_rate": 0.4783,
+        "mean_at_opt": 0.028375,
+        "mean_lo_at_opt": 0.007568,
+        "hit_rate": 0.4787,
         "wilson": [
-          0.453,
-          0.5038
+          0.4534,
+          0.5042
         ],
         "significant_horizons": [
           24
@@ -373,13 +373,13 @@
         "n_used": 52,
         "n_raw": 58,
         "significant": true,
-        "optimal_hold_h": 18,
-        "mean_at_opt": 0.014517,
-        "mean_lo_at_opt": -0.001064,
-        "hit_rate": 0.7838,
+        "optimal_hold_h": 1,
+        "mean_at_opt": 0.010861,
+        "mean_lo_at_opt": 0.004725,
+        "hit_rate": 0.7308,
         "wilson": [
-          0.628,
-          0.8861
+          0.5975,
+          0.8323
         ],
         "significant_horizons": [
           1
@@ -388,16 +388,16 @@
       },
       {
         "event_type": "position.oi_jump",
-        "n_used": 1401,
-        "n_raw": 2853,
+        "n_used": 1413,
+        "n_raw": 2918,
         "significant": true,
         "optimal_hold_h": 72,
-        "mean_at_opt": 0.088128,
-        "mean_lo_at_opt": 0.04612,
-        "hit_rate": 0.5144,
+        "mean_at_opt": 0.088012,
+        "mean_lo_at_opt": 0.046041,
+        "hit_rate": 0.5139,
         "wilson": [
-          0.4855,
-          0.5432
+          0.485,
+          0.5428
         ],
         "significant_horizons": [
           24,
@@ -422,13 +422,13 @@
     ],
     "min_n": 30,
     "source": "latest_report",
-    "report_ms": 1791497119075,
+    "report_ms": 1791583301635,
     "stale": false
   },
   "predictions": [
-    "8dcb5854cf5c4cdebc68ac9f75072e43",
-    "693b2bdb034141b6b093fbff3b2c3eb2",
-    "a610c2d0fe05446fb73e1e2f88f9c078"
+    "18ad9805161842e1b7eb2508479f10d2",
+    "1cc36682a67a4fa1b2334b54a75a2e37",
+    "0f971f1bfd054e6d95f3c6e590c7338d"
   ],
   "advice": [
     {
@@ -436,7 +436,7 @@
       "target": "funding.extreme",
       "params": {
         "title": "funding.extreme 事件影子接入",
-        "hypothesis": "funding.extreme 的 28h 方向化超额在历史样本上显著（95% 下界 0.007567 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
+        "hypothesis": "funding.extreme 的 28h 方向化超额在历史样本上显著（95% 下界 0.007568 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
         "change": {
           "apply": false,
           "kind": "event_lane",
@@ -462,7 +462,7 @@
         "window_hours": 336,
         "rollback_condition": "若窗口内超额 95% 下界跌破 0，停止该事件类型的影子入账"
       },
-      "reason": "funding.extreme 在 n=2391 样本上显著：28h 平均超额 0.028415（95% 下界 0.007567）",
+      "reason": "funding.extreme 在 n=2392 样本上显著：28h 平均超额 0.028375（95% 下界 0.007568）",
       "severity": 2,
       "applied": false,
       "apply_note": "observe 模式：实验卡仅记录不落库"
@@ -472,13 +472,13 @@
       "target": "liquidation.cascade",
       "params": {
         "title": "liquidation.cascade 事件影子接入",
-        "hypothesis": "liquidation.cascade 的 18h 方向化超额在历史样本上显著（95% 下界 -0.001064 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
+        "hypothesis": "liquidation.cascade 的 1h 方向化超额在历史样本上显著（95% 下界 0.004725 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
         "change": {
           "apply": false,
           "kind": "event_lane",
-          "proposal": "以 18h 持有期把 liquidation.cascade 接入事件影子车道",
+          "proposal": "以 1h 持有期把 liquidation.cascade 接入事件影子车道",
           "event_type": "liquidation.cascade",
-          "horizon_h": 18
+          "horizon_h": 1
         },
         "expected_metrics": [
           {
@@ -498,7 +498,7 @@
         "window_hours": 336,
         "rollback_condition": "若窗口内超额 95% 下界跌破 0，停止该事件类型的影子入账"
       },
-      "reason": "liquidation.cascade 在 n=52 样本上显著：18h 平均超额 0.014517（95% 下界 -0.001064）",
+      "reason": "liquidation.cascade 在 n=52 样本上显著：1h 平均超额 0.010861（95% 下界 0.004725）",
       "severity": 2,
       "applied": false,
       "apply_note": "observe 模式：实验卡仅记录不落库"
@@ -508,7 +508,7 @@
       "target": "position.oi_jump",
       "params": {
         "title": "position.oi_jump 事件影子接入",
-        "hypothesis": "position.oi_jump 的 72h 方向化超额在历史样本上显著（95% 下界 0.04612 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
+        "hypothesis": "position.oi_jump 的 72h 方向化超额在历史样本上显著（95% 下界 0.046041 > 成本门）；若以影子车道接入，未来窗口内该事件源的信号超额下界应继续高于往返成本。",
         "change": {
           "apply": false,
           "kind": "event_lane",
@@ -534,7 +534,7 @@
         "window_hours": 336,
         "rollback_condition": "若窗口内超额 95% 下界跌破 0，停止该事件类型的影子入账"
       },
-      "reason": "position.oi_jump 在 n=1401 样本上显著：72h 平均超额 0.088128（95% 下界 0.04612）",
+      "reason": "position.oi_jump 在 n=1413 样本上显著：72h 平均超额 0.088012（95% 下界 0.046041）",
       "severity": 2,
       "applied": false,
       "apply_note": "observe 模式：实验卡仅记录不落库"
@@ -542,7 +542,7 @@
   ],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 0.891,
+  "elapsed_sec": 2.126,
   "latest_path": null,
   "dry_run": false
 }

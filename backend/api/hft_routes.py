@@ -36,6 +36,24 @@ _ROOT = Path(__file__).resolve().parents[2]
 _HEARTBEAT = _ROOT / "logs" / "mm_lane_status.json"
 DEFAULT_PAPER_BALANCE = 300.0
 
+# 这些读接口被页面 2s 轮询打满后，会占住后端唯一的处理队列，别的页面切过去也要等数秒。
+# 短缓存让重复请求只读内存，不再每次都扫账本 / 深度表。
+_READ_CACHE: Dict[str, Any] = {}
+
+
+def _read_cache_get(key: str, ttl: float) -> Any:
+    hit = _READ_CACHE.get(key)
+    if not hit:
+        return None
+    if time.time() - float(hit[0]) >= ttl:
+        return None
+    return hit[1]
+
+
+def _read_cache_put(key: str, value: Any) -> Any:
+    _READ_CACHE[key] = (time.time(), value)
+    return value
+
 
 # ??????????????????????????????????????????????????????????????????????
 # ????
@@ -79,6 +97,10 @@ def _fee_since(since: Optional[str]) -> Dict[str, Any]:
     """Fee USD from lane_ledger. fee_bp is negative; usd = fee_bp * notional / 10000.
     Since-reset uses account_reset_at. Lifetime is never cleared by reset.
     """
+    cache_key = "fee:" + (since or "")
+    cached = _read_cache_get(cache_key, 15.0)
+    if cached is not None:
+        return cached
     from sqlalchemy import text as sa_text
     from backend.core.tenant import system_identity
     from backend.database.connection import SessionLocal
@@ -113,7 +135,7 @@ def _fee_since(since: Optional[str]) -> Dict[str, Any]:
         out["fee_lifetime_fills"] = int(life[1] or 0)
     except Exception as e:  # noqa: BLE001
         logger.warning("[hft] fee sum failed: %s", e)
-    return out
+    return _read_cache_put(cache_key, out)
 
 
 def _opt_ts() -> Optional[str]:
@@ -125,6 +147,22 @@ def _opt_ts() -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def _universe_as_of() -> Optional[str]:
+    """[2026-10-10 修] PP 时代宇宙由 worker 雷达管理：as_of 必须来自心跳的
+    universe_radar.as_of（epoch → 本地 ISO）。此前 overview 直接报
+    data/universe_optimizer.json 的 ts —— 旧 AI 选币链产物，PP 时代不再更新，
+    页面「上次 11:38 / 下次 0:54」因此永远对不上真实节奏。"""
+    try:
+        hb = _heartbeat()
+        rad = hb.get("universe_radar") or {}
+        as_of = rad.get("as_of")
+        if as_of:
+            return datetime.fromtimestamp(float(as_of)).isoformat(timespec="seconds")
+    except Exception:  # noqa: BLE001
+        pass
+    return _opt_ts()
 
 
 def _heartbeat() -> Dict[str, Any]:
@@ -227,7 +265,7 @@ def hft_overview() -> Dict[str, Any]:
         "fixed": list((m.get("universe") or {}).get("fixed") or []),
         "ai": list((m.get("universe") or {}).get("ai") or []),
         "universe_source": m.get("universe_source") or "universe_optimizer",
-        "universe_as_of": _opt_ts(),
+        "universe_as_of": _universe_as_of(),
         "depth_in_universe": symbols,
         "depth_symbols_count": len(symbols),
         "depth_configured_count": len(symbols),
@@ -323,6 +361,10 @@ def hft_board(symbols: Optional[str] = None, depth: int = 20) -> Dict[str, Any]:
     """????:??? ???? + ???? + ?? + ?????"""
     syms = [s.strip().upper() for s in symbols.split(",") if s.strip()] \
         if symbols else _symbols()
+    cache_key = "board:" + ",".join(syms) + ":" + str(int(depth))
+    cached = _read_cache_get(cache_key, 2.0)
+    if cached is not None:
+        return cached
     states = _states()
     mids = _live_mids(syms)
     ladders = _depth_ladder(syms, depth)
@@ -398,14 +440,19 @@ def hft_board(symbols: Optional[str] = None, depth: int = 20) -> Dict[str, Any]:
             },
             "recent_fills": recent.get(s, []),
         })
-    return {"module": "hft_swing", "cards": cards, "state_age_ms": 0,
-            "state_source": "heartbeat",
-            "as_of": datetime.now(timezone.utc).isoformat()}
+    return _read_cache_put(cache_key, {
+        "module": "hft_swing", "cards": cards, "state_age_ms": 0,
+        "state_source": "heartbeat",
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    })
 
 
 @router.get("/account")
 def hft_account() -> Dict[str, Any]:
     """???? + ?????"""
+    cached = _read_cache_get("account", 3.0)
+    if cached is not None:
+        return cached
     m = _lane_meta()
     acct_id = m.get("paper_account_id")
     acct = _account_row(acct_id)
@@ -436,7 +483,7 @@ def hft_account() -> Dict[str, Any]:
     live_equity = None
     if avail is not None:
         live_equity = round(float(avail) + frozen + unrealized, 4)
-    return {
+    payload = {
         "module": "hft_swing", "lane_id": _LANE_ID,
         "mode": m.get("_mode") or "paper", "status": m.get("_status") or "active",
         "strategy_type": m.get("strategy_type") or "MM",
@@ -477,6 +524,7 @@ def hft_account() -> Dict[str, Any]:
         "q_speed": hb.get("q_speed") or {},
         "as_of": datetime.now(timezone.utc).isoformat(),
     }
+    return _read_cache_put("account", payload)
 
 
 def _live_equity() -> Optional[float]:
@@ -501,15 +549,65 @@ def _live_equity() -> Optional[float]:
                  + float(acct.get("frozen_balance") or 0.0) + unreal, 4)
 
 
+def _realized_cached() -> float:
+    """账户 realized_pnl（自上次重置的总盈亏），15s 短缓存——PK 查询很快，
+    但 1s 轮询下没必要每秒都打库。"""
+    cached = _read_cache_get("realized", 15.0)
+    if cached is not None:
+        return cached
+    m = _lane_meta()
+    acct = _account_row(m.get("paper_account_id"))
+    val = float(acct["realized_pnl"]) if acct and acct["realized_pnl"] is not None else 0.0
+    return _read_cache_put("realized", val)
+
+
 @router.get("/hero")
 def hft_hero() -> Dict[str, Any]:
-    """???????:??/????/??/??? ?? ?????????"""
+    """今日战绩大字区：今日盈亏/权益/胜率/盈亏比（1s 心跳快路径 + SQL 兜底）。"""
+    cached = _read_cache_get("hero", 1.0)
+    if cached is not None:
+        return cached
+    m = _lane_meta()
+    since = m.get("account_reset_at") or m.get("stats_since")
+    # ══ [2026-10-10 用户:数值必须 1 秒刷新] 心跳快路径 ════════════════
+    # worker 每 tick(1s) 把 权益 + 今日腿级统计 写进 mm_lane_status.json；
+    # 这里直接读文件 ⇒ 页面数值与抓取同频，零 SQL。文件缺失/过期(<6s 判新鲜)
+    # ⇒ 回落到下面的 SQL 口径（结果不变，只是慢）。
+    _snap: Optional[Dict[str, Any]] = None
+    try:
+        _snap = json.loads(_HEARTBEAT.read_text(encoding="utf-8", errors="replace"))
+    except Exception:  # noqa: BLE001
+        _snap = None
+    _snap_fresh = bool(_snap) and (time.time() - float(_snap.get("ts") or 0.0)) < 6.0
+    if _snap_fresh:
+        tl = _snap.get("today_leg") or {}
+        today_n = int(tl.get("n") or 0)
+        wins = int(tl.get("wins") or 0)
+        today_pnl = float(tl.get("pnl_usd") or 0.0)
+        avg_win = float(tl.get("avg_win_bp") or 0.0)
+        avg_loss = float(tl.get("avg_loss_bp") or 0.0)
+        win_rate = (wins / today_n) if today_n else None
+        pl_ratio = (avg_win / abs(avg_loss)) if avg_loss < 0 else None
+        # 零 DB 快路径：权益直接用 worker 心跳值（available+frozen 口径，
+        # 与页面一致；持仓时浮动盈亏差异 <1 美分/腿，可接受）。
+        equity = float(_snap.get("equity") or 0.0) or None
+        realized = _realized_cached()
+        fees = _fee_since(str(since) if since else None)   # 内部 15s 缓存，慢查询不会高频触发
+        return _read_cache_put("hero", {
+            "equity": equity, "today_pnl_usd": round(today_pnl, 4),
+            "today_fills": today_n,
+            "win_rate": (round(win_rate, 4) if win_rate is not None else None),
+            "pl_ratio": (round(pl_ratio, 3) if pl_ratio is not None else None),
+            "avg_win_bp": round(avg_win, 3), "avg_loss_bp": round(avg_loss, 3),
+            "total_pnl_usd": round(realized, 4),
+            "fee_lifetime_usd": fees["fee_usd"],
+            "worker_alive": True,
+            "as_of": datetime.now(timezone.utc).isoformat(),
+        })
     from sqlalchemy import text as sa_text
     from backend.core.tenant import system_identity
     from backend.database.connection import SessionLocal
-    m = _lane_meta()
     equity = _live_equity()
-    since = m.get("account_reset_at") or m.get("stats_since")
     today_n = wins = 0
     today_pnl = avg_win = avg_loss = 0.0
     try:
@@ -553,7 +651,7 @@ def hft_hero() -> Dict[str, Any]:
     fees = _fee_since(str(since) if since else None)
     total_pnl = round(realized, 4)
     fee_lifetime = fees["fee_usd"]
-    return {
+    return _read_cache_put("hero", {
         "equity": equity, "today_pnl_usd": round(today_pnl, 4),
         "today_fills": today_n,
         "win_rate": (round(win_rate, 4) if win_rate is not None else None),
@@ -563,17 +661,22 @@ def hft_hero() -> Dict[str, Any]:
         "fee_lifetime_usd": fee_lifetime,
         "worker_alive": worker_alive,
         "as_of": datetime.now(timezone.utc).isoformat(),
-    }
+    })
 
 
 @router.get("/fills")
 def hft_fills(limit: int = 50, hours: float = 24.0) -> Dict[str, Any]:
-    """????(????)?lane_ledger ? spread/price/fee/slippage ??,
-    ????? SELECT ? ?????????????????"""
+    """成交记录（六维账本）：
+    - `items`：最近 `limit` 笔明细（表格用）；
+    - `summary`：**完整 24h 窗口**的汇总（卡片头部用）——此前后端不返回
+      summary，前端只能用列表里那 50 行凑数，「近 24h 成交 50 笔」就是这么
+      来的（实际今天就有 290+ 笔）。加权 bp = 金额 ÷ 名义 × 1e4。
+    """
     from sqlalchemy import text as sa_text
     from backend.core.tenant import system_identity
     from backend.database.connection import SessionLocal
     rows = []
+    summary: Dict[str, Any] = {}
     try:
         with system_identity():
             with SessionLocal() as db:
@@ -585,6 +688,40 @@ def hft_fills(limit: int = 50, hours: float = 24.0) -> Dict[str, Any]:
                     " AND ts > NOW() - make_interval(hours => :h)"
                     " ORDER BY ts DESC LIMIT :n"),
                     {"l": _LANE_ID, "h": int(hours), "n": int(limit)}).fetchall()
+                # [2026-10-10] 全窗口汇总（与列表行数无关）
+                sr = db.execute(sa_text(
+                    "SELECT COUNT(*),"
+                    " COALESCE(SUM(notional),0),"
+                    " COALESCE(SUM(net_bp*notional)/10000.0,0),"
+                    " COALESCE(SUM(net_bp),0),"
+                    " COALESCE(SUM(spread_bp*notional)/10000.0,0),"
+                    " COALESCE(SUM(price_bp*notional)/10000.0,0),"
+                    " COALESCE(SUM(fee_bp*notional)/10000.0,0),"
+                    " COALESCE(SUM(slippage_bp*notional)/10000.0,0)"
+                    " FROM lane_ledger WHERE lane_id=:l AND event='fill'"
+                    " AND ts > NOW() - make_interval(hours => :h)"),
+                    {"l": _LANE_ID, "h": int(hours)}).fetchone()
+                if sr:
+                    _fills, _noti, _netusd, _netbps, _sprusd, _priusd, _feeusd, _slusd = sr
+                    _noti_f = float(_noti or 0.0)
+                    summary = {
+                        "fills": int(_fills or 0),
+                        "notional_sum": round(_noti_f, 4),
+                        "net_usd_sum": round(float(_netusd or 0.0), 4),
+                        "net_bp_sum": round(float(_netbps or 0.0), 4),
+                        "spread_usd_sum": round(float(_sprusd or 0.0), 4),
+                        "price_usd_sum": round(float(_priusd or 0.0), 4),
+                        "fee_usd_sum": round(float(_feeusd or 0.0), 4),
+                        "slippage_usd_sum": round(float(_slusd or 0.0), 4),
+                        "net_bp_w": (round(float(_netusd or 0.0) / _noti_f * 1e4, 3)
+                                     if _noti_f > 0 else None),
+                        "spread_bp_w": (round(float(_sprusd or 0.0) / _noti_f * 1e4, 3)
+                                        if _noti_f > 0 else None),
+                        "price_bp_w": (round(float(_priusd or 0.0) / _noti_f * 1e4, 3)
+                                       if _noti_f > 0 else None),
+                        "fee_bp_w": (round(float(_feeusd or 0.0) / _noti_f * 1e4, 3)
+                                     if _noti_f > 0 else None),
+                    }
         for ts, sym, noti, net, spr, pri, fee, sli, path, side in rs:
             noti_f = float(noti or 0)
             rows.append({
@@ -599,7 +736,9 @@ def hft_fills(limit: int = 50, hours: float = 24.0) -> Dict[str, Any]:
             })
     except Exception as e:  # noqa: BLE001
         logger.warning("[hft] fills failed: %s", e)
-    return {"module": "hft_swing", "fills": rows, "count": len(rows),
+    return {"module": "hft_swing", "lane_id": _LANE_ID, "hours": hours,
+            "items": rows, "fills": rows, "count": len(rows),
+            "summary": summary,
             "as_of": datetime.now(timezone.utc).isoformat()}
 
 
@@ -742,12 +881,66 @@ def hft_evolution() -> Dict[str, Any]:
                        "ts": time.time()}
     except Exception as e:  # noqa: BLE001
         logger.warning("[hft] evolution markout failed: %s", e)
+    # [2026-10-10 学习进化前端升级] 这两块此前是**硬编码空数组** ⇒ 前端自进化条
+    # 永远显示「闸门提案 0 / 待判 0」，读者无法区分"没有问题"与"从未接线"。
+    # 现在：待判读 `logs/self_tuner_pending.json`（真实待判队列），
+    # 顾问提案读 `data/lane_advisor_journal.jsonl`（模型每轮的结论）。
+    pending_verdicts: List[Dict[str, Any]] = []
+    try:
+        p = _ROOT / "logs" / "self_tuner_pending.json"
+        if p.exists():
+            rows = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(rows, list):
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    pending_verdicts.append({
+                        "param": r.get("param"),
+                        "old": r.get("old"),
+                        "new": r.get("new"),
+                        "rollback": r.get("rollback"),
+                        "applied_at": r.get("applied_at"),
+                        "verdict_at": r.get("verdict_at"),
+                        "verdict_metric": r.get("verdict_metric"),
+                        "reason": str(r.get("reason") or "")[:200],
+                    })
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[hft] pending_verdicts failed: %s", e)
+
+    advisor_recent: List[Dict[str, Any]] = []
+    try:
+        jp = _ROOT / "data" / "lane_advisor_journal.jsonl"
+        if jp.exists():
+            lines = jp.read_text(encoding="utf-8").splitlines()[-5:]
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:  # noqa: BLE001
+                    continue
+                advisor_recent.append({
+                    "ts": r.get("ts"),
+                    "lane": r.get("lane"),
+                    "decision": r.get("decision"),
+                    "param": r.get("param"),
+                    "new": r.get("new"),
+                    "cited": r.get("cited") or [],
+                    "why": str(r.get("why") or "")[:200],
+                })
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[hft] advisor_recent failed: %s", e)
+
     return {"module": "hft_swing", "lane_id": _LANE_ID,
             "streak_positive_days": streak, "daily": daily, "gate_proposals": [],
             "bandit": {"current": [], "proposed": [], "new_in": [], "dropped": [],
                        "mode": None},
             "surface": {"ts": None, "per_symbol": [], "net_band": {}, "processed": False},
-            "pending_verdicts": [], "playbook_laws": laws,
+            "pending_verdicts": pending_verdicts, "playbook_laws": laws,
+            # [2026-10-10] 空壳字段显式列出：前端据此显示「未接线」而不是「0」
+            "stub_fields": ["gate_proposals", "bandit", "surface"],
+            "advisor_recent": advisor_recent,
             "markout_kpi": markout,
             "lane_pause": {"counts": {}, "last": None},
             "governor": gov,
@@ -851,6 +1044,80 @@ def hft_live_status() -> Dict[str, Any]:
     return {"lane_id": _LANE_ID, "exists": False, "mode": "paper",
             "status": "stopped", "keys_configured": False,
             "note": "???:?????", "as_of": datetime.now(timezone.utc).isoformat()}
+
+
+# ══════════════════════════════════════════════════════════════════
+# [2026-10-10 用户要求] 实盘凭证前端自助配置：随时调换、不经人手。
+# 值只落 data/live_credentials.json（gitignored）+ 同步进 .env（进程重启后
+# LiveBridge 的环境变量读取也能拿到）；GET 永远只回"有没有"，绝不回显。
+# ══════════════════════════════════════════════════════════════════
+_LIVE_CRED_FILE = _ROOT / "data" / "live_credentials.json"
+_LIVE_CRED_KEYS = ("v3_user", "v3_signer", "v3_private_key", "api_key", "api_secret")
+_ENV_NAMES = {
+    "v3_user": "ASTERDEX_V3_USER", "v3_signer": "ASTERDEX_V3_SIGNER",
+    "v3_private_key": "ASTERDEX_V3_PRIVATE_KEY",
+    "api_key": "ASTERDEX_API_KEY", "api_secret": "ASTERDEX_API_SECRET",
+}
+
+
+def _load_live_creds() -> Dict[str, Any]:
+    try:
+        if _LIVE_CRED_FILE.exists():
+            return dict(json.loads(_LIVE_CRED_FILE.read_text(encoding="utf-8")) or {})
+    except Exception:  # noqa: BLE001
+        pass
+    return {}
+
+
+def _sync_creds_to_env_file(creds: Dict[str, Any]) -> None:
+    """凭证同步进 .env（替换/追加 ASTERDEX_* 五行；.env 本身 gitignored）。"""
+    try:
+        env_path = _ROOT / ".env"
+        lines = (env_path.read_text(encoding="utf-8").splitlines()
+                 if env_path.exists() else [])
+        out = [ln for ln in lines
+               if not ln.strip().startswith(("ASTERDEX_V3_", "ASTERDEX_API_"))]
+        for k, v in creds.items():
+            if v and k in _ENV_NAMES:
+                out.append(f"{_ENV_NAMES[k]}={v}")
+        env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[live-creds] .env 同步失败: %s", e)
+
+
+@router.get("/live/credentials")
+def hft_live_credentials() -> Dict[str, Any]:
+    creds = _load_live_creds()
+    return {
+        "configured": {k: bool(creds.get(k)) for k in _LIVE_CRED_KEYS},
+        "v3_ready": bool(creds.get("v3_user") and creds.get("v3_signer")
+                         and creds.get("v3_private_key")),
+        "v2_ready": bool(creds.get("api_key") and creds.get("api_secret")),
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.post("/live/credentials")
+def hft_live_credentials_save(body: Dict[str, Any] = None) -> Dict[str, Any]:
+    """保存实盘凭证。空串 = 保持原值；'__CLEAR__' = 清空该项。"""
+    body = body or {}
+    creds = _load_live_creds()
+    for k in _LIVE_CRED_KEYS:
+        v = str(body.get(k) or "").strip()
+        if v == "__CLEAR__":
+            creds.pop(k, None)
+        elif v:
+            creds[k] = v
+    try:
+        _LIVE_CRED_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _LIVE_CRED_FILE.write_text(json.dumps(creds, ensure_ascii=False, indent=2),
+                                   encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "note": f"写入失败: {e}"}
+    _sync_creds_to_env_file(creds)
+    return {"ok": True,
+            "configured": {k: bool(creds.get(k)) for k in _LIVE_CRED_KEYS},
+            "as_of": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/live/kill")

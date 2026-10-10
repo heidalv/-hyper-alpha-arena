@@ -1,57 +1,52 @@
 {
   "task": "trend_chart_review",
   "symbol": "SOL",
-  "ts_ms": 1791557670354,
+  "ts_ms": 1791649142196,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.55,
+  "consensus_score": 0.35,
   "final": {
-    "direction": "bearish",
+    "direction": "neutral",
     "strength": 4,
-    "confidence": 0.55,
-    "structure": "1w 自90期高点回撤约59.6%后于区间下沿24%位置企稳反弹，1d 冲高后连续回落跌破EMA9/21、RSI14仅22.9，4h 破位下行、EMA9<EMA21<EMA50 空头排列，短线重心持续下移。",
-    "timeframe_alignment": "1w 仍为多头趋势（EMA9/21/50 上方、RSI14 67.6），但1d 与4h 明显转弱：1d 跌破EMA9/21、4h 三线空头排列且MACD柱为负，形成「大周期多、中小周期空」的背离结构，短线由4h主导下行。",
+    "confidence": 0.35,
+    "structure": "1w 自 90 期高点回撤约 59.6% 后于区间下沿（90 期位置 24%）企稳反弹，EMA9 上穿 EMA21 呈修复结构；1d 在 EMA200 上方 21.77% 处高位回落，跌破 EMA9/EMA21 且 RSI14 仅 25.7 超卖，摆动结构 LH 后重心下移；4h 在急跌后低位横盘，连阳 5 根但 MACD 柱仍为负，属超卖后的弱反弹修复。",
+    "timeframe_alignment": "三周期方向背离：1w 偏多（EMA9/21/50 均为正偏离、趋势 bullish），1d 偏空（价格低于 EMA9/21、RSI 超卖、量 z=-2.2 缩量），4h 中性偏弱（EMA9 微正、EMA21/50 为负、MACD 柱 -7.09）。大周期多头未破、中周期回调、小周期弱修复，属回调中继而非趋势共振，方向一致性差。",
     "key_levels": [
       {
-        "level": 105.96,
+        "level": 108.41,
         "type": "support",
-        "note": "24h 低点，4h 破位后的第一道近端支撑，失守则打开更深回撤空间"
+        "note": "24h 区间低点，4h 急跌后的即时支撑，失守则 4h 弱反弹结构破坏"
       },
       {
-        "level": 110.53,
+        "level": 110.47,
+        "type": "resistance",
+        "note": "当前现价与 24h 区间上沿 110.75 附近，1d EMA9/EMA21 下压区，反弹首要阻力"
+      },
+      {
+        "level": 92.51,
         "type": "support",
-        "note": "当前1d/1w 收盘价所在，多空争夺的中枢位，跌破确认弱势延续"
-      },
-      {
-        "level": 112.45,
-        "type": "resistance",
-        "note": "24h 高点，反弹需先收复此位才能缓解4h空头结构"
-      },
-      {
-        "level": 126.94,
-        "type": "resistance",
-        "note": "1d 图上方前高区域，对应1d 90期区间上沿，中期强阻力"
+        "note": "1d 前期整理平台/结构支撑，为深度回调的下一目标参考"
       }
     ],
-    "invalidation": "若价格重新站上112.45 并有效收复1d EMA9/21（约对应1d 收盘回到EMA9 上方），或4h 出现放量长下影并重回EMA21 上方，则本看空判断作废。",
-    "position_advice": "no_new_long",
+    "invalidation": "若 1d 收盘有效跌破 108.41 并伴随放量（量 z 转正），则 4h 弱反弹结构作废、1d 回调延续；反之若 1d 放量收复 EMA9/EMA21（约 114 上方）并站稳，则本中性偏空判断作废，转为顺 1w 多头。",
+    "position_advice": "hold",
     "key_factors": [
-      "1w 多头结构未破（EMA9/21/50 上方，RSI14 67.6），但已自90期高点回撤59.6%，处于区间下沿24%位置",
-      "1d RSI14 仅22.9、跌破EMA9/21，MACD柱虽为正但动能减弱，短线超卖但趋势转弱",
-      "4h EMA9<EMA21<EMA50 空头排列，MACD柱-6.91，RSI14 18.0，破位下行",
-      "资金费多交易所为负（binance -0.0007%、bybit -0.0011%、gateio -0.0025%），空头拥挤度偏高，存在轧空风险",
-      "持仓结构 global_ls 2.329、top_pos_ls 1.8，多头拥挤，24h 多头清算1485万美元远超空头186万美元",
-      "量能 z 值普遍为负（1w -0.6、1d -1.4、4h -0.9），下跌缩量，缺乏恐慌性抛售确认",
-      "regime 判定为 ranging，confidence 仅0.3，方向性信号偏弱"
+      "1w 趋势 bullish 且 EMA9/21/50 均为正偏离，但价格仍低于 EMA50（-4.94%），大周期属回撤后修复而非强势突破",
+      "1d RSI14=25.7 深度超卖、量 z=-2.2 极度缩量，抛压衰减但缺乏承接放量，反弹动能不足",
+      "4h 连阳 5 根、EMA9 转正，但 MACD 柱 -7.09、EMA21/50 仍压制，属超卖技术性修复",
+      "资金费多空分歧：hyperliquid +0.01%、binance +0.0033% 偏多，gateio -0.0031%、okx -0.0012% 偏空，无一致拥挤方向",
+      "持仓结构 global_ls=2.424、top_pos_ls=1.902，多头拥挤度偏高，OI 24h 仅 +0.34%，上行动能有限",
+      "regime=ranging、confidence=0.3，ADX14_1d=39 显示日线趋势强度仍在但方向向下",
+      "已有 trend_e1:SOL 多头持仓（upnl 0.88%、距止损 7.32%），账户 14 近 14 日 long 层胜率 0%、PF 0，SOL 净亏 -1.8，不宜加仓"
     ],
-    "summary": "SOL 呈现「1w 多头、1d/4h 空头」的周期背离：大周期仍在EMA9/21/50 上方且RSI14 67.6，但已从90期高点回撤59.6%，处于区间下沿；1d 跌破EMA9/21、RSI14 22.9 进入超卖，4h 三线空头排列、MACD柱为负，短线重心下移。资金费多交易所为负、多头持仓拥挤（global_ls 2.329）且24h 多头清算1485万美元，显示多头承压但空头亦拥挤，存在轧空可能。量能普遍缩量（z 均为负），下跌未获放量确认。综合判断短线偏空但强度有限，不建议新开多；若失守105.96 则弱势延续，若收复112.45 并站回1d EMA9/21 则空头判断作废。数据不足：1w EMA200 与4h EMA200 缺失，长周期均线参照不完整。"
+    "summary": "SOL 三周期方向背离：1w 多头结构未破（EMA9/21/50 正偏离、趋势 bullish），但 1d 已跌破 EMA9/21、RSI14=25.7 超卖且缩量（量 z=-2.2），4h 仅呈超卖后弱修复（连阳 5 但 MACD 柱仍负）。整体判定为「大周期多头中的中周期回调、小周期弱反弹」，方向中性、强度 4、置信度 0.35。关键支撑 108.41（24h 低点），阻力 110.47/110.75（现价与 EMA 下压区），下方结构支撑 92.51。资金费多空分歧、多头持仓拥挤（global_ls 2.424）而 OI 几乎未增，缺乏推动力。已有 SOL 多头仓位建议 hold 不加仓，跌破 108.41 放量则减仓；数据不足项：1w EMA200、4h EMA200 缺失，corr_to_btc 与 correlation_pairs 为空，无法做跨品种相关性验证。"
   },
   "charts": [
-    "SOL 1w (bars=130, last_close=110.53)",
-    "SOL 1d (bars=230, last_close=110.53)",
-    "SOL 4h (bars=110, last_close=110.34)"
+    "SOL 1w (bars=130, last_close=110.47)",
+    "SOL 1d (bars=230, last_close=110.47)",
+    "SOL 4h (bars=110, last_close=110.46)"
   ],
   "notes": [
-    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.35 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ]
 }

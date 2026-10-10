@@ -1,10 +1,10 @@
 {
-  "ts": 1791562894.5617588,
+  "ts": 1791649294.2095501,
   "layers": {
     "hft": {
-      "train_ep_mean": -0.19839345570653677,
+      "train_ep_mean": 0.0,
       "oos_mean_y": 0.0,
-      "baseline_mean_y": 1.13,
+      "baseline_mean_y": 0.153,
       "oos_n": 2000,
       "verdict": "learned<baseline",
       "learner": "TorchPPO",
@@ -12,84 +12,84 @@
       "greedy_agree_ofi": 0.0,
       "greedy_size_mean": 1.0,
       "train_stats": {
-        "entropy": 0.5195891857147217,
-        "approx_kl": 0.00614676158875227,
-        "mean_rew": -0.20135455206036568,
+        "entropy": 0.2998100519180298,
+        "approx_kl": -0.00035570445470511913,
+        "mean_rew": 0.0,
         "iter": 8
       },
       "gate_offline_smoke": {
         "ok": false,
-        "reason": "mean_y +0.00 < 基准+1.13−容忍0.23"
+        "reason": "mean_y +0.00 < 基准+0.15−容忍0.05"
       },
       "shadow_eval": {
-        "ts": 1791563081.514203,
-        "n": 35228,
-        "shadow_mean_y": -0.06,
-        "rule_mean_y": -0.593,
+        "ts": 1791649376.4284513,
+        "n": 32224,
+        "shadow_mean_y": -0.273,
+        "rule_mean_y": 0.628,
         "promoted": false
       }
     },
     "mid": {
-      "train_ep_mean": -3.765,
-      "oos_mean_y": -0.774,
-      "baseline_mean_y": -1.577,
-      "oos_n": 600,
-      "verdict": "learned≥baseline",
-      "learner": "TorchPPO",
-      "action_dependent": true,
-      "greedy_flat_rate": 0.617,
-      "train_stats": {
-        "entropy": 1.049826741218567,
-        "approx_kl": -0.0011219065636396408,
-        "mean_rew": -3.2503684883077884,
-        "iter": 11
-      },
-      "gate_offline_smoke": {
-        "ok": true,
-        "reason": "promote"
-      }
-    },
-    "long": {
-      "train_ep_mean": -4.101,
-      "oos_mean_y": -1.304,
-      "baseline_mean_y": -0.407,
-      "oos_n": 967,
+      "train_ep_mean": -3.016,
+      "oos_mean_y": -1.482,
+      "baseline_mean_y": -0.991,
+      "oos_n": 603,
       "verdict": "learned<baseline",
       "learner": "TorchPPO",
       "action_dependent": true,
-      "greedy_pos_mean": 2.074,
+      "greedy_flat_rate": 0.421,
       "train_stats": {
-        "entropy": 1.2231682538986206,
-        "approx_kl": 0.00986502692103386,
-        "mean_rew": -4.012292435755292,
+        "entropy": 1.0162744522094727,
+        "approx_kl": 0.0008483100682497025,
+        "mean_rew": -4.104235209354702,
         "iter": 11
       },
       "gate_offline_smoke": {
         "ok": false,
-        "reason": "mean_y -1.30 < 基准-0.41−容忍0.08"
+        "reason": "mean_y -1.48 < 基准-0.99−容忍0.20"
+      }
+    },
+    "long": {
+      "train_ep_mean": -4.233,
+      "oos_mean_y": 0.056,
+      "baseline_mean_y": 0.596,
+      "oos_n": 923,
+      "verdict": "learned<baseline",
+      "learner": "TorchPPO",
+      "action_dependent": true,
+      "greedy_pos_mean": 0.774,
+      "train_stats": {
+        "entropy": 1.265869140625,
+        "approx_kl": 0.00016348871092001596,
+        "mean_rew": -3.4226754264283428,
+        "iter": 11
+      },
+      "gate_offline_smoke": {
+        "ok": false,
+        "reason": "mean_y +0.06 < 基准+0.60−容忍0.12"
       }
     },
     "m5": {
-      "long_regime_bp": -1.76,
-      "mid_prior_bp": 2.31,
+      "long_regime_bp": 35.95,
+      "mid_prior_bp": -2.9,
       "veto_base_bp": 4.0,
-      "veto_dynamic_bp": 5.2,
+      "veto_dynamic_bp": 3.64,
       "veto_compare": {
         "static": {
-          "n": 2147,
-          "mean_y": 1.213
+          "n": 976,
+          "mean_y": 0.307
         },
         "dynamic": {
-          "n": 1910,
-          "mean_y": 1.343
+          "n": 1063,
+          "mean_y": 0.311
         },
         "dyn_only": {
-          "n": 0,
-          "mean_y": null
+          "n": 87,
+          "mean_y": 0.353
         },
         "static_only": {
-          "n": 237,
-          "mean_y": 0.167
+          "n": 0,
+          "mean_y": null
         }
       },
       "note": "模拟仓直连:worker 每拍读本节长/中线读数算否决阈值;veto_compare 为监测(历史回放对比),不影响交易"

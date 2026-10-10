@@ -57,6 +57,19 @@ MAX_MAKER_FEE_BP = float(os.getenv("F60_MAX_MAKER_FEE_BP", "0.5"))  # 费率闸�
 # 事故背景：2026-08-18 之后 asterdex 的盘口/成交采集停止，最新快照已陈旧 22 天，
 # 若不加闸门，驱动器会拿 22 天前的价格挂单（BTC 64k vs 实际 78k）。
 MAX_DATA_AGE_SEC = float(os.getenv("MM_MAX_DATA_AGE_SEC", "180"))
+# [2026-10-10 页面 1s 刷新] 今日腿级统计播种 SQL。
+# psycopg 调用方把 :l 替换成 %s；sqlalchemy 调用方直接按 :l 绑定。
+_SEED_SQL = (
+    "SELECT COUNT(*) n, COUNT(*) FILTER (WHERE net_bp>0) w,"
+    " COALESCE(SUM(net_bp*notional)/10000.0,0) pnl,"
+    " COALESCE(AVG(net_bp) FILTER (WHERE net_bp>0),0) aw,"
+    " COALESCE(AVG(net_bp) FILTER (WHERE net_bp<=0),0) al,"
+    " COUNT(*) FILTER (WHERE net_bp>0) wn,"
+    " COUNT(*) FILTER (WHERE net_bp<=0) ln"
+    " FROM lane_ledger WHERE lane_id=:l AND event='fill'"
+    " AND ts >= (date_trunc('day', now() AT TIME ZONE"
+    "            'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')"
+)
 # [F134] "地板报价"判定阈值（bp）：挂单宽度 ≤ 该值视为贴地板的减仓腿
 # （`min_width_reduce_bp` 目前 1.0bp，取 1.5 留出浮点与偏斜余量）。
 FLOOR_QUOTE_BP = float(os.getenv("MM_FLOOR_QUOTE_BP", "1.5"))
@@ -1301,6 +1314,26 @@ def plan_tick(
                 _ppsp = _os.path.join(_root, "data", "pp_situation_last.json")
                 if _os.path.exists(_ppsp):
                     _ppsit = load_json_cached(_ppsp)
+                # [2026-10-10 换币顺畅化] PP 新币小仓试跑：样本不足(<20 来回)的
+                # watch 币进场名义压到 fill_notional × MM_PP_PROBE_FRAC(默认 0.5)，
+                # 攒够证据且过线(eligible)才全量。夜里 GTC/SEI 单腿 −84/−47bp
+                # 就是新币零证据全额进场打的。回滚:MM_PP_PROBE_FRAC=1。
+                _pp_probe = 0.0
+                if str(_os.getenv("MM_PINGPONG", "1") or "1").strip() not in (
+                        "0", "false", "False", ""):
+                    try:
+                        _stf = _os.path.join(_root, "data", "pp_symbol_stats.json")
+                        _st_doc = load_json_cached(_stf) if _os.path.exists(_stf) else None
+                        _coins = (_st_doc or {}).get("coins") \
+                            if isinstance(_st_doc, dict) else {}
+                        _c = _coins.get(str(state.symbol).upper())
+                        _c = _c if isinstance(_c, dict) else None
+                        _n = float((_c or {}).get("n") or 0.0)
+                        _frac = float(_os.getenv("MM_PP_PROBE_FRAC", "0.5") or 0.5)
+                        if _n + 1e-9 < 20.0:
+                            _pp_probe = max(10.0, float(fill_notional or 0.0) * _frac)
+                    except Exception:
+                        _pp_probe = 0.0
                 if isinstance(_sit, dict):
                     _spread_bp = ((2.0 * _hs_af / float(mid)) * 1e4) if float(mid) > 0 else 0.0
                     _gate = situation_decision(
@@ -1832,7 +1865,9 @@ def plan_tick(
                 loss_frac=float(_learn.get("notional_loss_frac") or 0.005),
                 roundtrip_root=__import__("pathlib").Path(_root),
                 # [h834] 只有探索单才压到极小名义;已证实的桶走正常名义上限
-                probe_notional_usd=(_probe if _gate.get("probe") else 0.0),
+                # [2026-10-10] PP watch 币小仓试跑优先于旧链探索单口径
+                probe_notional_usd=(_pp_probe if _pp_probe > 0
+                                    else (_probe if _gate.get("probe") else 0.0)),
                 # [h852] 探索模式:放行进场但**不污染离场 mu**
                 explore_entry=str(_gate.get("reason") or "").startswith("explore_s"),
                 bid_qty=float(bid_qty or 0.0),
@@ -4163,6 +4198,15 @@ class ShadowRunner:
         self.fills: int = 0
         self.flattens: int = 0
         self.realized_usd: float = 0.0
+        # ── [2026-10-10 页面 1s 刷新] 今日腿级统计（页面上方大字区数据源）──
+        # 与 /hft/hero 的 SQL 完全同口径：按腿的 net_bp 计 n/胜率/平均赢/平均亏。
+        # 每笔成交就地累加 ⇒ 心跳文件里随时可取 ⇒ 前端 1 秒刷新零 SQL。
+        # 进程重启时从 lane_ledger 一次性播种（_day_leg_seeded 守卫）。
+        self._day_leg_date: str = ""
+        self._day_leg: Dict[str, float] = {"n": 0.0, "wins": 0.0, "pnl_usd": 0.0,
+                                           "win_bp_sum": 0.0, "loss_bp_sum": 0.0,
+                                           "win_n": 0.0, "loss_n": 0.0}
+        self._day_leg_seeded: bool = False
         # [F81] 成交桶水位线：每币已消费的最大桶时间戳（防漏桶/防重复消费）
         self._seg_watermark: Dict[str, int] = {}
         # ── [F281 2026-09-21] 新鲜盘口缓存（修「引擎 mid 结构性滞后 15 秒」）──────
@@ -4366,8 +4410,11 @@ class ShadowRunner:
             # 30s 一轮的"实时换币"是旧方向链的口径(且实测会每分钟把 ping-pong
             # 持仓换出宇宙 ⇒ orphan_taker 吃单砍仓)。刷新本身便宜,慢档省查询
             # 且不再给换币抖动留入口。回滚:env 设回 60/30。
+            # [2026-10-10 换币顺畅化] 衰减巡检 120→300：实测早上每 2 分钟换一次
+            # 名单(07:57 起逐条 set_symbols)，活币筛+补进跟着鞭抽；与 300s 雷达
+            # 同拍后，全宇宙至多 5 分钟评一次，名单才定得住。回滚:env 设回 120。
             _every_full = float(os.getenv("MM_UNIVERSE_RADAR_SEC", "300") or 300)
-            _every_decay = float(os.getenv("MM_UNIVERSE_DECAY_SEC", "120") or 120)
+            _every_decay = float(os.getenv("MM_UNIVERSE_DECAY_SEC", "300") or 300)
             _last = float(getattr(self, "_radar_last", 0.0) or 0.0)
             _last_d = float(getattr(self, "_radar_last_decay", 0.0) or 0.0)
             # [h683] 首次调用只**登记时间**并延后:全量评估实测 ~140s,
@@ -4529,6 +4576,7 @@ class ShadowRunner:
         _pp_proposed = None
         _pp_new_in: List[str] = []
         _pp_frozen = False
+        _pp_fixed: set = set()
         if _pp_uni_on:
             _lane0 = reg.get_lane(self.lane_id) or {}
             _meta0 = dict(_lane0.get("meta") or {})
@@ -4539,11 +4587,30 @@ class ShadowRunner:
                     encoding="utf-8"))
                 if (now_ts - float(_ppd.get("ts") or 0.0)) < 45 * 60:
                     from backend.services.market_maker.flow_universe import (
-                        pp_membership, select_pp_slots)
+                        fixed_symbols, pp_membership, select_pp_slots)
                     _pp_adm = {str(k).upper(): float(v) for k, v in
                                (_meta0.get("flow_admitted_at") or {}).items()}
+                    # [2026-10-10 换币顺畅化] 负证据摘除冷却：era 重置/统计清零后
+                    # 冷却期内不得重新进场（夜里 US 被补回后 −108bp 的教训）。
+                    _pp_dropped = {str(k).upper(): float(v) for k, v in
+                                   (_meta0.get("flow_dropped_at") or {}).items()}
+                    _pp_fixed = fixed_symbols()
+                    # [2026-10-10 修] 持仓币受保护：有仓 ⇒ keep，绝不移出名单
+                    # （夜里实测 4 次 orphan_taker = 负证据 drop 砍掉在建仓）。
+                    _pp_pos = {str(s).upper(): float(st.qty or 0.0)
+                               for s, st in self.states.items()
+                               if abs(float(st.qty or 0.0)) > 1e-12}
+                    # [2026-10-10 用户提产] 槽位 4→6：腿数与槽位近似线性（+50%），
+                    # **胜率不受影响**——每币行为一字未动，只是并行币数变多；
+                    # 新增轮换槽仍走负证据过滤 + gap 过滤。回滚：MM_PP_SLOT_CAP=4。
+                    _slot_cap = int(os.getenv("MM_PP_SLOT_CAP", "6") or 6)
+                    _slot = min(int(getattr(self.limits, "universe_slots", 6) or 6),
+                                int(getattr(self.limits, "pp_slot_cap", _slot_cap)
+                                    or _slot_cap))
                     _pp_proposed, _pp_new_in = select_pp_slots(
-                        pool, _ppd, _pp_cur, _pp_adm, now_ts)
+                        pool, _ppd, _pp_cur, _pp_adm, now_ts,
+                        positions=_pp_pos, slot_cap=_slot,
+                        dropped_at=_pp_dropped)
                 else:
                     _pp_frozen = True
                     _pp_proposed = list(_pp_cur)
@@ -4560,30 +4627,106 @@ class ShadowRunner:
             if not _pp_frozen:
                 # 活币筛：60s 没真实成交且无仓的死币摘掉，空出的槽位按观察池
                 # 成交额顺序补进（新币没有 PP 样本 ⇒ watch 照跑攒数，fail-open）。
+                # [2026-10-10 提产] 活币窗口 60s→300s（MM_UNIVERSE_ALIVE_SEC）：
+                # 60s 窗口在薄盘时段导致槽位 4~6 振荡（03:13 满 6、03:17 掉回 4）。
                 try:
                     _now_ms0 = int(now_ts * 1000)
+                    # [2026-10-10 夜盘修复] 活币窗口 300s→900s：夜里薄盘币
+                    # "5 分钟 0 成交"很常见（SOL/ZEC/ASTER 24h 量极大但夜里
+                    # 十几分钟才一笔），300s 会把它们全摘掉 ⇒ 宇宙塌成
+                    # [ETH,BTC] 只剩固定币。900s 让"隔几分钟动一下"的币留在
+                    # 名单；24h 量门槛 + 负证据淘汰仍在兜底。
+                    # 回滚:MM_UNIVERSE_ALIVE_SEC=300。
+                    _alive_sec = float(os.getenv("MM_UNIVERSE_ALIVE_SEC", "900") or 900.0)
+                    # [2026-10-10 用户口径纠正] 流动性 = **交易所 24 小时成交额**
+                    # （data/vol_top20.json 的 quote_volume_usd，官方数据源），
+                    # 不是我们自己的成交。门槛默认 $50 万/24h：实测
+                    # NEAR $3.1M/PUMP $1.2M/ADA $939k 之上、CASHCAT $375k/
+                    # PONS $278k/USELESS $244k/SEI $210k 之下——正是"挂不出去"
+                    # 的那一档。回滚:MM_PP_MIN_VOL24H_USD=0。
+                    _min_v24 = float(os.getenv("MM_PP_MIN_VOL24H_USD", "500000")
+                                     or 500000)
+                    _vt_detail: Dict[str, dict] = {}
+                    try:
+                        # [2026-10-10 修] 此前误写 `_root`(plan_tick 的局部名)，
+                        # 本方法里叫 `root` ⇒ NameError 被 except 吞掉 ⇒
+                        # 24h 量数据表恒空 ⇒ _liq_ok 对所有币 False ⇒
+                        # 活币筛把非固定币全摘 ⇒ 宇宙塌成 [BTC]。
+                        _vt = load_json_cached(
+                            os.path.join(str(root), "data", "vol_top20.json")) or {}
+                        for _it in (_vt.get("detail") or []):
+                            if isinstance(_it, dict) and _it.get("symbol"):
+                                _vt_detail[str(_it.get("symbol")).upper()] = _it
+                    except Exception:
+                        _vt_detail = {}
+
+                    def _liq_ok(sym: str) -> bool:
+                        if _min_v24 <= 0:
+                            return True
+                        row = _vt_detail.get(sym)
+                        if row is None:
+                            return False   # 无 24h 数据 = 不入（数据覆盖 100 币）
+                        try:
+                            return float(row.get("quote_volume_usd") or 0.0) >= _min_v24
+                        except (TypeError, ValueError):
+                            return False
+
                     _alive = []
                     for _s in proposed:
                         try:
-                            _n = int(self._trades_60s(_s, _now_ms0) or 0)
+                            _has_pos = abs(float((self.states.get(_s).qty
+                                                  if self.states.get(_s) else 0.0) or 0.0)) > 1e-12
+                        except Exception:
+                            _has_pos = False
+                        if _has_pos or _s in _pp_fixed:
+                            _alive.append(_s)
+                            continue
+                        if not _liq_ok(_s):
+                            continue
+                        try:
+                            _n = int(self._trades_window(_s, _now_ms0, _alive_sec) or 0)
                         except Exception:
                             _n = 0
-                        _has_pos = abs(float((self.states.get(_s).qty
-                                              if self.states.get(_s) else 0.0) or 0.0)) > 1e-12
-                        if _n >= 1 or _has_pos:
+                        if _n >= 1:
                             _alive.append(_s)
                     proposed = _alive
-                    # [2026-10-09] 槽位上限 = min(车道槽位, 选币纪律 4)：
+                    # [2026-10-09] 槽位上限 = min(车道槽位, 选币纪律)：
                     # flow_universe.SLOT_CAP=4 是「交易名单最多 4 个」的既有规矩；
                     # limits.universe_slots=24 是旧 AI 换币链的宽松值，PP 时代不沿用
                     # （T13 实测：名单摊到几十个币 ⇒ 每条腿赚不到 1 美分）。
-                    _slot = min(int(getattr(self.limits, "universe_slots", 6) or 6),
-                                int(getattr(self.limits, "pp_slot_cap", 4) or 4))
+                    # `_slot` 已在上方按 MM_PP_SLOT_CAP(默认 6) 算出（2026-10-10 提产）。
                     if len(proposed) < _slot:
+                        # [2026-10-10 修] gap 名单过滤：旧方向链的第一级筛选
+                        # （vol_top20.json 的 gap_excluded 硬名单 + gap_prone
+                        # 软名单）在 PP 补进时**必须沿用**——夜里把它漏掉后，
+                        # US/NEAR/PLAY/SEI 等跳空币被补进槽位，13 次深跳吃单
+                        # （US 单腿 −108/−126bp）把一夜利润吃光。
+                        _gap_hard: set = set()
+                        _gap_soft: set = set()
+                        try:
+                            # [2026-10-10 修] 同 _liq_ok:本方法局部名是 root,误写
+                            # _root ⇒ NameError ⇒ gap 过滤被静默禁用。
+                            _vt = load_json_cached(
+                                os.path.join(str(root), "data", "vol_top20.json")) or {}
+                            _gap_hard = {str(x).upper()
+                                         for x in (_vt.get("gap_excluded") or [])}
+                            for _it in (_vt.get("detail") or []):
+                                if bool(_it.get("gap_prone")):
+                                    _gap_soft.add(str(_it.get("symbol") or "").upper())
+                        except Exception:
+                            _gap_hard = set()
+                            _gap_soft = set()
                         for _s in (pool or []):
                             _b = str(_s).upper()
                             if _b in proposed:
                                 continue
+                            # [2026-10-10 换币顺畅化] 摘除冷却期内不得补回
+                            if float(os.getenv("MM_PP_DROP_COOLDOWN_SEC", "21600")
+                                     or 21600) > 0:
+                                _dt = _pp_dropped.get(_b)
+                                if _dt is not None and (now_ts - float(_dt)) < float(
+                                        os.getenv("MM_PP_DROP_COOLDOWN_SEC", "21600") or 21600):
+                                    continue
                             # [2026-10-09 修] 补进只允许 watch/eligible：
                             # 有 PP 负证据(drop)的币不得靠"活币"混回来
                             # （实测 US n=21 亏>赚被判 drop，又被补进拉回名单）。
@@ -4591,11 +4734,19 @@ class ShadowRunner:
                             if _b_stat and pp_membership(
                                     _b, _b_stat, now_ts, {}) == "drop":
                                 continue
+                            # [2026-10-10 修] 跳空币不进暖机槽
+                            if _b in _gap_hard or _b in _gap_soft:
+                                continue
+                            # [2026-10-10 用户口径] 补进门槛 = 交易所 24h 成交额
+                            # ≥ $50 万（_liq_ok 同上），低流动性交易对进不了槽位；
+                            # 再加"近 5 分钟至少 1 笔"的活跃度确认。
+                            if not _liq_ok(_b):
+                                continue
                             try:
-                                _n = int(self._trades_60s(_b, _now_ms0) or 0)
+                                _n = int(self._trades_window(_b, _now_ms0, _alive_sec) or 0)
                             except Exception:
                                 _n = 0
-                            if _n < 3:
+                            if _n < 1:
                                 continue
                             proposed.append(_b)
                             new_in.append(_b)
@@ -4605,6 +4756,28 @@ class ShadowRunner:
                         "proposed_n": len(proposed), "slot": _slot,
                         "new_in": list(new_in), "evidence": "pp_rt_bp",
                     }
+                    # [2026-10-10 换币顺畅化] 记摘除冷却：本轮被移出名单、且
+                    # 有负证据(drop 判据)的币 ⇒ flow_dropped_at=now。冷却期内
+                    # 任何路径（选位/补进）都不得把它拉回来——era 重置/统计
+                    # 清零后不会再把刚踢掉的垃圾币立刻补回（夜里 US 教训）。
+                    # 结果经 _pp_dropped_pending 在尾部随 meta 一起落库
+                    # （本处 meta 是局部副本，尾部会重新读注册表覆盖）。
+                    try:
+                        _cd = float(os.getenv("MM_PP_DROP_COOLDOWN_SEC", "21600") or 21600)
+                        if _cd > 0:
+                            _cur_set = set(_pp_cur)
+                            for _s in _cur_set - set(proposed):
+                                if _s in _pp_pos:
+                                    continue   # 有仓被移出?不应发生,防御
+                                _st2 = ((_ppd or {}).get("coins") or {}).get(_s) \
+                                    if isinstance(_ppd, dict) else None
+                                if _st2 and pp_membership(_s, _st2, now_ts, {}) == "drop":
+                                    _pp_dropped[_s] = float(now_ts)
+                            _pp_dropped = {k: v for k, v in _pp_dropped.items()
+                                           if (now_ts - v) < _cd}
+                            self._pp_dropped_pending = dict(_pp_dropped)
+                    except Exception:
+                        self._pp_dropped_pending = None
                 except Exception:
                     pass
             else:
@@ -4634,7 +4807,7 @@ class ShadowRunner:
                         _n = 0
                     _has_pos = abs(float((self.states.get(_s).qty
                                           if self.states.get(_s) else 0.0) or 0.0)) > 1e-12
-                    if _n >= 1 or _has_pos:
+                    if _n >= 1 or _has_pos or _s in _pp_fixed:
                         _alive.append(_s)
                 if len(_alive) < len(proposed):
                     proposed = _alive
@@ -4841,6 +5014,10 @@ class ShadowRunner:
         else:
             admitted = {sym: float((meta.get("flow_admitted_at") or {}).get(sym) or now_ts) for sym in proposed}
         admitted = touch_admitted(admitted, proposed, now_ts)
+        # [2026-10-10] PP 摘除冷却时间戳落库（随本轮 meta 一并写回）
+        if getattr(self, "_pp_dropped_pending", None) is not None:
+            meta["flow_dropped_at"] = dict(self._pp_dropped_pending)
+            self._pp_dropped_pending = None
         positions = {s: float(st.qty or 0.0) for s, st in self.states.items()}
         exiting = exit_only_symbols(proposed, positions)
         self._radar_state = {
@@ -4925,13 +5102,22 @@ class ShadowRunner:
 
             with system_identity():
                 with SessionLocal() as db:
+                    # [2026-10-10 口径对齐] 优先用 available+frozen（**含手续费**
+                    # 的真实现金口径，与页面 /hft/hero 的 _live_equity 一致）；
+                    # 旧口径 total_equity+realized **不含手续费**，实测与页面差
+                    # $5.69 = 累计手续费，导致状态页/腿量基准虚高。
                     row = db.execute(text(
-                        "SELECT total_equity, COALESCE(realized_pnl, 0)"
+                        "SELECT available_balance, frozen_balance,"
+                        " total_equity, COALESCE(realized_pnl, 0)"
                         " FROM arbitrage_paper_accounts WHERE id=:i"
                     ), {"i": self.account_id}).first()
-                    if not row or not row[0]:
+                    if not row:
                         return 0.0
-                    return float(row[0]) + float(row[1] or 0.0)
+                    if row[0] is not None and float(row[0]) > 0:
+                        return float(row[0]) + float(row[1] or 0.0)
+                    if not row[2]:
+                        return 0.0
+                    return float(row[2]) + float(row[3] or 0.0)
         except Exception as e:
             logger.warning("[F85] 读账户权益失败: %s", e)
             return 0.0
@@ -4984,6 +5170,26 @@ class ShadowRunner:
                 logger.warning("[F301] 账本不可用，跳过启动对账（不做任何改动）: %s", e)
                 return result
 
+        def _led_open_epoch(sym: str) -> float:
+            """[2026-10-10 审查修复] 从账本行还原开仓时刻（epoch）。
+            修复「进程重启后持仓在、opened_ts 被清 ⇒ 页面持有时间显示 —、
+            平仓 hold_sec=None」的账实分叉。"""
+            row = led.get(sym) or {}
+            v = row.get("opened_ts")
+            if v is None:
+                v = row.get("opened_at")
+            if v is None:
+                return 0.0
+            try:
+                from datetime import datetime as _dt
+                if isinstance(v, _dt):
+                    return v.timestamp()
+                if isinstance(v, str):
+                    return _dt.fromisoformat(v).timestamp()
+                return float(v)
+            except Exception:  # noqa: BLE001
+                return 0.0
+
         for sym, st in list(loaded.items()):
             if not str(sym) or str(sym).isdigit():
                 continue          # 脏键保护
@@ -5004,6 +5210,14 @@ class ShadowRunner:
             except Exception:
                 pass
             if abs(q_led - q_rt) <= _tol:
+                # [2026-10-10 审查修复] 数量一致但 opened_ts 缺失 ⇒ 从账本还原
+                # （跨重启持仓的「持有时间 —」就是它：旧进程丢给新进程的状态里
+                # 时间戳被清，但账本里有开仓腿的时间）。
+                if abs(q_led) > 1e-12 and float(getattr(st, "opened_ts", 0.0) or 0.0) <= 0:
+                    _oe = _led_open_epoch(sym)
+                    if _oe > 1e9:
+                        st.opened_ts = _oe
+                        st.opened_ts_true = _oe
                 continue
             logger.warning(
                 "[F301] 启动对账分叉 %s: runtime=%.8f ledger=%.8f ⇒ 采用账本",
@@ -5019,10 +5233,13 @@ class ShadowRunner:
                 st.stop_since = 0.0
             else:
                 # 账本仍有仓但数量不同：数量以账本为准，成本基准无从得知 ⇒
-                # 清掉 opened_ts 与成本，避免用错误的均价做止损判断。
+                # 清掉成本，但 **opened_ts 从账本还原**（[2026-10-10 审查修复]，
+                # 此前一并清零 ⇒ 平仓 hold_sec=None、页面持有时间 —）。
                 st.avg_px = 0.0
                 st.avg_mid = 0.0
-                st.opened_ts = 0.0
+                _oe = _led_open_epoch(sym)
+                st.opened_ts = _oe if _oe > 1e9 else 0.0
+                st.opened_ts_true = _oe if _oe > 1e9 else 0.0
                 st.stop_since = 0.0
         return result
 
@@ -5553,15 +5770,39 @@ class ShadowRunner:
             self._fresh_mid_err = f"{type(e).__name__}: {e}"
             logger.warning("[F281] 新鲜盘口刷新失败，回退 15s 快照 mid: %s", e)
 
-    def _fresh_book_for(self, symbol: str):
+    def _fresh_book_for(self, symbol: str, force: bool = False):
         """[F281] 取某符号的新鲜 `(bid, ask)`；无则返回 None（调用方回退旧口径）。
 
         [h663 审计#5 修复] 缓存条目 = (bid, ask, event_ts_ms):取用时按年龄失效
         (超过 FRESH_BOOK_MAX_AGE_S 视为停更,回退 15s 快照路径,不再用冻结 mid)。
+
+        [2026-10-10 贴价离场修复] `force=True`（持仓币每 tick 用）：薄盘币的
+        book_ticker 停更 >10s 就会走旧快照回退 ⇒ 合成买一/卖一漂移(实测
+        CASHCAT 合成买一 0.1158 vs 真实 0.11591) ⇒ 老仓"贴价"贴不上真实盘口。
+        持仓币直接查一次实时 book_ticker(索引查询,亚毫秒),贴价才真正贴住。
         """
         if not getattr(self, "_fresh_mid_enabled", False):
             return None
         vs = symbol if symbol.endswith("USDT") else f"{symbol}USDT"
+        if force:
+            try:
+                from sqlalchemy import text as _ft
+                from backend.core.tenant import system_identity
+                from backend.database.connection import MarketSessionLocal
+                with system_identity():
+                    with MarketSessionLocal() as db:
+                        row = db.execute(_ft(
+                            "SELECT bid_px, ask_px FROM asterdex_book_ticker"
+                            " WHERE symbol=:s AND bid_px>0 AND ask_px>bid_px"
+                            " ORDER BY event_ts_ms DESC LIMIT 1"),
+                            {"s": vs}).mappings().first()
+                if row:
+                    b, a = float(row["bid_px"]), float(row["ask_px"])
+                    if b > 0 and a > b:
+                        self._fresh_book[vs] = (b, a, int(time.time() * 1000))
+                        return (b, a)
+            except Exception:  # noqa: BLE001
+                pass   # 强刷失败 ⇒ 落回缓存/快照路径
         entry = self._fresh_book.get(vs)
         if not entry:
             return None
@@ -5726,7 +5967,13 @@ class ShadowRunner:
                     # 15s 快照表(market_orderbook_snapshots)只作回退。
                     # 病根(H69/17:3x 现场):快照滞后 15s ≈ −1.2bp/腿;且快照管道
                     # 不服务新币时(SUI/ENA)整个币被 continue,实时盘口明明有数据。
-                    _fb_pre = self._fresh_book_for(s)
+                    # [2026-10-10 贴价离场修复] 持仓币每 tick 强制刷真实盘口：
+                    # 薄盘币 ticker 停更 >10s 就走旧快照 ⇒ 合成盘口漂移，
+                    # 老仓"贴价离场"贴不上真实买一/卖一（CASHCAT 实测差 1bp）。
+                    _st_now = self.states.get(s)
+                    _has_pos_now = _st_now is not None and \
+                        abs(float(getattr(_st_now, "qty", 0.0) or 0.0)) > 1e-12
+                    _fb_pre = self._fresh_book_for(s, force=_has_pos_now)
                     _ob = None
                     if (_seg_src_head == "tick" and _fb_pre is not None
                             and _fb_pre[0] > 0 and _fb_pre[1] > _fb_pre[0]):
@@ -5986,6 +6233,108 @@ class ShadowRunner:
                     }
         return out
 
+    def _bump_day_leg(self, net_bp: float, net_usd: float) -> None:
+        """[2026-10-10] 今日腿级统计累加（北京自然日切分）。"""
+        try:
+            _now = datetime.now().astimezone().strftime("%Y-%m-%d")
+        except Exception:  # noqa: BLE001
+            _now = ""
+        if self._day_leg_date != _now:
+            self._day_leg_date = _now
+            self._day_leg = {"n": 0.0, "wins": 0.0, "pnl_usd": 0.0,
+                             "win_bp_sum": 0.0, "loss_bp_sum": 0.0,
+                             "win_n": 0.0, "loss_n": 0.0}
+        d = self._day_leg
+        d["n"] += 1.0
+        d["pnl_usd"] += float(net_usd or 0.0)
+        if net_bp > 0:
+            d["wins"] += 1.0
+            d["win_n"] += 1.0
+            d["win_bp_sum"] += float(net_bp or 0.0)
+        else:
+            d["loss_n"] += 1.0
+            d["loss_bp_sum"] += float(net_bp or 0.0)
+
+    def _seed_day_leg_stats(self) -> None:
+        """[2026-10-10] 进程重启后从 lane_ledger 一次性播种今日腿级统计。
+        失败静默（保持 0 起步，不阻断交易）。
+
+        ⚠️ 用 psycopg 直连（读 .env 的 DATABASE_URL）：worker 进程里
+        SQLAlchemy SessionLocal 的租户上下文与 lane_ledger 的 RLS 不匹配时
+        会静默读到 0 行（实测播种后 n=1 只有重启后的新腿），直连走属主角色
+        不受 RLS 影响，与记分板/学习表脚本同口径。
+        """
+        if self._day_leg_seeded:
+            return
+        self._day_leg_seeded = True
+        row = None
+        try:
+            import psycopg as _pg
+            from pathlib import Path as _Path
+            _dsn = ""
+            _envf = _Path(__file__).resolve().parents[3] / ".env"
+            try:
+                for _line in _envf.read_text(encoding="utf-8",
+                                              errors="replace").splitlines():
+                    _line = _line.strip()
+                    if _line.startswith("DATABASE_URL="):
+                        _dsn = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+            for _j in ("+psycopg2", "+psycopg", "+asyncpg"):
+                _dsn = _dsn.replace(_j, "")
+            if _dsn:
+                with _pg.connect(_dsn, autocommit=True) as _c, _c.cursor() as _cur:
+                    _cur.execute(_SEED_SQL.replace(":l", "%s"), (self.lane_id,))
+                    row = _cur.fetchone()
+        except Exception:  # noqa: BLE001  （.runtime 解释器可能没有 psycopg ⇒ 走回退）
+            row = None
+        if row is None:
+            # 回退：bare SessionLocal（无 system_identity 包裹，与 psycopg 同环境；
+            # 实测两者都返回真实行数）
+            try:
+                from sqlalchemy import text as _sa_text
+                from backend.database.connection import SessionLocal
+                with SessionLocal() as _db:
+                    row = _db.execute(_sa_text(_SEED_SQL), {"l": self.lane_id}).first()
+            except Exception as _e2:  # noqa: BLE001
+                logger.warning("[2026-10-10] 今日腿级统计播种失败(回退): %s", _e2)
+                return
+        if not row:
+            return
+        d = self._day_leg
+        d["n"] += float(row[0] or 0.0)
+        d["wins"] += float(row[1] or 0.0)
+        d["pnl_usd"] += float(row[2] or 0.0)
+        d["win_bp_sum"] += float(row[3] or 0.0) * float(row[5] or 0.0)
+        d["loss_bp_sum"] += float(row[4] or 0.0) * float(row[6] or 0.0)
+        d["win_n"] += float(row[5] or 0.0)
+        d["loss_n"] += float(row[6] or 0.0)
+        # ⚠️ 关键：写日期戳，否则下一条成交 _bump_day_leg 会按
+        # 「日期变了」把播种结果整表清零(实测重启后 n=1 就是这么来的)
+        try:
+            self._day_leg_date = datetime.now().astimezone().strftime("%Y-%m-%d")
+        except Exception:  # noqa: BLE001
+            self._day_leg_date = "seeded"
+
+    def today_leg_stats(self) -> Dict[str, Any]:
+        """[2026-10-10] 页面 1s 心跳数据源：今日腿级统计（与 /hft/hero 同口径）。"""
+        self._seed_day_leg_stats()
+        d = self._day_leg
+        n = int(d.get("n") or 0.0)
+        wins = int(d.get("wins") or 0.0)
+        return {
+            "n": n,
+            "wins": wins,
+            "pnl_usd": round(float(d.get("pnl_usd") or 0.0), 4),
+            "win_rate": round(wins / n, 4) if n else None,
+            "avg_win_bp": round(float(d.get("win_bp_sum") or 0.0)
+                                / max(1, int(d.get("win_n") or 0.0)), 3),
+            "avg_loss_bp": round(float(d.get("loss_bp_sum") or 0.0)
+                                 / max(1, int(d.get("loss_n") or 0.0)), 3),
+        }
+
     def _record_fills(self, decision: TickDecision) -> None:
         """把本 tick 判定成交的腿写入：① 六维账本（车道级）；② 统一模拟账户总账。
         两本账的分工：
@@ -6074,10 +6423,15 @@ class ShadowRunner:
                                          f"崩盘熔断:{_csym} {price_bp:.0f}bp ⇒ 30 分钟只减不加")
                     except Exception:
                         pass
-                lane_ledger.record_fill(
-                    lane_id=self.lane_id, symbol=f.symbol, side=f.side, qty=f.qty,
-                    fill_px=f.px, mid_px=f.mid, fee_rate=fee_rate,
-                    price_bp=price_bp,
+                # [2026-10-10 审查修复] 逐腿记账隔离：此前整个批次共用一个大 try，
+                # 一条腿的 record_fill 抛异常 ⇒ 同批其余腿全部丢失（实测 10:52 ETH
+                # 进场腿状态里已成交、账本里不存在，只剩 10:55 的平仓腿）。
+                # 现在单腿失败只丢该腿本身 + 响亮告警，绝不牵连同批其它腿。
+                try:
+                    lane_ledger.record_fill(
+                        lane_id=self.lane_id, symbol=f.symbol, side=f.side, qty=f.qty,
+                        fill_px=f.px, mid_px=f.mid, fee_rate=fee_rate,
+                        price_bp=price_bp,
                     # [F279 2026-09-16] 库存周期 id：让开仓腿与平仓腿可配对。
                     # 此前恒为 NULL（实测 5255/5255），往返级归因做不了。
                     position_id=(f.position_id or None),
@@ -6151,9 +6505,24 @@ class ShadowRunner:
                           "judge_ts": round(float(getattr(f, "judge_ts", 0.0) or 0.0), 3),
                           "win_lo_ms": int(getattr(f, "win_lo_ms", 0) or 0),
                           "win_hi_ms": int(getattr(f, "win_hi_ms", 0) or 0)},
-                )
-                self._persist_fill_basis(f, fee_rate=fee_rate)
-                self._record_account_fill(f, fee_rate=fee_rate)
+                    )
+                    self._persist_fill_basis(f, fee_rate=fee_rate)
+                    self._record_account_fill(f, fee_rate=fee_rate)
+                except Exception as _fe:  # noqa: BLE001
+                    self.last_error = f"record_fills[{f.symbol}]: {_fe}"
+                    logger.warning("[F60] 单腿记账失败(已隔离,继续其余腿) %s: %s",
+                                   f.symbol, _fe)
+                    continue
+                # ── [2026-10-10 页面 1s 刷新] 今日腿级统计就地累加 ──────────
+                # 口径与 /hft/hero 的 SQL 完全一致：net_bp = 六维净额/名义×1e4。
+                try:
+                    _notional = abs(float(f.qty) * float(f.px))
+                    _net_usd = (float(f.spread_usd or 0.0) + float(f.price_usd or 0.0)
+                                + float(f.fee_usd or 0.0))
+                    _net_bp = (_net_usd / _notional * 1e4) if _notional > 0 else 0.0
+                    self._bump_day_leg(_net_bp, _net_usd)
+                except Exception:  # noqa: BLE001
+                    pass
         except Exception as e:
             self.last_error = f"record_fills: {e}"
             logger.warning("[F60] record_fill 失败: %s", e)
@@ -6948,6 +7317,16 @@ class ShadowRunner:
 
     def _trades_60s(self, symbol: str, hi_ms: int) -> int:
         """[2026-10-08] 近 60s 真实成交笔数(活币门槛)。死币(0 笔)不进候选。"""
+        return self._trades_window(symbol, hi_ms, 60)
+
+    def _trades_window(self, symbol: str, hi_ms: int, window_sec: float) -> int:
+        """[2026-10-10] 可调窗口的真实成交笔数。PP 活币筛用 300s(默认)：
+        60s 窗口在薄盘时段太苛刻——币隔一分钟没成交就被摘 ⇒ 槽位在 4~6 之间
+        反复振荡（实测早上 03:13 满 6 槽、03:17 又掉回 4）。回滚：MM_UNIVERSE_ALIVE_SEC=60。"""
+        return self._trades_window_vol(symbol, hi_ms, window_sec)[0]
+
+    def _trades_window_vol(self, symbol: str, hi_ms: int, window_sec: float) -> tuple:
+        """[2026-10-10] 返回 (成交笔数, 成交额 USD)。同一 SQL 同时给两个口径。"""
         try:
             now_ms = int(time.time() * 1000)
             _cache = getattr(self, "_trades_cache", None)
@@ -6962,16 +7341,18 @@ class ShadowRunner:
             with system_identity():
                 with MarketSessionLocal() as db:
                     row = db.execute(_t(
-                        "SELECT COUNT(*) AS n FROM asterdex_trades"
+                        "SELECT COUNT(*) AS n, COALESCE(SUM(price*qty),0) AS v"
+                        " FROM asterdex_trades"
                         " WHERE symbol=CONCAT(CAST(:s AS TEXT),'USDT')"
                         "   AND event_ts_ms > :lo AND event_ts_ms <= :hi"
-                    ), {"s": symbol, "lo": int(hi_ms) - 60_000,
+                    ), {"s": symbol, "lo": int(hi_ms) - int(window_sec * 1000),
                         "hi": int(hi_ms)}).mappings().first()
             n = int(row["n"] or 0) if row else 0
-            _cache[symbol] = (now_ms, n)
-            return n
+            v = float(row["v"] or 0.0) if row else 0.0
+            _cache[symbol] = (now_ms, (n, v))
+            return (n, v)
         except Exception:
-            return 0
+            return (0, 0.0)
 
     def _live_bridge(self):
         """[h665] 实盘执行桥:mix live 车道惰性初始化;纸面车道返回 None。"""
@@ -7658,6 +8039,7 @@ class ShadowRunner:
             "ticks": self.ticks, "fills": self.fills, "flattens": self.flattens,
             "maker_fee_bp": self.maker_fee_bp,
             "phase_ms": _ph,
+            "today_leg": self.today_leg_stats(),
             "quoting_symbols": sum(1 for d in decisions if d.get("action") == "quote"),
             "stale_symbols": [d["symbol"] for d in decisions
                               if str(d.get("skip") or "").startswith("stale_data")],
@@ -7840,6 +8222,8 @@ class ShadowRunner:
             "limits": {k: getattr(self.limits, k, None)
                        for k in getattr(self.limits, "__dataclass_fields__", {})},
             "account_equity": self._read_account_equity() if self.account_id else None,
+            # [2026-10-10 页面 1s 刷新] 今日腿级统计（/hft/hero 快路径数据源）
+            "today_leg": self.today_leg_stats(),
             "states": {s: st.to_dict() for s, st in self.states.items()},
             # [F92] 本进程产能：前端「现在跑多快」——时代速率会被早期故障期稀释
             "process_window_sec": round(

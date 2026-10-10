@@ -1,95 +1,95 @@
 {
-  "ts": 1791560159.15563,
+  "ts": 1791646490.2249572,
   "cost_bp": 6.0,
   "results": [
     {
-      "symbol": "US",
-      "hz_sec": 300,
+      "symbol": "PUMP",
+      "hz_sec": 900,
       "n_runs": 6,
-      "median_edge_bp": 35.36,
-      "min_edge_bp": 13.85,
-      "max_edge_bp": 49.96,
+      "median_edge_bp": 4.94,
+      "min_edge_bp": 1.87,
+      "max_edge_bp": 10.5,
       "positive_runs": 6
     },
     {
-      "symbol": "BTW",
+      "symbol": "MAGMA",
       "hz_sec": 900,
       "n_runs": 6,
-      "median_edge_bp": 7.85,
-      "min_edge_bp": -4.41,
-      "max_edge_bp": 7.96,
+      "median_edge_bp": 1.91,
+      "min_edge_bp": -0.84,
+      "max_edge_bp": 2.98,
+      "positive_runs": 4
+    },
+    {
+      "symbol": "SI",
+      "hz_sec": 300,
+      "n_runs": 6,
+      "median_edge_bp": 1.84,
+      "min_edge_bp": -1.28,
+      "max_edge_bp": 5.17,
       "positive_runs": 4
     },
     {
       "symbol": "SI",
       "hz_sec": 90,
       "n_runs": 6,
-      "median_edge_bp": -1.08,
-      "min_edge_bp": -1.88,
-      "max_edge_bp": 4.71,
-      "positive_runs": 2
+      "median_edge_bp": 1.28,
+      "min_edge_bp": 1.24,
+      "max_edge_bp": 2.41,
+      "positive_runs": 6
     },
     {
-      "symbol": "LYN",
-      "hz_sec": 900,
-      "n_runs": 6,
-      "median_edge_bp": -1.75,
-      "min_edge_bp": -3.8,
-      "max_edge_bp": 4.65,
-      "positive_runs": 2
-    },
-    {
-      "symbol": "SI",
+      "symbol": "US",
       "hz_sec": 300,
       "n_runs": 6,
-      "median_edge_bp": -3.56,
-      "min_edge_bp": -4.54,
-      "max_edge_bp": 8.96,
+      "median_edge_bp": -1.62,
+      "min_edge_bp": -27.09,
+      "max_edge_bp": 10.94,
       "positive_runs": 2
     },
     {
       "symbol": "BTW",
       "hz_sec": 300,
       "n_runs": 6,
-      "median_edge_bp": -4.64,
-      "min_edge_bp": -7.72,
-      "max_edge_bp": -2.4,
-      "positive_runs": 0
-    },
-    {
-      "symbol": "MOVR",
-      "hz_sec": 900,
-      "n_runs": 6,
-      "median_edge_bp": -5.01,
-      "min_edge_bp": -9.22,
-      "max_edge_bp": -2.78,
-      "positive_runs": 0
-    },
-    {
-      "symbol": "MAGMA",
-      "hz_sec": 900,
-      "n_runs": 6,
-      "median_edge_bp": -12.84,
-      "min_edge_bp": -16.15,
-      "max_edge_bp": -10.82,
+      "median_edge_bp": -5.56,
+      "min_edge_bp": -6.78,
+      "max_edge_bp": -5.02,
       "positive_runs": 0
     },
     {
       "symbol": "PLAY",
       "hz_sec": 900,
       "n_runs": 6,
-      "median_edge_bp": -13.01,
-      "min_edge_bp": -14.85,
-      "max_edge_bp": -11.14,
+      "median_edge_bp": -6.75,
+      "min_edge_bp": -7.08,
+      "max_edge_bp": -1.59,
       "positive_runs": 0
     },
     {
-      "symbol": "PUMP",
+      "symbol": "BTW",
       "hz_sec": 900,
       "n_runs": 6,
-      "median_edge_bp": -18.22,
-      "min_edge_bp": -23.01,
-      "max_edge_bp": -13.18,
+      "median_edge_bp": -7.89,
+      "min_edge_bp": -11.23,
+      "max_edge_bp": -1.01,
+      "positive_runs": 0
+    },
+    {
+      "symbol": "LYN",
+      "hz_sec": 900,
+      "n_runs": 6,
+      "median_edge_bp": -8.26,
+      "min_edge_bp": -13.33,
+      "max_edge_bp": -5.66,
+      "positive_runs": 0
+    },
+    {
+      "symbol": "MOVR",
+      "hz_sec": 900,
+      "n_runs": 6,
+      "median_edge_bp": -9.6,
+      "min_edge_bp": -20.66,
+      "max_edge_bp": -6.53,
       "positive_runs": 0
     }
   ]

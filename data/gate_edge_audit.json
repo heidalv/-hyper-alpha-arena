@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-10-09T01:07:53.519210+00:00",
+  "generated_at": "2026-10-10T01:07:53.232131+00:00",
   "start": "2026-07-01",
-  "n": 16,
+  "n": 18,
   "cells": {
     "2026-10|long|block": {
-      "n": 15,
-      "usd": -14.75,
-      "mean_pct": -3.3723,
+      "n": 16,
+      "usd": -15.0,
+      "mean_pct": -3.1981,
       "win_rate": 0.0,
       "big_loss_n": 7,
       "pattern_n": 7,
       "pattern_usd": -10.79,
-      "pattern_rate": 0.4667
+      "pattern_rate": 0.4375
     },
     "2026-10|mid|block": {
-      "n": 1,
-      "usd": 4.19,
-      "mean_pct": 5.6873,
-      "win_rate": 1.0,
-      "big_loss_n": 0,
+      "n": 2,
+      "usd": 2.27,
+      "mean_pct": 1.5326,
+      "win_rate": 0.5,
+      "big_loss_n": 1,
       "pattern_n": 0,
       "pattern_usd": 0.0,
       "pattern_rate": 0.0

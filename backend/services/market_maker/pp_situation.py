@@ -48,7 +48,14 @@ def breakeven_win_rate(avg_win_bp: float, avg_loss_bp: float) -> float:
 
 
 def bucket_negative(row: Optional[Dict[str, Any]], min_n: float = 20.0) -> bool:
-    """单桶证据判定：样本够且该桶为负 ⇒ True（该侧休息）。"""
+    """单桶证据判定：样本够且该桶**明显为负** ⇒ True（该侧休息）。
+
+    [2026-10-10 夜盘腿速修复] 判据加边际（防"临界负"一刀切）：
+    ETH 实测桶 wr 47.2% vs 打平线 49.9%、赚 2.69 vs 亏 2.68（差 0.01bp）——
+    严格判据把它封死 ⇒ BTC/ETH 夜盘默认状态桶被封 ⇒ 一晚少 65% 腿。
+    现在只有「胜率低出打平线 ≥5pp **或** 亏比赚大 ≥10%」才封锁：
+    ETH 桶解锁(继续提供腿数),BTC 桶(35%/41% 胜率)照封。
+    回滚:MM_PP_BUCKET_WIN_MARGIN=0 / MM_PP_BUCKET_LOSS_MARGIN=0。"""
     if not isinstance(row, dict):
         return False
     try:
@@ -65,9 +72,15 @@ def bucket_negative(row: Optional[Dict[str, Any]], min_n: float = 20.0) -> bool:
         return False
     if avg_win <= 0 and abs(avg_loss) <= 0:
         return False
-    if win_rate + 1e-9 < breakeven_win_rate(avg_win, avg_loss):
+    import os as _os
+    try:
+        _wm = float(_os.getenv("MM_PP_BUCKET_WIN_MARGIN", "0.05") or 0.05)
+        _lm = float(_os.getenv("MM_PP_BUCKET_LOSS_MARGIN", "0.10") or 0.10)
+    except (TypeError, ValueError):
+        _wm, _lm = 0.05, 0.10
+    if win_rate + _wm < breakeven_win_rate(avg_win, avg_loss):
         return True
-    return avg_win <= abs(avg_loss)
+    return avg_win * (1.0 + _lm) <= abs(avg_loss)
 
 
 def load_doc(root) -> Optional[Dict[str, Any]]:

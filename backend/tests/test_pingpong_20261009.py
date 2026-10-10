@@ -166,10 +166,53 @@ def test_queue_then_entry_then_reverse_exit_same_qty(monkeypatch):
     assert st.pp_rest_until == pytest.approx(1030.0 + 15.0)
 
 
+def test_sweep_through_fills_immediately_no_queue_wait(monkeypatch):
+    """[2026-10-10 腿速修复] 价格**打穿**挂单价 ⇒ 立即成交，不等队列吃完。
+    此前 10 分钟一腿的原因：一律要求 cum > 整个前档，而撤单重挂会把队列
+    进度清零 ⇒ 几乎永远不满足。真实盘口里打穿 = 该档队列已被全部吃掉。"""
+    st = SymbolState(symbol="BTC")
+    book = _book(st)
+    _call(st, bid=100.0, ask=100.1, now_ts=1000.0, book=book,
+          bid_qty=10, ask_qty=8)
+    assert st.pp_ahead_bid == 10.0, "前档 10 已挂上（等待队列）"
+    # 打穿：seg_low=99.7 < 挂单价 99.9，主动卖量只有 3（远小于前档 10）
+    dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=1010.0, book=book,
+                          bid_qty=10, ask_qty=8,
+                          seg_low=99.7, seg_high=99.8, seg_sell=3, seg_buy=0,
+                          vol_at_bid=3)
+    assert st.qty > 0, "打穿必须立即成交，哪怕只成交 3 手"
+    assert dec.exit_path == "pp_entry"
+
+
+def test_deep_sweep_cancels_entry_not_catch_falling_knife(monkeypatch):
+    """[2026-10-10 下午打平修复] 深打穿(>2 tick)是趋势冲击 = 接飞刀 ⇒ 撤单
+    不接；浅打穿(≤2 tick)照常立即成交。"""
+    st = SymbolState(symbol="BTC")
+    book = _book(st)
+    _call(st, bid=100.0, ask=100.1, now_ts=1000.0, book=book,
+          bid_qty=10, ask_qty=8)
+    # 深打穿：挂单 99.9，seg_low=99.5（4 个 tick 之下）
+    dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=1010.0, book=book,
+                          bid_qty=10, ask_qty=8,
+                          seg_low=99.5, seg_high=99.9, seg_sell=5, seg_buy=0,
+                          vol_at_bid=5)
+    assert st.qty == 0, "深打穿不接飞刀"
+    assert dec.fills == []
+    assert "deep_sweep" in str(dec.skip)
+    # 浅打穿：seg_low=99.7（2 个 tick 之下）⇒ 照常成交
+    dec2, book, st = _call(st, bid=100.0, ask=100.1, now_ts=1020.0, book=book,
+                           bid_qty=10, ask_qty=8,
+                           seg_low=99.7, seg_high=99.9, seg_sell=5, seg_buy=0,
+                           vol_at_bid=5)
+    assert st.qty > 0 and dec2.exit_path == "pp_entry"
+
+
 def test_exit_quote_never_cancelled_and_no_time_taker(monkeypatch):
     """离场单不因薄量/价格变化被撤；持仓再老也没有时间性吃单。"""
+    # [2026-10-10] opened_ts 改 950(持仓 50s < 480s 贴价阈值)：
+    # 本用例契约是「**年轻**仓位挂后一档」；老仓贴价由专测覆盖。
     st = SymbolState(symbol="BTC", qty=50.0, avg_px=100.0,
-                     opened_ts=500.0, opened_ts_true=500.0)
+                     opened_ts=950.0, opened_ts_true=950.0)
     book = _book(st)
     dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=1000.0, book=book)
     assert st.qty > 0 and dec.fills == []
@@ -181,8 +224,45 @@ def test_exit_quote_never_cancelled_and_no_time_taker(monkeypatch):
                            book=book, bid_qty=0, ask_qty=0)
     assert st.qty > 0 and dec2.fills == []
     assert dec2.ask == pytest.approx(100.2)
-    # 持仓已 500s（> 8 分钟）：健康盘口下仍是挂单离场，没有任何时间强平
+    # 持仓已 60s：健康盘口下仍是挂单离场，没有任何时间强平
     assert dec2.exit_path == "pp_exit"
+
+
+def test_old_position_exit_tightens_to_touch(monkeypatch):
+    """[2026-10-10] 老仓位(≥480s 且 <900s)平仓单前移到贴价（卖一/买一），
+    仍 maker。消灭"20 分钟干等不平静"的仓；900s 以上才吃单(专测覆盖)。"""
+    # 用 epoch 级时间戳（贴价判断里有 >1e9 的真实时间戳守卫）
+    t0 = 1_700_000_000.0
+    st = SymbolState(symbol="BTC", qty=50.0, avg_px=100.0,
+                     opened_ts=t0 - 600.0, opened_ts_true=t0 - 600.0)
+    book = _book(st)
+    dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=t0, book=book)
+    assert st.qty > 0
+    assert dec.ask == pytest.approx(100.1), "老仓平仓单前移到卖一（贴价）"
+    assert dec.fills == [], "贴价 ≠ 吃单：仍挂单等成交"
+
+
+def test_timeout_taker_after_cap(monkeypatch):
+    """[2026-10-10 用户三次反馈] 贴价也出不去的仓 ≥900s ⇒ 吃单平仓。"""
+    t0 = 1_700_000_000.0
+    st = SymbolState(symbol="BTC", qty=50.0, avg_px=100.0,
+                     opened_ts=t0 - 1000.0, opened_ts_true=t0 - 1000.0)
+    book = _book(st)
+    dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=t0, book=book)
+    assert st.qty == 0
+    assert dec.exit_path == "taker_timeout"
+    assert dec.fills[-1].fee_usd < 0, "吃单必须计费"
+
+
+def test_young_position_stays_maker(monkeypatch):
+    """900s 内不吃单（哪怕已贴价）。"""
+    t0 = 1_700_000_000.0
+    st = SymbolState(symbol="BTC", qty=50.0, avg_px=100.0,
+                     opened_ts=t0 - 800.0, opened_ts_true=t0 - 800.0)
+    book = _book(st)
+    dec, book, st = _call(st, bid=100.0, ask=100.1, now_ts=t0, book=book)
+    assert st.qty > 0 and dec.fills == []
+    assert dec.exit_path == "pp_exit"
 
 
 def test_no_same_side_add_while_in_position(monkeypatch):

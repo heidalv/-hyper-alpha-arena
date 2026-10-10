@@ -75,6 +75,46 @@ export default function HftLivePage() {
   const [error, setError] = useState("");
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // [2026-10-10] 实盘凭证自助配置（只存本机、不回显）
+  const [credVals, setCredVals] = useState<Record<string, string>>({});
+  const [credCfg, setCredCfg] = useState<Record<string, boolean> | null>(null);
+  const [credBusy, setCredBusy] = useState(false);
+
+  const CRED_FIELDS = [
+    { key: "v3_user", label: "V3 User", ph: "ASTERDEX_V3_USER" },
+    { key: "v3_signer", label: "V3 Signer", ph: "ASTERDEX_V3_SIGNER" },
+    { key: "v3_private_key", label: "V3 Private Key", ph: "ASTERDEX_V3_PRIVATE_KEY" },
+    { key: "api_key", label: "旧式 API Key", ph: "ASTERDEX_API_KEY" },
+    { key: "api_secret", label: "旧式 API Secret", ph: "ASTERDEX_API_SECRET" },
+  ] as const;
+
+  const refreshCreds = useCallback(async () => {
+    try {
+      const c = await hftApi.liveCredentials();
+      setCredCfg(c.configured ?? null);
+    } catch {
+      /* 失败保持上次状态 */
+    }
+  }, []);
+
+  const saveCreds = useCallback(async () => {
+    setCredBusy(true);
+    setMsg(null);
+    try {
+      const r = await hftApi.liveCredentialsSave(credVals);
+      setCredCfg(r.configured ?? credCfg);
+      setCredVals({});
+      setMsg({ text: "凭证已保存到本机(空字段未改动,重启后的进程也会读到)", err: false });
+    } catch (e: any) {
+      setMsg({ text: e?.message ?? String(e), err: true });
+    } finally {
+      setCredBusy(false);
+    }
+  }, [credVals, credCfg]);
+
+  useEffect(() => {
+    void refreshCreds();
+  }, [refreshCreds]);
 
   const refresh = useCallback(async () => {
     try {
@@ -184,10 +224,71 @@ export default function HftLivePage() {
       {!status?.keys_configured && (
         <div className="flex items-center gap-2 text-xs px-3 py-2 rounded bg-warning/10 text-warning border border-warning/20">
           <KeyRound className="w-3.5 h-3.5" />
-          未配置 Asterdex API Key(环境变量 ASTERDEX_V3_USER/SIGNER/PRIVATE_KEY,或旧式
-          ASTERDEX_API_KEY/SECRET)。下单与启动均被禁止;页面其余部分照常显示。
+          未配置 Asterdex API Key(V3 或旧式均可)。在下方的凭证卡里自助配置即可,无需重启;
+          下单与启动在配置完成前被禁止,页面其余部分照常显示。
         </div>
       )}
+
+      {/* [2026-10-10] 实盘凭证自助配置:随时调换、不经人手、只存本机、绝不回显 */}
+      <Card className="glass p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <KeyRound className="h-4 w-4 text-warning" />
+            实盘凭证(自助配置)
+          </h2>
+          <span className="text-[11px] text-muted-foreground">
+            只存本机 · 永不回显 · 空 = 不改 · 填 __CLEAR__ = 清除该项
+            {credCfg && (
+              <span className="ml-2 font-mono">
+                {credCfg.v3_user && credCfg.v3_signer && credCfg.v3_private_key
+                  ? " V3 ✓" : " V3 ✗"}
+                {" / "}
+                {credCfg.api_key && credCfg.api_secret ? "旧式 ✓" : "旧式 ✗"}
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {CRED_FIELDS.map((f) => (
+            <label key={f.key} className="flex flex-col gap-1">
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span
+                  className={cn(
+                    "inline-block h-1.5 w-1.5 rounded-full",
+                    credCfg?.[f.key] ? "bg-profit" : "bg-muted"
+                  )}
+                />
+                {f.label}
+              </span>
+              <input
+                type="password"
+                autoComplete="off"
+                placeholder={f.ph}
+                value={credVals[f.key] ?? ""}
+                onChange={(e) =>
+                  setCredVals((v) => ({ ...v, [f.key]: e.target.value }))
+                }
+                className="rounded border border-border/50 bg-background/50 px-2 py-1.5 font-mono text-xs focus:outline-none focus:border-warning/60"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={credBusy}
+            onClick={() => void saveCreds()}
+          >
+            {credBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+            保存凭证
+          </Button>
+          <span className="text-[11px] text-muted-foreground">
+            V3 三件套(user/signer/private key)与旧式 Key 二选一即可;凭证写入
+            data/live_credentials.json 与 .env(均已 gitignore,不上传)。
+          </span>
+        </div>
+      </Card>
 
       {msg && (
         <div

@@ -1,7 +1,7 @@
 {
   "task": "trend_chart_review",
   "symbol": "BTC",
-  "ts_ms": 1791553998418,
+  "ts_ms": 1791624293140,
   "accepted": true,
   "status": "ok",
   "consensus_score": 0.35,
@@ -9,48 +9,42 @@
     "direction": "neutral",
     "strength": 4,
     "confidence": 0.35,
-    "structure": "1w 自90期高点回撤34.2%后于区间下沿反弹，重心仍偏下；1d 在90期区间83%高位横盘、EMA9/21 走平粘合；4h 自高位回落、EMA9<EMA21<EMA50 空头排列，处于下跌后的低位窄幅整理",
-    "timeframe_alignment": "1w 偏多（EMA9/21/50 多头排列、RSI14 73.6 偏高、趋势标签 bullish）与 4h 偏空（EMA 空头排列、MACD柱为负、RSI14 31.6）明显背离；1d 居中（价格贴近 EMA9/21、RSI14 45.7、ADX14 33.9 但 regime=ranging）。三周期未形成同向共振，属大周期多头结构内的小周期回调",
+    "structure": "1w 自90期高点回撤34.4%后于区间下半部（位置37%）反弹，EMA9/21 上方但摆动结构 HL→HH→LL→LH→HL 显示动能钝化；1d 处于90期区间高位（82%）但连续两日小阳、量能极度萎缩（量z=-2.0），重心自高点小幅下移；4h 在区间低位（35%）横盘，EMA9 微上穿、EMA21/50 仍压制，MACD柱为负，属下跌后的弱整理。",
+    "timeframe_alignment": "三周期方向背离：1w 偏多（EMA9/21/50 上方、趋势标签 bullish），1d 中性偏弱（价格夹在 EMA9/21 下方、EMA50/200 上方，RSI 43-51），4h 偏空（EMA 趋势 bearish、MACD柱 -1981、摆动结构 LH→HL→LH→LL→LH 持续走低）。大周期多头结构未破，但中短周期处于回调整理，未形成共振。",
     "key_levels": [
       {
-        "level": 80344.8,
+        "level": 82273.9,
         "type": "support",
-        "note": "24h 低点，也是 4h 近期下探低点区域，跌破则 4h 空头结构延续"
-      },
-      {
-        "level": 82481.9,
-        "type": "support",
-        "note": "4h 最新收盘，短线多空分水岭，1h EMA 趋势仍为 bullish 的依托位"
-      },
-      {
-        "level": 83040.3,
-        "type": "resistance",
-        "note": "1d 最新收盘，同时贴近 1d EMA9/EMA21，收复并站稳才解除日线走平偏弱"
+        "note": "24h 低点，4h 横盘下沿，跌破则短周期弱势确认"
       },
       {
         "level": 83499.9,
         "type": "resistance",
-        "note": "24h 高点，突破后 4h 空头排列才有被破坏的可能"
+        "note": "24h 高点，1d 反弹上沿，需放量收复才谈得上转强"
+      },
+      {
+        "level": 82842.7,
+        "type": "support",
+        "note": "1d 收盘价与 1w EMA9 附近（+4.46%），多空分水参考位"
       }
     ],
-    "invalidation": "若 4h 收盘有效跌破 80344.8（24h 低点）并伴随放量，则「大周期多头内的小周期回调」判断作废，转为多周期共振下行；反之若 1d 放量收复 83499.9 且 4h EMA9 上穿 EMA21，则偏空的小周期结构作废",
+    "invalidation": "若 1d 收盘有效跌破 82273.9（24h 低点）且伴随量能放大，则 1w 多头结构转弱、本中性偏多判断作废；反之若 1d 放量站稳 83499.9 上方并收复 EMA9/21，则短周期偏空判断作废。",
     "position_advice": "hold",
     "key_factors": [
-      "1w 趋势标签 bullish、价格在 EMA9/21/50 之上，但 RSI14 73.6 偏高、90期区间位置仅 37%、距90期高点 -34.2%，属深度回撤后的修复而非新高趋势",
-      "1d 价格贴住 EMA9(-0.94%)/EMA21(-0.17%)、RSI14 45.7、连阳仅1根、量z=-1.1，方向不明且缩量",
-      "4h EMA 空头排列、MACD柱 -2598.7、RSI14 31.6、摆动结构 HL→LH→HL→LH→LL 逐级走低，短线偏弱",
-      "资金费多空分歧（hyperliquid +0.0058%/8h、bybit +0.0041% 对 gateio -0.004%、asterdex -0.0006%），无一致性拥挤",
-      "24h 多头爆仓 4087.6 万美元远高于空头 1122.5 万美元，OI 24h -4.11%，杠杆在去化",
-      "账户已持 trend_e1:BTC 多头（notional 48、lev 5、upnl +0.92%、距止损 7.35%），且该策略近14日 long 档 n=15、win_rate 0、net -15.22，历史边际为负",
-      "高影响新闻 24h 内 2 条全为负面（Ledger 盗币事件），情绪面偏空扰动",
-      "trend_chart_review 信号源历史 hit_rate 0.30、avg_ret -159bp，本类判断本身可信度偏低"
+      "1w 趋势标签 bullish、价格在 EMA9/21/50 上方，但 90期区间位置仅 37%、自高点回撤 34.4%，属反弹而非新高",
+      "1d 量 z=-2.0 极度缩量、连阳 2 但涨幅仅 0.35%，量价配合不佳，上攻缺乏承接",
+      "4h EMA 趋势 bearish、MACD柱为负、摆动结构持续 LH，短周期仍处下行通道",
+      "资金费多空分化（binance/bybit/gateio 为负、hyperliquid/okx 为正），无一致方向性押注",
+      "持仓结构 global_ls=1.538、top_pos_ls=1.56，多头拥挤度偏高，上行易受获利了结压制",
+      "regime=ranging、confidence=0.3，市场处于震荡状态，趋势信号可信度低",
+      "账户已有 BTC 多头持仓（upnl +1.12%、距止损 7.54%），无新增信号支持加仓"
     ],
-    "summary": "BTC 处于「1w 多头结构内的深度回撤修复 + 1d 高位横盘 + 4h 短线走弱」的分歧格局：1w 均线多头但 RSI 偏高、区间位置仅 37%，1d 缩量贴均线方向不明，4h 空头排列且摆动低点逐级下移，三周期未共振，故给 neutral、strength 4、confidence 0.35。关键位以 context pack 为准：下方 82481.9 / 80344.8，上方 83040.3 / 83499.9。资金费多空分歧、多头爆仓占优、OI 下降，说明杠杆去化而非单边拥挤。操作上建议 hold：已有 BTC 多头可继续持有但不宜加仓，未持仓者不新开多也不新开空，等 4h 收复 83499.9 或失守 80344.8 再定方向。风险提示：trend_chart_review 信号源历史 hit_rate 仅 0.30、avg_ret -159bp，本判断可信度有限；若图片未实际提供，则图形结构层为数据不足，仅依据数值数据推断。"
+    "summary": "BTC 三周期未共振：1w 多头结构尚存但处区间下半部反弹，1d 高位缩量滞涨、量价背离，4h 弱势横盘且 EMA/MACD 偏空。context pack 显示 regime=ranging、confidence 仅 0.3，方向性优势不足，故给中性判断、强度 4、置信度 0.35。关键位取 pack 数据：支撑 82273.9（24h 低）、阻力 83499.9（24h 高）。已有 BTC 多头仓位建议 hold 不加仓；跌破 82273.9 放量则转空、站稳 83499.9 放量则转多。注：4h/1h 部分指标（如 4h MACD柱在 pack 与深度数据间存在口径差异）以 pack 文本为准，图仅用于结构判断，未读取图上数值。"
   },
   "charts": [
-    "BTC 1w (bars=130, last_close=83,042.6)",
-    "BTC 1d (bars=230, last_close=83,040.3)",
-    "BTC 4h (bars=110, last_close=82,481.9)"
+    "BTC 1w (bars=130, last_close=82,842.7)",
+    "BTC 1d (bars=230, last_close=82,842.7)",
+    "BTC 4h (bars=110, last_close=82,741.1)"
   ],
   "notes": [
     "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.35 ≥ 门槛 0.0 → accepted；**无第二方验证**"

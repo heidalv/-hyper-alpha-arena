@@ -20,6 +20,57 @@ import {
 const CLIENT_VERSION = process.env.NEXT_PUBLIC_VERSION || "0.0.0";
 const REFRESH_TIMEOUT_MS = 12_000;
 
+/**
+ * 后台轮询最多同时占 2 个连接。
+ * 浏览器对同一主机大约只给 6 个连接。高频页以前每 2 秒发出好几条要 3~7 秒才回来的请求，
+ * 连接被占满后，切到别的页面的数据只能在后面排队，体感大约 8 秒。
+ * 页面自己发起的请求不走这条限制，可以插到轮询前面。
+ */
+const MAX_POLL_INFLIGHT = 2;
+let pollInflight = 0;
+const pollWaiters: Array<() => void> = [];
+let currentPollSignal: AbortSignal | null = null;
+
+export function bindPollSignal<T>(signal: AbortSignal, fn: () => T | Promise<T>): Promise<T> {
+  const prev = currentPollSignal;
+  currentPollSignal = signal;
+  try {
+    return Promise.resolve(fn());
+  } finally {
+    currentPollSignal = prev;
+  }
+}
+
+function acquirePollSlot(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+  }
+  if (pollInflight < MAX_POLL_INFLIGHT) {
+    pollInflight += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const grant = () => {
+      signal.removeEventListener("abort", onAbort);
+      pollInflight += 1;
+      resolve();
+    };
+    const onAbort = () => {
+      const i = pollWaiters.indexOf(grant);
+      if (i >= 0) pollWaiters.splice(i, 1);
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    pollWaiters.push(grant);
+  });
+}
+
+function releasePollSlot(): void {
+  pollInflight = Math.max(0, pollInflight - 1);
+  const next = pollWaiters.shift();
+  if (next) next();
+}
+
 export const AUTH_REFRESHED_EVENT = "arena-auth-refreshed";
 export const AUTH_DEGRADED_EVENT = "arena-auth-degraded";
 
@@ -125,6 +176,7 @@ export async function apiRequest<T = any>(
   const url = `${apiBase()}${endpoint}`;
   const timeout = options?.timeout ?? 30000;
   const skipAuth = options?.skipAuth || isAuthWhitelisted(endpoint);
+  const pollSignal = currentPollSignal;
 
   const buildHeaders = (token: string | null): HeadersInit => {
     const headers: Record<string, string> = {
@@ -141,6 +193,8 @@ export async function apiRequest<T = any>(
   const doFetch = async (token: string | null, ms: number): Promise<Response> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
+    const onPollAbort = () => controller.abort();
+    pollSignal?.addEventListener("abort", onPollAbort, { once: true });
     try {
       return await fetch(url, {
         ...options,
@@ -160,6 +214,7 @@ export async function apiRequest<T = any>(
       // 而本函数默认 timeout 只有 90s ⇒ 必然 abort。
       // 调用方（`useHftResource`）只做 `e.message` 透传，所以漏到了界面上。
       if (e instanceof DOMException && e.name === "AbortError") {
+        if (pollSignal?.aborted) throw e;
         throw new ApiError(
           0,
           `请求超时（${Math.round(ms / 1000)}s）— 该接口较慢，稍后会自动重试`
@@ -168,12 +223,19 @@ export async function apiRequest<T = any>(
       throw e;
     } finally {
       clearTimeout(timer);
+      pollSignal?.removeEventListener("abort", onPollAbort);
     }
   };
 
-  if (!skipAuth) {
-    await ensureFreshAccessToken();
-  }
+  let pollSlotHeld = false;
+  try {
+    if (pollSignal) {
+      await acquirePollSlot(pollSignal);
+      pollSlotHeld = true;
+    }
+    if (!skipAuth) {
+      await ensureFreshAccessToken();
+    }
 
   let resp = await doFetch(getAccessToken(), timeout);
 
@@ -208,6 +270,9 @@ export async function apiRequest<T = any>(
   }
 
   return resp.json() as Promise<T>;
+  } finally {
+    if (pollSlotHeld) releasePollSlot();
+  }
 }
 
 /**
@@ -222,10 +287,18 @@ export async function fetchPublic<T = any>(
   endpoint: string,
   init?: RequestInit & { timeout?: number }
 ): Promise<T> {
+  const pollSignal = currentPollSignal;
   const { timeout, ...rest } = init ?? {};
+  let pollSlotHeld = false;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout ?? 15000);
+  const onPollAbort = () => ctrl.abort();
+  pollSignal?.addEventListener("abort", onPollAbort, { once: true });
   try {
+    if (pollSignal) {
+      await acquirePollSlot(pollSignal);
+      pollSlotHeld = true;
+    }
     const resp = await fetch(`${apiBase()}${endpoint}`, {
       ...rest,
       signal: ctrl.signal,
@@ -234,6 +307,8 @@ export async function fetchPublic<T = any>(
     return (await resp.json()) as T;
   } finally {
     clearTimeout(timer);
+    pollSignal?.removeEventListener("abort", onPollAbort);
+    if (pollSlotHeld) releasePollSlot();
   }
 }
 

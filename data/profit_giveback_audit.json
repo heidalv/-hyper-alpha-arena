@@ -21,10 +21,10 @@
       }
     },
     "mid": {
-      "n": 1,
-      "usd": 4.19,
-      "win_rate": 1.0,
-      "big_loss_n": 0,
+      "n": 2,
+      "usd": 2.27,
+      "win_rate": 0.5,
+      "big_loss_n": 1,
       "pattern_n": 0,
       "pattern_usd": 0.0,
       "pattern_rate": 0.0,
@@ -32,8 +32,8 @@
       "median_giveback_pct": null,
       "gate_split": {
         "block": {
-          "n": 1,
-          "usd": 4.19,
+          "n": 2,
+          "usd": 2.27,
           "pattern_n": 0,
           "pattern_rate": 0.0,
           "pattern_usd": 0
@@ -82,13 +82,13 @@
   ],
   "gate": {
     "block": {
-      "n": 17,
-      "usd": -10.81,
-      "win_rate": 0.059,
+      "n": 18,
+      "usd": -12.73,
+      "win_rate": 0.056,
       "pattern_n": 7,
-      "pattern_rate": 0.412,
+      "pattern_rate": 0.389,
       "pattern_usd": -10.79,
-      "big_loss_n": 7
+      "big_loss_n": 8
     }
   },
   "by_family": {
@@ -109,9 +109,9 @@
       "pattern_usd": 0.0
     },
     "other": {
-      "n": 1,
-      "usd": 4.19,
-      "win_rate": 1.0,
+      "n": 2,
+      "usd": 2.27,
+      "win_rate": 0.5,
       "pattern_n": 0,
       "pattern_rate": 0.0,
       "pattern_usd": 0.0
@@ -126,10 +126,10 @@
     {
       "name": "mid 大亏笔数 ≤ 8",
       "ok": true,
-      "detail": "mid big_loss_n=0"
+      "detail": "mid big_loss_n=1"
     }
   ],
-  "generated_at": "2026-10-09T01:07:50.477612+00:00",
+  "generated_at": "2026-10-10T01:07:49.906142+00:00",
   "days": 14,
-  "n": 17
+  "n": 18
 }

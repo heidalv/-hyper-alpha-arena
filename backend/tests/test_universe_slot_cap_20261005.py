@@ -76,8 +76,10 @@ class TestRunnerSituationPathIsCapped:
         src = _src()
         i = src.find("sit_fresh")
         # [2026-10-09] PP 选币路径插在情境分支之前（约 +100 行），扫描窗放宽
-        # 到 16000 字符；契约不变：情境分支仍必须按样本外 edge 排序取前 N。
-        window = src[i:i + 16000]
+        # 到 16000 字符；[2026-10-10] 换币顺畅化又插入 ~60 行（watch 币试跑
+        # 探针/摘除冷却），再放宽到 24000。契约不变：情境分支仍必须按样本外
+        # edge 排序取前 N。
+        window = src[i:i + 24000]
         assert "oos_conditional_mean" in window, (
             "必须在合格者中按样本外 edge 排序取前 N（而不是按文档顺序截断）")
 

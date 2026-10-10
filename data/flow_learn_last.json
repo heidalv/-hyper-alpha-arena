@@ -1,74 +1,158 @@
 {
-  "ts": 1791564105.8985665,
-  "hours": 24,
-  "n_roundtrips": 17,
-  "win_rate": 0.294,
-  "avg_net_bp": -938.71,
-  "cohorts": [
+  "ts": 1791650524.9056048,
+  "mode": "pingpong",
+  "source": "rt_bp",
+  "n_roundtrips": 297,
+  "min_n": 20.0,
+  "coins": [
     {
-      "name": "全部",
-      "n": 17,
-      "win_rate": 0.294,
-      "avg_net_bp": -938.71,
-      "avg_entry_bp": -0.63,
-      "avg_exit_bp": 18.04,
-      "avg_hold_sec": 40990.4
+      "n": 128,
+      "win_rate": 0.4922,
+      "avg_win_bp": 3.84,
+      "avg_loss_bp": -2.35,
+      "avg_bp": 0.72,
+      "symbol": "ETH",
+      "role": "eligible"
     },
     {
-      "name": "主动流往返",
-      "n": 7,
-      "win_rate": 0.286,
-      "avg_net_bp": -2143.19,
-      "avg_entry_bp": 1.48,
-      "avg_exit_bp": 24.44,
-      "avg_hold_sec": 60537.2
+      "n": 43,
+      "win_rate": 0.3721,
+      "avg_win_bp": 1.6,
+      "avg_loss_bp": -3.97,
+      "avg_bp": -1.9,
+      "symbol": "BTC",
+      "role": "drop"
     },
     {
-      "name": "孤儿吃单强平",
-      "n": 4,
+      "n": 35,
+      "win_rate": 0.6571,
+      "avg_win_bp": 47.19,
+      "avg_loss_bp": -51.18,
+      "avg_bp": 13.47,
+      "symbol": "US",
+      "role": "drop"
+    },
+    {
+      "n": 21,
+      "win_rate": 0.6667,
+      "avg_win_bp": 11.04,
+      "avg_loss_bp": -28.47,
+      "avg_bp": -0.77,
+      "symbol": "PLAY",
+      "role": "drop"
+    },
+    {
+      "n": 20,
       "win_rate": 0.25,
-      "avg_net_bp": -439.55,
-      "avg_entry_bp": -2.06,
-      "avg_exit_bp": -9.96,
-      "avg_hold_sec": 35454.9
+      "avg_win_bp": 13.22,
+      "avg_loss_bp": -32.93,
+      "avg_bp": -19.74,
+      "symbol": "NEAR",
+      "role": "drop"
     },
     {
-      "name": "其余",
-      "n": 7,
-      "win_rate": 0.286,
-      "avg_net_bp": -91.02,
-      "avg_entry_bp": -0.89,
-      "avg_exit_bp": 23.0,
-      "avg_hold_sec": 25646.9
+      "n": 15,
+      "win_rate": 0.6667,
+      "avg_win_bp": 34.17,
+      "avg_loss_bp": -38.24,
+      "avg_bp": 10.03,
+      "symbol": "PUMP",
+      "role": "watch"
     },
     {
-      "name": "主动流且持仓不超过90秒",
-      "n": 0
+      "n": 13,
+      "win_rate": 0.4615,
+      "avg_win_bp": 36.27,
+      "avg_loss_bp": -24.27,
+      "avg_bp": 5.54,
+      "symbol": "CASHCAT",
+      "role": "watch"
     },
     {
-      "name": "主动流且没有吃单腿",
-      "n": 0
-    },
-    {
-      "name": "主动流且两边都吃单",
       "n": 6,
-      "win_rate": 0.167,
-      "avg_net_bp": -2515.15,
-      "avg_entry_bp": 2.54,
-      "avg_exit_bp": 27.46,
-      "avg_hold_sec": 63575.5
+      "win_rate": 0.5,
+      "avg_win_bp": 34.88,
+      "avg_loss_bp": -34.32,
+      "avg_bp": 0.28,
+      "symbol": "QNT",
+      "role": "watch"
     },
     {
-      "name": "持仓超过300秒后吃单离场",
-      "n": 6,
-      "win_rate": 0.333,
-      "avg_net_bp": -402.94,
-      "avg_entry_bp": -4.28,
-      "avg_exit_bp": 13.67,
-      "avg_hold_sec": 32968.5
+      "n": 4,
+      "win_rate": 0.75,
+      "avg_win_bp": 47.45,
+      "avg_loss_bp": -32.07,
+      "avg_bp": 27.57,
+      "symbol": "PONS",
+      "role": "watch"
+    },
+    {
+      "n": 4,
+      "win_rate": 0.5,
+      "avg_win_bp": 84.14,
+      "avg_loss_bp": -41.9,
+      "avg_bp": 21.12,
+      "symbol": "LYN",
+      "role": "watch"
+    },
+    {
+      "n": 4,
+      "win_rate": 0.75,
+      "avg_win_bp": 45.59,
+      "avg_loss_bp": -39.28,
+      "avg_bp": 24.37,
+      "symbol": "ADA",
+      "role": "watch"
+    },
+    {
+      "n": 2,
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -40.12,
+      "avg_bp": -40.12,
+      "symbol": "SEI",
+      "role": "watch"
+    },
+    {
+      "n": 1,
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -35.13,
+      "avg_bp": -35.13,
+      "symbol": "USELESS",
+      "role": "watch"
+    },
+    {
+      "n": 1,
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -83.63,
+      "avg_bp": -83.63,
+      "symbol": "GTC",
+      "role": "watch"
     }
   ],
-  "positive_slices": [],
-  "worst_slices": [],
-  "rule": "正收益只出现在挂单进、挂单出的少数往返里，样本还少，不能当成已经学会。持仓超过 300 秒后再吃单离场是亏损的主要来源，这种离场继续禁止。新样本继续写入 flow_learn_samples.jsonl，凑够 30 趟挂单往返再决定能不能放宽进场。"
+  "resting_buckets": [
+    {
+      "n": 20,
+      "win_rate": 0.35,
+      "avg_win_bp": 1.61,
+      "avg_loss_bp": -3.23,
+      "avg_bp": -1.54,
+      "symbol": "BTC",
+      "side": "buy",
+      "bucket": "s0_a3"
+    },
+    {
+      "n": 22,
+      "win_rate": 0.4091,
+      "avg_win_bp": 1.59,
+      "avg_loss_bp": -4.53,
+      "avg_bp": -2.02,
+      "symbol": "BTC",
+      "side": "sell",
+      "bucket": "s0_a3"
+    }
+  ],
+  "rule": "学习样本是正在跑的重复来回：开仓价到平仓价（rt_bp），不是拿了几个小时的旧账。样本满 20 笔后，成功率低于打平线，或赚的时候不比亏的时候大，这个币就不再新开，这个盘口桶就休息。样本不够的继续做，用来攒数。"
 }

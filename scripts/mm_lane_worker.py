@@ -240,6 +240,8 @@ def _snapshot(res: dict) -> dict:
         st = r.status() if r else {}
         for k in ("ticks", "fills", "flattens", "last_tick_ts", "equity",
                   "fill_notional", "quoted_decisions", "skip_counts", "side_counts",
+                  # [2026-10-10 页面 1s 刷新] 今日腿级统计进心跳（/hft/hero 快路径）
+                  "today_leg",
                   # [F288 2026-09-16] 报价行为类读数也要进心跳：digest 里
                   # `avg_width_bp / avg_sigma_all / fills_per_hour` 此前恒为 None
                   # （它们同样只在**真正 tick 的进程**里有值）⇒ 每日口径无可比读数 ✗

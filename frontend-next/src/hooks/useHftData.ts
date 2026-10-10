@@ -51,6 +51,8 @@ function useHftResource<T>(fetcher: () => Promise<T>, intervalMs: number, enable
       setError(null);
       setLastUpdated(Date.now());
     } catch (e) {
+      // 切页取消的轮询不是失败，不要刷成错误提示
+      if (e instanceof DOMException && e.name === "AbortError") return;
       // 失败保留上一次成功快照（不置空、不置 0）
       setError(errText(e));
     } finally {
@@ -74,13 +76,15 @@ export function useHftOverview(): HftResource<HftOverview> {
 }
 
 /**
- * 实时深度看板（**2s**）。
+ * 实时深度看板（**5s**）。
  *
- * 为什么是 2s：深度是 p50 **105ms** 的 20 档快照，15s 轮询会让价格梯看起来静止、
- * 完全失去"实时深度"的意义。2s 是「看得出变化」与「不打爆后端」的折中。
+ * 深度本身不重，但 2s 一轮再叠上账户/总览，会把浏览器仅有的几个连接占满，
+ * 切到别的页面要等将近 8 秒。5s 仍然能看出价格梯在动。
  */
 export function useHftBoard(symbols?: string[], depth = 20): HftResource<HftBoardResponse> {
-  return useHftResource(() => hftApi.board(symbols, depth), 2_000);
+  // 2s 轮询时这个接口经常要 3~7 秒才返回，请求叠在一起，把别的页面也堵住。
+  // 5s 一轮，画面仍然在动，后端队列能空出来给正在打开的页面。
+  return useHftResource(() => hftApi.board(symbols, depth), 5_000);
 }
 
 /** 选币评分明细（120s；每 30 分钟才重算一次，不需要更快） */
@@ -99,16 +103,12 @@ export function useHftUniverseLive(enabled = true): HftResource<HftUniverseLiveR
 }
 
 /**
- * 模拟账户 + 运行状态 + 实盘就绪度（**2s**）。
+ * 模拟账户 + 运行状态 + 实盘就绪度（**5s**）。
  *
- * 为什么是 2s 而不是 30s：账户里的**浮动盈亏随行情实时变化**，
- * 而页面上的深度梯/持仓都是 2s。若账户用 10s，会出现
- * 「挂单价动了、持仓浮盈没动」的错觉，用户会认为界面是死的
- * （实测已发生过一次："账户数据没有任何变化"）。
- * 后端该端点实测 ~230ms，2s 轮询可承受。
+ * 和深度梯同一拍（5s）。再快时这个接口要扫手续费账本，会堵住别的页面。
  */
 export function useHftAccount(): HftResource<HftAccount> {
-  return useHftResource(() => hftApi.account(), 2_000);
+  return useHftResource(() => hftApi.account(), 5_000);
 }
 
 /** 报价参数与风控限额（只读，60s） */
@@ -126,7 +126,9 @@ export function useHftEvolution(): HftResource<HftEvolution> {
   return useHftResource(() => hftApi.evolution(), 120_000);
 }
 
-/** [hero 2026-10-07] 顶部大字区（2s；轻量聚合，一眼看清"今天赚没赚"） */
+/** [hero 2026-10-07 → 2026-10-10 提速] 顶部大字区（**1s**）。
+ *  后端快路径：worker 每 tick 把今日腿级统计写进心跳文件，/hft/hero 直接读文件
+ *  （零 SQL）⇒ 数值与抓取同频。回退：后端缓存 TTL=1s，最坏情况仍走 SQL 兜底。 */
 export function useHftHero(): HftResource<HftHero> {
-  return useHftResource(() => hftApi.hero(), 2_000);
+  return useHftResource(() => hftApi.hero(), 1_000);
 }

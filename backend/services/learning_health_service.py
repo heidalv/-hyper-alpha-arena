@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -168,14 +169,21 @@ def build_learning_health() -> Dict[str, Any]:
     except Exception as exc:
         items.append({"name": "strategy_memory", "label": "策略记忆/教训", "status": "dead", "detail": str(exc)})
 
-    # ── [2026-08-05 v6 8.3 阶段1] LearningLoop 5 条闭环：最后活动时间超时标红 ──
+    # ── [2026-10-05 v6 8.3 阶段1] LearningLoop 闭环：最后活动时间超时标红 ──
     # 数据源：LearningLoopService.last_tick_map()（每 tick 成功后 _record_tick 更新）。
     # 阈值 = 间隔的约 3 倍：ok ≤ 阈值；warn ≤ 2×阈值；超过即 dead（瘫痪可视化）。
+    # [2026-10-10 前端升级] 补全 8 个 job（此前只列 5 个：factor_decay /
+    # live_outcome_backfill / hft_brain 是**新增或既有的静默环**——它们不在这张表里，
+    # 前端就永远看不到它们停摆）。
     try:
         from backend.services.learning_loop_service import (
             JOB_COORDINATOR,
+            JOB_FACTOR_DECAY,
+            JOB_FUSION_MAINTENANCE,
             JOB_HEARTBEAT,
+            JOB_HFT_BRAIN,
             JOB_KELLY_PORTFOLIO,
+            JOB_LIVE_OUTCOME_BACKFILL,
             JOB_OUTCOME_BATCH,
             JOB_PAPER_OUTCOME_BACKFILL,
             learning_loop,
@@ -192,8 +200,22 @@ def build_learning_health() -> Dict[str, Any]:
              "间隔 1h：进化/DRL/Kelly 路由"),
             (JOB_HEARTBEAT, "loop_heartbeat", "闭环-WS心跳", 0.1,
              "间隔 30s：coordinator_status 广播"),
+            # [2026-10-10] 高频入口：PP 往返 → 主脑（唯一新增入口）
+            (JOB_HFT_BRAIN, "loop_hft_brain", "闭环-高频入口(PP→主脑)", 0.5,
+             "间隔 5min：lane_ledger 平仓腿 → process_outcome"),
+            (JOB_FACTOR_DECAY, "loop_factor_decay", "闭环-因子衰减", 12.0,
+             "间隔 6h：因子 IC 衰减评估 → 权重惩罚"),
+            (JOB_LIVE_OUTCOME_BACKFILL, "loop_live_backfill", "闭环-实盘补偿", 1.0,
+             "间隔 10min：宕机期漏掉的 live 平仓反馈"),
+            (JOB_FUSION_MAINTENANCE, "loop_fusion", "闭环-融合维护", 12.0,
+             "间隔 6h：pwin 桶衰减验证 + 归因落盘"),
         ]
         for job_id, name, label, thr, detail in loop_spec:
+            # [2026-10-10 前端升级] 低频 job 的"首次心跳宽限"：`_health_item` 的判据是
+            # 「age ≤ 阈值= ok」，而阈值是间隔的 ~3 倍 ⇒ 6h 的 job 会要 **18 小时**才有
+            # 第一次心跳，刚重启就会被标 dead（实测 `loop_fusion` 重启后即 dead）。
+            # 这里把**首次**心跳的宽限统一压到 0.5h（间隔 30s~5min 的 job 本来就满足），
+            # 一旦有过心跳就仍按真实阈值判定（不放松已停摆的检测）。
             last_iso = loop_last.get(job_id)
             last_dt = None
             if last_iso:
@@ -201,14 +223,46 @@ def build_learning_health() -> Dict[str, Any]:
                     last_dt = datetime.fromisoformat(last_iso)
                 except (ValueError, TypeError):
                     last_dt = None
+            eff_thr = min(float(thr), 0.5) if last_dt is None else float(thr)
             items.append(
-                _health_item(name, label, last_dt, threshold_hours=thr, detail=detail)
+                _health_item(name, label, last_dt, threshold_hours=eff_thr, detail=detail)
             )
     except Exception as exc:
         items.append({
             "name": "learning_loop", "label": "闭环-LearningLoop",
             "status": "dead", "detail": str(exc),
         })
+
+    # ── [2026-10-10 前端升级] 高频入口游标：入口"到底有没有在动"的唯一硬证据 ──
+    # 为什么单独一项：`loop_hft_brain` 只在**后端重启后**才会注册（register_tasks 在
+    # 启动时跑）⇒ 用 tick 心跳判断"入口是否工作"会与"是否重启"混为一谈。
+    # 游标文件是入口**跑成功后才会写**的事实，且它的 mtime 就是最后一次推进时刻。
+    try:
+        cursor_path = os.path.join("data", "pp_brain_cursor.json")
+        cur_last: Optional[datetime] = None
+        detail = ""
+        if os.path.exists(cursor_path):
+            try:
+                with open(cursor_path, "r", encoding="utf-8") as fh:
+                    doc = json.load(fh)
+                applied = doc.get("applied_at")
+                if applied:
+                    cur_last = datetime.fromtimestamp(float(applied), tz=timezone.utc)
+                detail = (f"已进主脑 {int(doc.get('ingested') or 0)} 笔"
+                          f"・跳过 {int(doc.get('skipped') or 0)}"
+                          f"・失败 {int(doc.get('failed') or 0)}")
+            except Exception as exc:  # noqa: BLE001
+                detail = f"游标文件不可读: {str(exc)[:120]}"
+        else:
+            detail = ("游标文件不存在：入口从未成功跑过一轮"
+                      "（若后端刚升级，需先重启才会注册该 tick）")
+        items.append(
+            _health_item("hft_inlet_cursor", "高频入口-游标", cur_last,
+                         threshold_hours=1.0, detail=detail)
+        )
+    except Exception as exc:  # noqa: BLE001
+        items.append({"name": "hft_inlet_cursor", "label": "高频入口-游标",
+                      "status": "dead", "detail": str(exc)})
 
     statuses = [it.get("status") for it in items]
     overall = "dead" if "dead" in statuses else ("warn" if "warn" in statuses else "ok")

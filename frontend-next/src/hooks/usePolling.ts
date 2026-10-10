@@ -14,6 +14,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { bindPollSignal } from "@/lib/api";
 
 export function usePolling(
   fn: () => void | Promise<void>,
@@ -39,14 +40,20 @@ export function usePolling(
 
   useEffect(() => {
     if (!enabled || intervalMs <= 0) return;
+    // 离开页面就取消还没回来的轮询，把连接让给新页面。
+    const ctrl = new AbortController();
 
     const tick = () => {
+      if (ctrl.signal.aborted) return;
       if (inFlightRef.current) return; // 单飞：慢响应期间不叠加请求
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       inFlightRef.current = true;
       void (async () => {
         try {
-          await fnRef.current();
+          await bindPollSignal(ctrl.signal, () => fnRef.current());
+        } catch (e) {
+          if (ctrl.signal.aborted) return;
+          throw e;
         } finally {
           inFlightRef.current = false;
         }
@@ -80,6 +87,7 @@ export function usePolling(
 
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
+      ctrl.abort();
       stop();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

@@ -1847,6 +1847,18 @@ LEARNING_LOOP_KELLY_INTERVAL_S: int = int(
 LEARNING_LOOP_COORD_INTERVAL_S: int = int(
     os.getenv("LEARNING_LOOP_COORD_INTERVAL_S", "1800" if PAPER_FAST_TRIAL else str(60 * 60))
 )
+# [2026-10-10 主脑接入高频学习] 高频入口 tick：把 lane_ledger 里新落的 PP 平仓腿
+# 按往返补进 UnifiedLearning（实现 market_maker/pp_brain.py）。与 outcome_batch 同频。
+#
+# [2026-10-10 现场修复] **不再跟随 PAPER_FAST_TRIAL 缩到 60s**：实测一次收 200 笔的
+# tick 耗时可达数分钟（每笔 `process_outcome` 都要走 MLTO / 复盘官 / 多后端），
+# 60s 间隔会让 APScheduler 按 `max_instances=1` 把后续触发**全部跳过**
+# （现场：`Execution of job ... skipped: maximum number of running instances reached`，
+#   表现为"注册了但不动"）。入口自己有 `MM_PP_BRAIN_BUDGET_SEC`（默认 45s）墙钟预算，
+# 5 分钟间隔下每次都能从容跑完；要更快请同时调大预算。
+LEARNING_LOOP_HFT_BRAIN_INTERVAL_S: int = int(
+    os.getenv("LEARNING_LOOP_HFT_BRAIN_INTERVAL_S", str(5 * 60))
+)
 # MLTO 平仓复盘节流（秒）；快速试单 5min，正常 1h
 THESIS_POSTMORTEM_COOLDOWN_SEC: int = int(
     os.getenv("THESIS_POSTMORTEM_COOLDOWN_SEC", "300" if PAPER_FAST_TRIAL else "3600")

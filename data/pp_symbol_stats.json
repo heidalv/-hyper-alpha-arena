@@ -1,62 +1,104 @@
 {
-  "ts": 1791564150.1097612,
+  "ts": 1791650524.757746,
   "lane": "mm_asterdex",
   "coins": {
     "PUMP": {
-      "n": 6,
+      "n": 15,
       "win_rate": 0.6667,
-      "avg_win_bp": 29.73,
-      "avg_loss_bp": -35.45,
-      "avg_bp": 8.0
-    },
-    "BTC": {
-      "n": 16,
-      "win_rate": 0.5,
-      "avg_win_bp": 5.79,
-      "avg_loss_bp": -1.8,
-      "avg_bp": 1.99
+      "avg_win_bp": 34.17,
+      "avg_loss_bp": -38.24,
+      "avg_bp": 10.03
     },
     "ETH": {
-      "n": 37,
-      "win_rate": 0.6216,
-      "avg_win_bp": 4.58,
-      "avg_loss_bp": -2.09,
-      "avg_bp": 2.06
+      "n": 128,
+      "win_rate": 0.4922,
+      "avg_win_bp": 3.84,
+      "avg_loss_bp": -2.35,
+      "avg_bp": 0.72
     },
-    "NEAR": {
-      "n": 3,
-      "win_rate": 0.6667,
-      "avg_win_bp": 31.37,
-      "avg_loss_bp": -31.09,
-      "avg_bp": 10.55
+    "QNT": {
+      "n": 6,
+      "win_rate": 0.5,
+      "avg_win_bp": 34.88,
+      "avg_loss_bp": -34.32,
+      "avg_bp": 0.28
     },
-    "US": {
-      "n": 21,
-      "win_rate": 0.619,
-      "avg_win_bp": 28.67,
-      "avg_loss_bp": -55.51,
-      "avg_bp": -3.39
+    "PONS": {
+      "n": 4,
+      "win_rate": 0.75,
+      "avg_win_bp": 47.45,
+      "avg_loss_bp": -32.07,
+      "avg_bp": 27.57
     },
-    "ARB": {
+    "CASHCAT": {
+      "n": 13,
+      "win_rate": 0.4615,
+      "avg_win_bp": 36.27,
+      "avg_loss_bp": -24.27,
+      "avg_bp": 5.54
+    },
+    "USELESS": {
       "n": 1,
       "win_rate": 0.0,
       "avg_win_bp": 0.0,
-      "avg_loss_bp": -32.64,
-      "avg_bp": -32.64
+      "avg_loss_bp": -35.13,
+      "avg_bp": -35.13
     },
     "LYN": {
-      "n": 2,
-      "win_rate": 1.0,
-      "avg_win_bp": 106.58,
-      "avg_loss_bp": 0.0,
-      "avg_bp": 106.58
+      "n": 4,
+      "win_rate": 0.5,
+      "avg_win_bp": 84.14,
+      "avg_loss_bp": -41.9,
+      "avg_bp": 21.12
     },
-    "BTW": {
+    "ADA": {
+      "n": 4,
+      "win_rate": 0.75,
+      "avg_win_bp": 45.59,
+      "avg_loss_bp": -39.28,
+      "avg_bp": 24.37
+    },
+    "BTC": {
+      "n": 43,
+      "win_rate": 0.3721,
+      "avg_win_bp": 1.6,
+      "avg_loss_bp": -3.97,
+      "avg_bp": -1.9
+    },
+    "SEI": {
+      "n": 2,
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -40.12,
+      "avg_bp": -40.12
+    },
+    "NEAR": {
+      "n": 20,
+      "win_rate": 0.25,
+      "avg_win_bp": 13.22,
+      "avg_loss_bp": -32.93,
+      "avg_bp": -19.74
+    },
+    "PLAY": {
+      "n": 21,
+      "win_rate": 0.6667,
+      "avg_win_bp": 11.04,
+      "avg_loss_bp": -28.47,
+      "avg_bp": -0.77
+    },
+    "US": {
+      "n": 35,
+      "win_rate": 0.6571,
+      "avg_win_bp": 47.19,
+      "avg_loss_bp": -51.18,
+      "avg_bp": 13.47
+    },
+    "GTC": {
       "n": 1,
-      "win_rate": 1.0,
-      "avg_win_bp": 42.22,
-      "avg_loss_bp": 0.0,
-      "avg_bp": 42.22
+      "win_rate": 0.0,
+      "avg_win_bp": 0.0,
+      "avg_loss_bp": -83.63,
+      "avg_bp": -83.63
     }
   }
 }

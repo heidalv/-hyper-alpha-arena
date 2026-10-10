@@ -185,6 +185,24 @@ export interface HftEvolution {
     processed: boolean;
   };
   pending_verdicts: { param: string; new: number; rollback: number; verdict_at: number }[];
+  /**
+   * [2026-10-10 学习进化前端升级] 后端显式列出的**空壳字段**。
+   *
+   * 动机：`gate_proposals` / `bandit` / `surface` 在 `/api/hft/evolution` 里是硬编码空值
+   * ⇒ 界面上的「0」既可能是"没有问题"、也可能是"从未接线"。后端现在把它们列在这里，
+   * 前端据此显示「未接线」而不是「0」。
+   */
+  stub_fields?: string[];
+  /** 车道顾问最近 5 条结论（读 data/lane_advisor_journal.jsonl） */
+  advisor_recent?: {
+    ts?: number;
+    lane?: string;
+    decision?: string;
+    param?: string | null;
+    new?: number | null;
+    cited?: string[];
+    why?: string;
+  }[];
   playbook_laws: number;
   markout_kpi: {
     n: number | null;
@@ -579,6 +597,22 @@ export const hftApi = {
     apiRequest<{ ok: boolean; lane_id: string; status: string }>(
       "/hft/live/control",
       { method: "POST", body: JSON.stringify({ status, confirm }), timeout: HFT_TIMEOUT_MS }
+    ),
+
+  /** [2026-10-10] 实盘凭证状态（只回"有没有"，绝不回显值） */
+  liveCredentials: () =>
+    apiRequest<{
+      configured: Record<string, boolean>;
+      v3_ready: boolean;
+      v2_ready: boolean;
+      as_of: string;
+    }>("/hft/live/credentials", { timeout: HFT_TIMEOUT_MS }),
+
+  /** [2026-10-10] 保存实盘凭证（空串=不改；"__CLEAR__"=清除该项） */
+  liveCredentialsSave: (body: Record<string, string>) =>
+    apiRequest<{ ok: boolean; configured?: Record<string, boolean>; note?: string }>(
+      "/hft/live/credentials",
+      { method: "POST", body: JSON.stringify(body), timeout: HFT_TIMEOUT_MS }
     ),
 
   /** 模块总览：宇宙构成（固定 ∪ AI 选币）+ 运行状态 + 深度覆盖 */

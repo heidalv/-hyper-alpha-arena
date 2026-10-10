@@ -68,7 +68,9 @@ def test_pp_membership():
     assert pp_membership("BTC", None, 1000.0, {}) == "watch"
 
 
-def test_select_pp_slots_drops_loser_keeps_winner():
+def test_select_pp_slots_drops_loser_keeps_winner(monkeypatch):
+    # 固定币机制(默认 BTC,ETH)会保护它们 ⇒ 本用例关掉固定币，只测负证据 drop
+    monkeypatch.setenv("MM_PP_FIXED_SYMBOLS", "")
     doc = {"ts": 1000.0, "coins": {
         "BTC": {"n": 40, "win_rate": 0.62, "avg_win_bp": 39.0, "avg_loss_bp": -28.0,
                 "avg_bp": 13.0},
@@ -77,6 +79,41 @@ def test_select_pp_slots_drops_loser_keeps_winner():
     }}
     kept, new_in = select_pp_slots(["BTC", "ETH"], doc, ["BTC", "ETH"], {}, 1000.0)
     assert "BTC" in kept and "ETH" not in kept
+
+
+def test_select_pp_slots_protects_open_position(monkeypatch):
+    """[2026-10-10] 有仓的币即使负证据也不得移出名单（否则 orphan 砍仓）。"""
+    monkeypatch.setenv("MM_PP_FIXED_SYMBOLS", "")
+    doc = {"ts": 1000.0, "coins": {
+        "ETH": {"n": 40, "win_rate": 0.3, "avg_win_bp": 10.0, "avg_loss_bp": -25.0,
+                "avg_bp": -12.0},
+    }}
+    kept, _ = select_pp_slots(["ETH"], doc, ["ETH"], {}, 1000.0,
+                              positions={"ETH": 5.0})
+    assert "ETH" in kept, "持仓币必须 keep（有仓只减不加）"
+    kept2, _ = select_pp_slots(["ETH"], doc, ["ETH"], {}, 1000.0,
+                               positions={})
+    assert "ETH" not in kept2, "空仓后负证据才允许 drop"
+
+
+def test_fixed_symbols_never_rotate(monkeypatch):
+    """[2026-10-10] BTC/ETH 固定席位：负证据也不踢、eligible 也换不掉。"""
+    monkeypatch.setenv("MM_PP_FIXED_SYMBOLS", "BTC,ETH")
+    doc = {"ts": 1000.0, "coins": {
+        "BTC": {"n": 40, "win_rate": 0.2, "avg_win_bp": 5.0, "avg_loss_bp": -30.0,
+                "avg_bp": -20.0},
+        "ADA": {"n": 40, "win_rate": 0.62, "avg_win_bp": 39.0, "avg_loss_bp": -28.0,
+                "avg_bp": 13.0},
+        "SOL": {"n": 40, "win_rate": 0.65, "avg_win_bp": 40.0, "avg_loss_bp": -25.0,
+                "avg_bp": 15.0},
+    }}
+    kept, _ = select_pp_slots(["BTC", "ADA", "SOL"], doc, ["BTC", "ADA"], {},
+                              1000.0, slot_cap=2)
+    assert "BTC" in kept, "固定币即使负证据也在册"
+    # 当前名单里没有 ETH ⇒ 也要恢复固定席位（2 槽时 BTC+ETH 占满）
+    kept2, _ = select_pp_slots(["BTC", "ADA"], doc, ["BTC", "ADA"], {}, 1000.0,
+                               slot_cap=2)
+    assert set(["BTC", "ETH"]) <= set(kept2), "固定席位必须无条件恢复"
 
 
 # ══ 记账语境 + 桶门 + 学习旋钮 ══════════════════════════════════════
@@ -204,6 +241,31 @@ def _rows_for_evo() -> list:
                      "symbol": "BTC", "entry_side": "buy",
                      "entry_spread_bp": 5.0, "entry_front_usd": 500.0, "ts": 1000 + i})
     return rows
+
+
+def test_lesson_uses_same_rules_as_runner():
+    """学习汇总里的角色，必须和车道选币用的是同一条规则。"""
+    import importlib.util
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "pp_learn_tables", str(root / "scripts" / "pp_learn_tables.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    sym = {
+        "ETH": {"n": 53, "win_rate": 0.566, "avg_win_bp": 5.87,
+                "avg_loss_bp": -3.46, "avg_bp": 1.82},
+        "BTC": {"n": 37, "win_rate": 0.3243, "avg_win_bp": 1.44,
+                "avg_loss_bp": -4.09, "avg_bp": -2.3},
+        "LYN": {"n": 2, "win_rate": 0.5, "avg_win_bp": 120.0,
+                "avg_loss_bp": -40.0, "avg_bp": 40.0},
+    }
+    lesson = mod.lesson_from_tables(sym, {"coins": {}})
+    roles = {row["symbol"]: row["role"] for row in lesson["coins"]}
+    assert roles["ETH"] == pp_membership("ETH", sym["ETH"], 0, {})
+    assert roles["BTC"] == "drop"
+    assert roles["LYN"] == "watch"
+    assert lesson["mode"] == "pingpong"
+    assert lesson["n_roundtrips"] == 92
 
 
 def test_pp_evolution_counterfactual(monkeypatch):

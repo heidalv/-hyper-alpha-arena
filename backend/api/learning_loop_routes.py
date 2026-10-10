@@ -19,8 +19,21 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/learning/loop", tags=["Learning Loop"])
 
-# 合法的 job 名与 LearningLoopService.trigger_job 中的 mapping 保持一致
-_VALID_JOBS = {"outcome_batch", "paper_outcome_backfill", "kelly_portfolio", "coordinator"}
+
+def _valid_jobs() -> set:
+    """合法 job 名 —— **从服务层的别名表取**（唯一来源）。
+
+    [2026-10-10 前端升级] 此前这里是硬编码的 4 个名字，而服务层实际支持 7 个
+    （`factor_decay` / `live_outcome_backfill` / `hft_brain` 不在其中）⇒
+    前端/运维手册里承诺的手动触发一律 400。两处各自维护必然再次漂移，
+    故改为派生。
+    """
+    try:
+        from backend.services.learning_loop_service import JOB_TRIGGER_ALIASES
+        return set(JOB_TRIGGER_ALIASES)
+    except Exception:  # pragma: no cover - 服务层导入失败时保守放行核心 4 个
+        return {"outcome_batch", "paper_outcome_backfill", "kelly_portfolio",
+                "coordinator"}
 
 
 def _get_service():
@@ -70,15 +83,20 @@ async def loop_trigger(job: str) -> Dict[str, Any]:
     """手动同步触发某个 tick。
 
     Args:
-        job: outcome_batch / paper_outcome_backfill / kelly_portfolio / coordinator
+        job: 见 `LearningLoopService.JOB_TRIGGER_ALIASES`
+             （outcome_batch / paper_outcome_backfill / kelly_portfolio /
+              coordinator / factor_decay / live_outcome_backfill / hft_brain）
 
     Returns:
-        { "ok": bool, "elapsed_ms": int, "error"?: str }
+        { "ok": bool, "job": str, "elapsed_ms": int, "extra": {...}, "error"?: str }
+        `extra` 是该 tick 的 `_record_tick` 摘要（例如高频入口的 ingested/cursor），
+        前端据此告诉操作者"这次到底推进了多少"。
     """
-    if job not in _VALID_JOBS:
+    valid = _valid_jobs()
+    if job not in valid:
         raise HTTPException(
             status_code=400,
-            detail=f"unknown job: {job}. valid: {sorted(_VALID_JOBS)}",
+            detail=f"unknown job: {job}. valid: {sorted(valid)}",
         )
     try:
         return _get_service().trigger_job(job)

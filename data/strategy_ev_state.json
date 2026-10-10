@@ -8,7 +8,7 @@
       "mult": 1.0,
       "decision": "stable",
       "ev_per_trade": 0.0,
-      "updated_at": 1791479100.3745787
+      "updated_at": 1791565500.0817454
     },
     "scalp_trend": {
       "n": 0,
@@ -18,9 +18,9 @@
       "mult": 1.0,
       "decision": "stable",
       "ev_per_trade": 0.0,
-      "updated_at": 1791479100.3897338
+      "updated_at": 1791565500.0911813
     }
   },
   "strategies": {},
-  "updated_at": 1791479100.39073
+  "updated_at": 1791565500.0911813
 }

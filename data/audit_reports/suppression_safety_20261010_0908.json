@@ -1,0 +1,12 @@
+{
+  "days": 7,
+  "hang_limit_h": 48.0,
+  "counts": {
+    "exit_events": 0,
+    "session_log": 0
+  },
+  "verdict": "NO_DATA",
+  "violations": [],
+  "dangling": [],
+  "ok_n": 0
+}

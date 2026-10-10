@@ -1,27 +1,27 @@
 {
-  "ts": "2026-10-10T00:54:02",
-  "legs_window": 7,
-  "legs_60m": 24,
-  "last_leg": "2026-10-10 00:51:19.213027+08:00",
-  "market_lag_s": 32.4,
+  "ts": "2026-10-11T00:54:02",
+  "legs_window": 1,
+  "legs_60m": 16,
+  "last_leg": "2026-10-11 00:45:55.505980+08:00",
+  "market_lag_s": 32.6,
   "stream_health": [
     {
       "stream": "book",
-      "msgs": 139925093654907,
-      "reconnects": 33,
-      "last_event_ms": 1791564842226
+      "msgs": 183686753695947,
+      "reconnects": 37,
+      "last_event_ms": 1791651242194
     },
     {
       "stream": "depth",
-      "msgs": 80405103204231,
+      "msgs": 102070106903976,
       "reconnects": 71,
-      "last_event_ms": 1791564842227
+      "last_event_ms": 1791651242183
     },
     {
       "stream": "trades",
-      "msgs": 1216484819443,
-      "reconnects": 30,
-      "last_event_ms": 1791564839839
+      "msgs": 1562107804954,
+      "reconnects": 35,
+      "last_event_ms": 1791651237284
     }
   ],
   "proxy_targets": [
@@ -42,7 +42,7 @@
   },
   "critical": [],
   "warn": [
-    "近 60 分钟仅 24 腿（< 60/h 硬约束）"
+    "近 60 分钟仅 16 腿（< 60/h 硬约束）"
   ],
   "verdict": "WARN"
 }

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -31,17 +32,39 @@ QTY_EPS_RATIO = 0.15
 V3_ENV = ("ASTERDEX_V3_USER", "ASTERDEX_V3_SIGNER", "ASTERDEX_V3_PRIVATE_KEY")
 
 
+def _live_cred_file() -> dict:
+    """[2026-10-10] 前端自助配置的实盘凭证（data/live_credentials.json）。
+    环境变量优先；文件是兜底——保存后**无需重启**下次桥初始化即读到。"""
+    try:
+        from pathlib import Path
+        p = Path(__file__).resolve().parents[3] / "data" / "live_credentials.json"
+        if p.exists():
+            return dict(json.loads(p.read_text(encoding="utf-8")) or {})
+    except Exception:  # noqa: BLE001
+        pass
+    return {}
+
+
 def _v3_keys() -> tuple:
     user = os.getenv("ASTERDEX_V3_USER", "").strip()
     signer = os.getenv("ASTERDEX_V3_SIGNER", "").strip()
     pk = os.getenv("ASTERDEX_V3_PRIVATE_KEY", "").strip()
+    if not (user and signer and pk):
+        _f = _live_cred_file()
+        user = user or str(_f.get("v3_user") or "").strip()
+        signer = signer or str(_f.get("v3_signer") or "").strip()
+        pk = pk or str(_f.get("v3_private_key") or "").strip()
     return user, signer, pk
 
 
 def _keys_for(api_key: str = "", api_secret: str = "") -> tuple:
-    """旧式(Binance 兼容 HMAC)Key 解析:显式参数 > 环境变量 > 凭据表。"""
+    """旧式(Binance 兼容 HMAC)Key 解析:显式参数 > 环境变量 > 前端凭证文件 > 凭据表。"""
     key = api_key or os.getenv("ASTERDEX_API_KEY", "")
     sec = api_secret or os.getenv("ASTERDEX_API_SECRET", "")
+    if not (key and sec):
+        _f = _live_cred_file()
+        key = key or str(_f.get("api_key") or "").strip()
+        sec = sec or str(_f.get("api_secret") or "").strip()
     if key and sec:
         return key, sec
     try:

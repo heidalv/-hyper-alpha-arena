@@ -1,64 +1,66 @@
 {
   "task": "event_impact",
-  "ts_ms": 1791564715906,
+  "ts_ms": 1791650911130,
   "accepted": true,
   "status": "ok",
   "consensus_score": 0.55,
-  "run_id": "e8b8ea91ae744c7a953b338d0ef8d734",
-  "context_hash": "67b22dab8870c87f8da8c433bac2838d4aec0fe48c9c24230cd1118de482537b",
+  "run_id": "67cc16b5741a4155a656429cef968c28",
+  "context_hash": "b4e7bc4c0f0d9fadf642ac8f3663345fa3da2f5e58038f9602257bee8e71eb71",
   "final": {
-    "direction": "bullish",
-    "strength": 4,
+    "direction": "bearish",
+    "strength": 5,
     "confidence": 0.55,
-    "half_life_hours": 8,
+    "half_life_hours": 24,
     "affected_symbols": [
-      "SKLUSDT"
+      "RLC"
     ],
-    "hedging_window_hours": 8,
+    "hedging_window_hours": 12,
     "position_adjustments": [
       {
-        "symbol": "SKLUSDT",
-        "action": "no_new_short",
-        "reason": "gateio SKL 资金费 -0.295%/8h（≈-323% APR），且 binance/bybit 同为深度负值（-0.181%/-0.158%），空头需持续付费，做空成本极高；同时 SKL 1d 涨幅 +45.4%、7d +55.1%，动量向上，不宜新增空头。"
+        "symbol": "RLC",
+        "action": "no_new_long",
+        "reason": "全交易所深度负资金费（gateio -0.313%/8h、bybit -0.871%/8h、binance -0.343%/8h）显示多头拥挤且需付费持仓；RSI14=92、1d 涨幅+170%、ATR14=8.18%，极度超买叠加高波动，追多风险回报差。"
       }
     ],
     "analogues": [
       {
-        "event": "同批 funding.extreme 中 SKL 在 binance（-0.265%/8h）与 bybit（-0.324%/8h）同时出现深度负资金费",
-        "outcome": "多交易所同步负资金费表明空头拥挤，历史上此类挤压结构往往伴随价格继续上行或高位剧烈波动，随后资金费向常态回归"
+        "event": "RLC 资金费由 -0.139%~-0.170%/8h（sev2）快速走深至 -0.283%~-0.313%/8h（sev3），多交易所同步",
+        "outcome": "负资金费持续加深伴随 OI 1h 名义变动 -10.2%（$13.49M→$12.11M），显示杠杆多头开始被动减仓，价格上行结构脆弱"
       },
       {
-        "event": "同窗口其他深度负资金费事件（RLC -0.971%/8h、COOL -0.910%/8h、CTSI -0.525%/8h）",
-        "outcome": "极端负资金费集群出现，反映市场空头情绪集中，短期方向偏多但波动放大，半衰期通常在一个资金费结算周期（8h）量级"
+        "event": "同期 ERA、MAGIC、COOL 等小市值币种出现 -0.6%~-1.8%/8h 极端负资金费（sev4）",
+        "outcome": "资金费极端化呈板块性扩散，通常对应小市值高波动标的的逼空/挤多行情尾部，随后波动率维持高位而方向性收益衰减"
       }
     ],
     "key_factors": [
-      "gateio SKL 资金费 -0.295%/8h（≈-323% APR），severity 3，方向标记 +0.5（偏多）",
-      "跨交易所一致性：binance -0.1812%、bybit -0.1584%、gateio -0.1346%（8h 口径），空头付费结构普遍",
-      "SKL 价格动量强：ret_1d +45.42%、ret_7d +55.11%，rv30 年化 256.2%，波动极高",
-      "全市场 24h 多头爆仓 5657 万美元 > 空头爆仓 3158 万美元，杠杆多头已被部分清洗",
-      "24h 高影响新闻 4 条全为负面（pos 0 / neg 4），宏观情绪偏空，构成反向风险",
-      "持仓结构、清算明细、SKL 相关性数据缺失，无法量化拥挤度与传导路径"
+      "gateio RLC 资金费 -0.313%/8h（≈-343% APR），severity 3，方向标记 0.5（偏空解读）",
+      "多交易所同步深度负资金费：bybit -0.8707%、gateio -0.4611%、binance -0.3434%、asterdex -0.3126%（8h）",
+      "RLC 日线极度超买：RSI14=92.0，ret_1d=+170.49%，ret_7d=+190.1%，ret_30d=+219.75%",
+      "高波动：rv30_annual=354.5%，ATR14_1d=8.18%，ADX14=44.2（强趋势但已延伸）",
+      "持仓结构：OI $12.32M，global_ls=1.064，top_pos_ls=1.196，多头略占优；24h 空头爆仓 $110,018 > 多头爆仓 $44,674（空头挤压特征）",
+      "OI 1h 名义变动 -10.2%（$13.49M→$12.11M），杠杆资金开始撤离",
+      "账户当前无 RLC 持仓，组合 gross exposure 35.6%（acct 14），风险预算有限",
+      "缺失层：correlation_pairs 与 corr_to_btc 为空，无法量化 RLC 与大盘联动；ema_trend_4h / above_ema200_1d / dist_ema200_pct 均为 null，中期趋势结构数据不足"
     ],
-    "summary": "SKL 在 gateio 出现 -0.295%/8h（≈-323% APR）的极端负资金费，且 binance、bybit 同向深度负值，属空头拥挤/多头被付费的挤压结构，方向判定偏多（bullish），强度中等（4/10）。SKL 近 1 日 +45.4%、近 7 日 +55.1%，动量与资金费方向一致，但 rv30 年化 256% 显示波动极大，且 24h 高影响新闻全为负面，故 confidence 仅 0.55。资金费类冲击通常在一个结算周期内衰减，半衰期取 8 小时，避险窗口同为 8 小时。持仓层面：当前组合无 SKL 敞口，主要风险是误入空头，故对 SKLUSDT 采取 no_new_short；其余持仓（AVAX/BNB/BTC/ETH/LINK/SOL/XRP）与 SKL 无直接关联，且相关性数据缺失，不做调整。数据不足：SKL 的 30d 收益、ATR14、RSI14、EMA 趋势、持仓结构、清算明细及与 BTC 相关性均缺失，无法进一步验证挤压强度。"
+    "summary": "RLC 在 gateio 出现 -0.313%/8h（≈-343% APR）的极端负资金费，且 bybit/binance/asterdex 同步深度为负，属多头拥挤付费持仓的典型信号。结合 RSI14=92、1d 涨幅+170%、ATR 8.18% 的极度超买高波动状态，以及 OI 1h 名义 -10.2% 的杠杆撤离，判断事件方向偏空、强度中等（5/10），预计半衰期约 24 小时，避险窗口 12 小时。当前账户无 RLC 敞口，建议对 RLC 禁止新开多（no_new_long），不主动做空（负资金费环境下空头需承担高额成本且逼空风险仍在）。confidence 0.55，因 correlation 与 EMA 趋势层数据不足而下调。"
   },
   "notes": [
     "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.55 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ],
   "event": {
-    "id": 360328,
+    "id": 368889,
     "event_type": "funding.extreme",
-    "symbol": "SKL",
-    "ts_ms": 1791561645349,
+    "symbol": "RLC",
+    "ts_ms": 1791648533391,
     "severity": 3,
     "direction": 0.5,
-    "title": "gateio SKL 资金费 -0.295%/8h（≈-323% APR）",
+    "title": "gateio RLC 资金费 -0.313%/8h（≈-343% APR）",
     "source": "funding_collector",
     "payload": {
-      "apr_pct": -322.9,
-      "rate_8h": -0.002949,
+      "apr_pct": -343.0,
+      "rate_8h": -0.003132,
       "exchange": "gateio",
-      "rate_raw": -0.002949,
+      "rate_raw": -0.003132,
       "threshold_8h": 0.001,
       "window_hours": 8.0
     }

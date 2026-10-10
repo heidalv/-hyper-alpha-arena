@@ -77,6 +77,49 @@ def _outcome_account_id(outcome) -> "Optional[int]":
     return None
 
 
+def hft_isolation_enabled() -> bool:
+    """[2026-10-10 主脑接入高频学习] 高频车道熔断/连亏隔离开关（默认 true）。
+
+    为什么必须隔离（实测过的机制，不是洁癖）：
+      · `short_tier_entry_gate.record_short_tier_outcome` **是交易侧硬闸门**
+        （短线进场被判死后不允许开仓）。高频 ping-pong 每几分钟就出一笔来回
+        （`data/flow_roundtrip_log.jsonl` 现存 2,244 行），若按 `trade_nature="scalp"`
+        逐笔记进去，几千笔小额来回会把那道硬闸的计数彻底污染 ⇒ 短线的纪律被高频
+        的噪声改写。
+      · `_check_adaptation_needed` 连亏 7/10/13 次会写 `AIStrategy.genome` 的
+        `max_position_size/default_leverage/min_trade_interval` —— 而 ping-pong
+        **根本不读这三个键**（它读 `flow_learn_params.json` 的 pp_* 旋钮）⇒ 写了
+        等于往库里灌无效改动，还会掩盖真实的连亏读数。
+
+    回滚：`P4_HFT_ISOLATION=false` 才解除隔离；**其它任何值（含写错的值）
+    一律 fail-closed = 保持隔离**（安全侧默认，不能因为环境变量写错就放开硬闸）。
+    """
+    try:
+        _raw = os.getenv("P4_HFT_ISOLATION", "true")
+    except Exception:
+        return True
+    if _raw is None or not str(_raw).strip():
+        return True
+    return str(_raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _is_hft_lane(outcome) -> bool:
+    """该笔结果是否属于高频车道（`tier="hft"` 或 PP 策略族）。
+
+    `tier="hft"` 还带来论题侧隔离：`thesis_store.find_latest(sym, "hft")` 恒空 ⇒
+    同一个币的短来回**不会**挂到中线/长线论题上（用户硬要求）。
+    """
+    if str(getattr(outcome, "tier", "") or "").strip().lower() == "hft":
+        return True
+    _sid = str(getattr(outcome, "strategy_id", "") or "")
+    return _sid.startswith("mm_asterdex_pp") or _sid.startswith("mm_pingpong")
+
+
+def _skip_circuit_bookkeeping(outcome) -> bool:
+    """熔断/连亏类**副作用**是否应跳过（HFT 隔离开时跳过）。"""
+    return hft_isolation_enabled() and _is_hft_lane(outcome)
+
+
 def _resolve_fallback_thesis(meta: dict, outcome) -> tuple:
     """[新目标 R4] 只读解析兜底 thesis_id → `(thesis_id, via, session_id, tier)`。
 
@@ -320,12 +363,14 @@ class UnifiedLearningService:
             logger.debug("[UnifiedLearning] 全局回灌·复盘官失败: %s", _ro_err)
 
         # 熔断记账：账户级风险状态，不属于策略参数（冻结也必须记账）
+        # [2026-10-10 高频隔离] HFT 车道跳过（见 _skip_circuit_bookkeeping 注释：
+        # 高频每分钟一笔来回，逐笔记短线硬闸会把它污染；回滚 P4_HFT_ISOLATION=false）
         try:
             from backend.services.short_tier_entry_gate import record_short_tier_outcome
             _is_short = (outcome.tier in ("short",)) or (
                 (outcome.trade_nature or "") in ("scalp", "intraday")
             )
-            if _is_short and outcome.symbol:
+            if _is_short and outcome.symbol and not _skip_circuit_bookkeeping(outcome):
                 record_short_tier_outcome(
                     outcome.symbol,
                     float(outcome.pnl or 0) - float(meta.get("close_fee") or 0),
@@ -485,7 +530,11 @@ class UnifiedLearningService:
                 _is_short = (outcome.tier in ("short",)) or (
                     (outcome.trade_nature or "") in ("scalp", "intraday")
                 )
-                if _is_short and outcome.symbol:
+                if (
+                    _is_short
+                    and outcome.symbol
+                    and not _skip_circuit_bookkeeping(outcome)
+                ):
                     _out_acct = None
                     try:
                         _out_meta = outcome.metadata or {}
@@ -655,12 +704,47 @@ class UnifiedLearningService:
             return None
         from backend.database.models import AIStrategy
 
-        row = (
-            db.query(AIStrategy.strategy_id)
-            .filter(AIStrategy.strategy_id == sid)
-            .first()
-        )
+        # 占位父行 / 就地修复用的属性映射（高频车道必须显式声明 tier，见下方注释）
+        _PLACEHOLDER_ATTRS: Dict[str, Dict[str, Any]] = {
+            "mm_asterdex_pp": {"timeframe_tier": "hft", "primary_symbol": ""},
+            "mm_pingpong": {"timeframe_tier": "hft", "primary_symbol": ""},
+        }
+        try:
+            row = (
+                db.query(AIStrategy.strategy_id)
+                .filter(AIStrategy.strategy_id == sid)
+                .first()
+            )
+        except Exception:
+            row = None
         if row:
+            # [2026-10-10 主脑接入高频学习] 就地修复高频占位行的 tier/symbol：
+            # 早于本项修复建出的 `mm_asterdex_pp` 行带着模型默认值
+            # （`primary_symbol="BTC"`、`timeframe_tier="mid"`）⇒ 它就是"高频被记成
+            # 中线"的源头。这里自愈（改错值不花钱），不要求运维手工改库。
+            _fix = _PLACEHOLDER_ATTRS.get(sid)
+            if _fix:
+                try:
+                    cur_row = (
+                        db.query(AIStrategy)
+                        .filter(AIStrategy.strategy_id == sid)
+                        .first()
+                    )
+                    if cur_row is not None:
+                        changed = False
+                        if str(cur_row.timeframe_tier or "") != str(_fix["timeframe_tier"]):
+                            cur_row.timeframe_tier = _fix["timeframe_tier"]
+                            changed = True
+                        if str(cur_row.primary_symbol or "") != str(_fix["primary_symbol"]):
+                            cur_row.primary_symbol = _fix["primary_symbol"]
+                            changed = True
+                        if changed:
+                            db.flush()
+                            logger.info(
+                                "[UnifiedLearning] 修复 %s 占位行属性: tier=%s symbol=%r",
+                                sid, _fix["timeframe_tier"], _fix["primary_symbol"])
+                except Exception as _repair_err:
+                    logger.debug("[UnifiedLearning] 占位行属性修复失败: %s", _repair_err)
             return sid
         # 误传数字主键 id 时尝试映射
         if sid.isdigit():
@@ -694,7 +778,17 @@ class UnifiedLearningService:
             # 实测：09-28 SOL(#4815)/AVAX(#4801) 两笔长线平仓 postmortem/owm 全 0，
             # 且无任何失败日志（跳过路径是 DEBUG 级）。占位行建好后学习数据可正常落盘。
             "trend_e1",
+            # [2026-10-10 主脑接入高频学习] `mm_asterdex_pp` = 高频 ping-pong 车道的
+            # 策略键（由 market_maker/pp_brain.py 写入，persist_trade=False）。
+            # 它同样不是 AI 生成的策略 ⇒ 需要占位父行，否则 `_update_strategy_memory`
+            # 会静默 return（策略记忆/教训/RAG strategy_lessons 全都拿不到高频样本）。
+            "mm_asterdex_pp",
         )
+        # 占位行的 tier / primary_symbol 必须**显式声明**，不能用模型默认值：
+        # `AIStrategy.primary_symbol` default="BTC"、`timeframe_tier` server_default="mid"
+        # ⇒ 高频的占位行会被记成"BTC 的中线策略"；而 `_update_regime_score` 在
+        # template_id 为空时会用 `auto_{nature}_{symbol}` 合成分组键（实测：高频第一笔
+        # 的 regime 分数落进了 `auto_mid_BTC`）⇒ 等于用高频污染了中线分组。
         if any(sid.startswith(p) for p in _SYSTEM_STRATEGY_PREFIXES):
             try:
                 # [2026-08-07 v6 fix] 占位账户 id=1 不存在（accounts 实际 id=7/14/146），
@@ -712,6 +806,7 @@ class UnifiedLearningService:
                     name=f"系统策略/{sid}",
                     status="active",
                     account_id=acc[0],
+                    **(_PLACEHOLDER_ATTRS.get(sid) or {}),
                 )
                 db.add(placeholder)
                 db.flush()
@@ -737,7 +832,6 @@ class UnifiedLearningService:
                     pass
                 logger.debug("[UnifiedLearning] 占位父行创建失败 %s: %s", sid[:20], str(e)[:60])
                 return None
-
         return None
 
     def _persist_strategy_trade(self, db: Session, outcome: TradeOutcome):
@@ -1454,6 +1548,19 @@ class UnifiedLearningService:
         key = outcome.strategy_id or outcome.template_id
         streak = self._loss_streaks.get(key, 0)
         if streak < ADAPT_LOSS_STREAK:
+            return
+
+        # [2026-10-10 高频隔离] HFT 车道只清连亏读数，不写 genome：
+        # ping-pong 不读 max_position_size/default_leverage/min_trade_interval
+        # （它读 data/flow_learn_params.json 的 pp_* 旋钮）⇒ 写 genome 是无效果改动，
+        # 还会掩盖真实读数。回滚：P4_HFT_ISOLATION=false。
+        if _skip_circuit_bookkeeping(outcome):
+            logger.info(
+                "[UnifiedLearning] %s 连亏 %s 次 —— 高频车道不写 genome（参数在 "
+                "flow_learn_params.json，由 brain_advisor 的白名单+统计关管）",
+                key, streak,
+            )
+            self._loss_streaks[key] = 0
             return
 
         # [2026-09-11 用户指令] **模拟账户不做亏损冻结**：

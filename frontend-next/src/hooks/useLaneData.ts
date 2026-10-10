@@ -75,6 +75,7 @@ function usePollingResource<T>(
       setError(null);
       setLastUpdated(Date.now());
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       // 失败时保留上一次成功快照（只显示错误横幅，不置 0/空）
       setError(errText(e));
     } finally {

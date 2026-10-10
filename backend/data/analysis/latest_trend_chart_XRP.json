@@ -1,57 +1,54 @@
 {
   "task": "trend_chart_review",
   "symbol": "XRP",
-  "ts_ms": 1791557645643,
+  "ts_ms": 1791649111041,
   "accepted": true,
   "status": "ok",
-  "consensus_score": 0.42,
+  "consensus_score": 0.35,
   "final": {
-    "direction": "bearish",
+    "direction": "neutral",
     "strength": 4,
-    "confidence": 0.42,
-    "structure": "1d 自 90 期高点大幅回撤后于区间下半部弱势整理，4h 重心持续下移、EMA9/21 空头排列，短线处于下跌后的低位反抽阶段",
-    "timeframe_alignment": "三周期背离：1w 趋势与 EMA 结构仍偏多（价格在 EMA9/21 上方、摆动结构出现 HL），但 1d 价格位于 EMA9/21 下方且 RSI14 仅 18 极度超卖、EMA200 上方 6.51%，4h EMA 趋势明确看空、MACD 柱为负、RSI14 29.4 偏弱；即周线偏多、日线中性偏空、4h 空头，未形成同向共振",
+    "confidence": 0.35,
+    "structure": "1w 自高位大幅回撤后于区间下沿附近止跌企稳、EMA9 上穿 EMA21 修复；1d 急跌后连续两根阳线反弹但仍在 EMA9/21 下方；4h 在急跌低点上方窄幅横盘、EMA9 微上穿 EMA21，整体为下跌后的低位震荡修复结构",
+    "timeframe_alignment": "三周期方向背离：1w 偏多（EMA9>EMA21、趋势标记 bullish、90期区间位置仅16%属低位），1d 偏空（价格在 EMA9/21 下方、RSI14=26.4 超卖、回撤自90期高-17.2%），4h 中性偏弱（EMA9 微上穿 EMA21 但 EMA50 仍在上方、MACD柱为负、区间位置33%）。周线修复与日线弱势未形成共振，属反弹而非趋势确认",
     "key_levels": [
       {
-        "level": 1.3176,
+        "level": 1.3792,
         "type": "support",
-        "note": "24h 低点，也是 4h 图中最新下影低点区域，跌破则短线结构进一步走坏"
+        "note": "24h 低点，4h 急跌低点上方最近支撑，跌破则反弹结构失效"
       },
       {
-        "level": 1.4067,
+        "level": 1.4087,
         "type": "resistance",
-        "note": "24h 高点，紧贴现价上方，4h 反抽需先收复该位置"
+        "note": "当前日线收盘价所在位置，1d EMA9/EMA21 压制区（-2.26%/-2.94%），需站上才转为多头结构"
       },
       {
-        "level": 1.3918,
-        "type": "support",
-        "note": "1d/1w 最新收盘价，多空当前争夺的中枢位"
-      },
-      {
-        "level": 1.48,
+        "level": 1.4123,
         "type": "resistance",
-        "note": "1d EMA200 与 EMA50 附近区域（dist_ema200_pct=5.57、EMA50 偏离 -0.41%），为上方主要压力带"
+        "note": "24h 高点，短线反弹第一压力，突破后看向日线均线带"
       }
     ],
-    "invalidation": "若 4h 收盘重新站上 1.4067 并有效突破 1d EMA9/21 压制区（约 1.44-1.45），或日线 RSI 从 18 快速回升且价格收复 1.48 上方，则短线看空判断作废；反之若日线收盘跌破 1.3176，则弱势延续确认",
-    "position_advice": "no_new_long",
+    "invalidation": "若 4h/1d 收盘有效跌破 1.3792（24h 低点）并放量，则低位企稳反弹判断作废，转为下行延续；反之若 1d 收盘站上 EMA21 对应区域（约 1.45 上方）并伴随量能放大，则日线弱势判断作废",
+    "position_advice": "hold",
     "key_factors": [
-      "1d RSI14=18 极度超卖，存在技术性反抽需求，但价格仍在 EMA9(-3.93%)/EMA21(-4.37%) 下方，反弹属逆势",
-      "4h EMA 趋势 bearish、MACD 柱 -0.08643、摆动结构 LL→LH→HL→LH→LL，短线重心持续下移",
-      "1w 趋势与 EMA 结构仍偏多（EMA9 +0.54%、EMA21 +3.08%），但 90 期区间位置仅 15%、自 90 期高回撤 -62%，中期仍在深度修复中",
-      "资金面偏多拥挤：global_ls=2.369、top_pos_ls=1.713，各所资金费为正（binance 0.0063%/8h、hyperliquid 0.01%/8h），多头拥挤易引发进一步去杠杆",
-      "24h 多头爆仓 854 万美元 vs 空头 82.5 万美元，多头承压明显；OI 24h 变化 -1.07% 显示仓位小幅收缩",
-      "量能不足：1d 量 z=-1.4、4h 量 z=-0.9，反抽缺乏成交量配合，量价未共振",
-      "账户已有 XRP 多头持仓（notional 22、lev 4、upnl -0.13%、距止损 6.38%），且 14 日 long 层级胜率 0%、PF 0，不宜加多"
+      "1w 趋势标记 bullish、EMA9 高于 EMA21 且 90期区间位置仅 16%，周线处深度回撤后的低位修复",
+      "1d RSI14=26.4 超卖后连收 2 阳，但价格仍在 EMA9(-2.26%)/EMA21(-2.94%) 下方，反弹未确认",
+      "4h EMA 趋势标记 bearish、MACD柱为负，价格在 EMA50 下方，仅 EMA9 微上穿 EMA21，动能不足",
+      "资金费多空分歧：hyperliquid +0.01%、asterdex +0.0045%、binance +0.0035% 偏多，bybit -0.0052% 偏空，无极端拥挤",
+      "持仓结构 global_ls=2.42、top_pos_ls=1.803，多头账户占比偏高，存在多头拥挤回撤风险",
+      "24h 空头爆仓 236374 美元远大于多头爆仓 59236 美元，短线空头挤压助推反弹",
+      "量能偏弱：1d 量z=-1.7、4h 量z=-0.8、1w 量z=-0.1，反弹缺乏成交量确认",
+      "regime=ranging、confidence=0.3，市场处于震荡状态，方向性信号可信度低",
+      "signal_sources 显示 trend_chart_review 历史命中率仅 0.296、avg_ret_bp=-153.7，该类信号历史表现偏弱，需降低权重"
     ],
-    "summary": "XRP 现价 1.3918（1d/1w 口径），三周期未共振：1w 结构仍偏多但处于 90 期区间 15% 低位、自高点回撤 62%；1d 价格压在 EMA9/21 下方、RSI14 仅 18 属极度超卖，EMA200 上方 6.51% 提供中期支撑；4h 明确空头（EMA 空排、MACD 柱负、RSI 29.4），短线重心下移。量价上 1d/4h 量 z 均为负，反抽无量。资金面多头拥挤（global_ls 2.369、资金费全为正）叠加 24h 多头爆仓 854 万，短线偏空但超卖限制下行斜率。关键支撑 1.3176、关键阻力 1.4067 与 1.48 压力带。综合判断短线偏空、强度中等偏低，不建议新开多；已有 XRP 多头应控制仓位、以 1.3176 下方作为结构失效参考。数据不足项：图中未提供 EMA50/200 的 4h 数值与链上/BTC 相关性数据（corr_to_btc 为空），相关结论仅基于 context pack 文本。"
+    "summary": "XRP 三周期呈「周线低位修复、日线超卖反弹、4h 弱势横盘」的背离格局，属下跌后的震荡修复而非趋势反转。价格 1.4087 处于 1d EMA9/21 下方、4h EMA50 下方，反弹量能不足（1d 量z=-1.7），资金费与持仓显示多头略拥挤但无极端信号，regime 判定为 ranging。综合判断方向中性、强度 4、置信度 0.35。关键支撑 1.3792（24h 低点），关键阻力 1.4087（日线均线压制）与 1.4123（24h 高点）。操作上账户已持有 XRP 多头（notional 22、lev 4、upnl 1.53%、距止损 7.91%），建议 hold 而非加仓：跌破 1.3792 放量则离场，站上日线 EMA21 区域并放量再考虑增持。数据不足项：无 BTC 主导率与相关性数据（btc_dominance=null、correlation_pairs 为空），跨市场联动无法评估；1w/4h 的 EMA200 缺失，长期均线结构无法完整判断。"
   },
   "charts": [
-    "XRP 1w (bars=130, last_close=1.3918)",
-    "XRP 1d (bars=230, last_close=1.3918)",
-    "XRP 4h (bars=110, last_close=1.3984)"
+    "XRP 1w (bars=130, last_close=1.4073)",
+    "XRP 1d (bars=230, last_close=1.4087)",
+    "XRP 4h (bars=110, last_close=1.4072)"
   ],
   "notes": [
-    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.42 ≥ 门槛 0.0 → accepted；**无第二方验证**"
+    "单模型模式（ANALYSIS_SINGLE_MODEL_MODE=true，deepseek）：自报置信度 0.35 ≥ 门槛 0.0 → accepted；**无第二方验证**"
   ]
 }

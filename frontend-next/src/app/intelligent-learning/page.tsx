@@ -14,9 +14,9 @@
  * 原则：数据只对接后端真实接口；断链/停摆/未部署一律如实展示，不做假数据。
  * 旧 /evolution 路由已删除（8 Tab 中 4 个为死通道，与本站重复）。
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sparkles, GitBranch, ListTree, Coins, ServerCog, Workflow, Layers, Clock, Activity, HeartPulse, Boxes } from "lucide-react";
+import { Sparkles, GitBranch, ListTree, Coins, ServerCog, Workflow, Layers, Clock, Activity, HeartPulse, Boxes, Radio, BrainCircuit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WisdomLifecyclePanel } from "@/components/learning/WisdomLifecyclePanel";
@@ -34,13 +34,19 @@ import { LongReportsPanel } from "@/components/long/LongReportsPanel";
 // 新增 ①链路总览（9 环体检，点环跳页签）②Hermes 四级（把 9 个从未上屏的 /api/hermes/* 接口全部呈现）
 import { ChainOverviewPanel } from "@/components/learning/ChainOverviewPanel";
 import { HermesLevelsPanel } from "@/components/learning/HermesLevelsPanel";
+// [2026-10-10 学习进化前端升级] 「一个入口 / 一本知识库 / 一张嘴 / 一道关」的可见化：
+// 高频入口进度（PP 往返→主脑）与车道顾问（每轮一个旋钮 + 必须引用卡片编号 + 改后回滚）。
+import { LaneInletPanel } from "@/components/learning/LaneInletPanel";
+import { LaneAdvisorPanel } from "@/components/learning/LaneAdvisorPanel";
 
 type Tab =
-  | "chain" | "hermes" | "lifecycle" | "channels" | "decision"
-  | "coin" | "compute" | "lineage" | "schedule" | "reports";
+  | "chain" | "inlet" | "advisor" | "hermes" | "lifecycle" | "channels"
+  | "decision" | "coin" | "compute" | "lineage" | "schedule" | "reports";
 
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }>; hint?: string }[] = [
-  { key: "chain", label: "链路总览", icon: HeartPulse, hint: "9 环体检：哪一环断了" },
+  { key: "chain", label: "链路总览", icon: HeartPulse, hint: "11 环体检：哪一环断了" },
+  { key: "inlet", label: "学习入口", icon: Radio, hint: "高频往返→主脑：进度 / 游标 / 补扫" },
+  { key: "advisor", label: "车道顾问", icon: BrainCircuit, hint: "每轮一个旋钮：引用了哪张卡 / 过没过统计关 / 有没有回滚" },
   { key: "hermes", label: "Hermes 四级", icon: Boxes, hint: "L1 智慧 / L2 提示词 / L3 架构 / L4 起源" },
   { key: "lifecycle", label: "Wisdom 生命周期", icon: Sparkles },
   { key: "channels", label: "三通道健康", icon: GitBranch },
@@ -59,6 +65,17 @@ export default function IntelligentLearningPage() {
   const [tab, setTab] = useState<Tab>(
     (TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "chain"),
   );
+  // [2026-10-10] 深链**二次导航**修复：侧栏「学习入口 / 车道顾问」指向同一条 path 的
+  // 不同 `?tab=`。`useState` 的初值只在挂载时求值 ⇒ 已经在本页时再点侧栏，
+  // URL 会变而**内容不变**（用户会以为链接坏了）。这里跟随 `tabParam` 变化同步。
+  // 走宏任务触发（本仓约定：effect 体内不直接同步 setState，避免级联渲染告警）。
+  useEffect(() => {
+    const next = TABS.some((t) => t.key === tabParam) ? (tabParam as Tab) : "chain";
+    const t = window.setTimeout(() => {
+      setTab((cur) => (cur === next ? cur : next));
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [tabParam]);
 
   return (
     <div className="p-4 space-y-4">
@@ -93,6 +110,10 @@ export default function IntelligentLearningPage() {
 
       {/* Tab 内容 */}
       {tab === "chain" && <ChainOverviewPanel onGoTab={(k) => setTab(k as Tab)} />}
+      {/* [2026-10-10] 高频入口（PP 往返 → 主脑）：进度、游标、手动补扫 */}
+      {tab === "inlet" && <LaneInletPanel />}
+      {/* [2026-10-10] 车道顾问：每轮一个旋钮 + 必须引用卡片编号 + 改后回滚 */}
+      {tab === "advisor" && <LaneAdvisorPanel />}
       {tab === "hermes" && <HermesLevelsPanel />}
       {tab === "lifecycle" && <WisdomLifecyclePanel />}
       {tab === "channels" && <HealthChannelsPanel />}

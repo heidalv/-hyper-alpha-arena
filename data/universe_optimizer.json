@@ -1,113 +1,127 @@
 {
- "ts": "2026-10-10T00:53:11.554055",
- "ts_epoch": 1791564791.554056,
+ "ts": "2026-10-11T00:53:09.276329",
+ "ts_epoch": 1791651189.2763295,
  "applied_via": "worker_radar",
  "before": [
-  "BTC",
   "ETH",
+  "BTC",
   "PUMP",
-  "PLAY"
+  "ADA",
+  "QNT"
  ],
  "after": [
-  "BTC",
+  "PLAY",
   "ETH",
-  "PENGU",
-  "COIN"
+  "PUMP",
+  "CASHCAT"
  ],
  "added": [
-  "PENGU",
-  "COIN"
+  "PLAY",
+  "CASHCAT"
  ],
  "removed": [
-  "PUMP",
-  "PLAY"
+  "BTC",
+  "ADA",
+  "QNT"
  ],
  "held": [],
  "decaying_out": [
-  "PLAY",
-  "PUMP"
+  "ADA",
+  "QNT"
  ],
  "tenure_kept": [],
  "dropped_reasons": [
   [
    "1000SHIB",
-   "flow=4"
+   "flow=1"
   ],
   [
    "2Z",
-   "flow=7"
+   "flow=0"
   ],
   [
    "AAPL",
-   "flow=5"
+   "flow=0"
   ],
   [
    "AAVE",
-   "bleed_24h=-5.1bp"
+   "bleed_72h=-5.2bp"
   ],
   [
    "ADA",
-   "persistent_loser"
+   "mild_loser"
   ],
   [
    "ARB",
-   "mild_loser"
+   "flow=5"
   ],
   [
    "BCH",
-   "bleed_72h=-24.0bp"
+   "flow=3"
   ],
   [
-   "CASHCAT",
-   "weak_trend=3.6"
+   "BTW",
+   "mild_loser"
   ],
   [
    "CBRS",
-   "flow=4"
+   "flow=0"
+  ],
+  [
+   "COIN",
+   "flow=0"
   ],
   [
    "ENJ",
-   "flow=1"
+   "flow=0"
   ],
   [
    "EVAA",
-   "flow=2"
+   "flow=0"
   ],
   [
    "FIL",
-   "flow=7"
+   "flow=5"
+  ],
+  [
+   "GRASS",
+   "weak_trend=0.0"
   ],
   [
    "GTC",
-   "gap_excluded"
+   "tail_24h"
   ],
   [
-   "INJ",
-   "disaster"
+   "HBAR",
+   "flow=0"
   ],
   [
    "LYN",
-   "gap_excluded"
+   "flow=7"
+  ],
+  [
+   "MAGMA",
+   "bleed_72h=-6.3bp"
   ],
   [
    "MANA",
-   "flow=1"
+   "flow=3"
   ],
   [
    "MARSCOIN",
-   "mild_loser"
+   "flow=4"
   ],
   [
    "MOVR",
-   "flow=6"
+   "flow=3"
   ],
   [
    "NEAR",
-   "mild_loser"
+   "gap_excluded"
   ],
   [
    "NIGHT",
-   "flow=5"
+   "gap_excluded"
   ],
   [
    "ONE",
@@ -115,129 +129,111 @@
   ],
   [
    "PAXG",
-   "flow=5"
+   "flow=0"
   ],
   [
    "PENDLE",
-   "flow=6"
+   "flow=0"
   ],
   [
-   "PLAY",
-   "gap_excluded"
-  ],
-  [
-   "PONS",
-   "bleed_72h=-21.7bp"
-  ],
-  [
-   "PUMP",
-   "mild_loser"
+   "PENGU",
+   "flow=2"
   ],
   [
    "QNT",
-   "gap_excluded"
+   "mild_loser"
   ],
   [
    "RESOLV",
    "flow=0"
   ],
   [
+   "SEI",
+   "weak_trend=4.9"
+  ],
+  [
    "SI",
-   "spread=116.8"
+   "spread=191.6"
+  ],
+  [
+   "SKY",
+   "flow=0"
+  ],
+  [
+   "TQQQ",
+   "flow=1"
+  ],
+  [
+   "TRUMP",
+   "flow=0"
   ],
   [
    "TUT",
-   "flow=2"
-  ],
-  [
-   "USELESS",
-   "bleed_72h=-16.6bp"
+   "flow=0"
   ],
   [
    "US",
-   "tail_24h"
+   "gap_excluded"
   ],
   [
    "VELVET",
-   "flow=2"
-  ],
-  [
-   "牛来",
-   "disaster"
+   "flow=0"
   ]
  ],
  "selected_detail": [
   {
-   "symbol": "BTC",
-   "score": 356.3,
-   "flow": 480,
-   "spread_bp": 0.01
+   "symbol": "PLAY",
+   "score": 547.9,
+   "flow": 411,
+   "spread_bp": 4.28
   },
   {
    "symbol": "ETH",
-   "score": 301.5,
-   "flow": 570,
+   "score": 384.9,
+   "flow": 516,
    "spread_bp": 0.04
   },
   {
-   "symbol": "PENGU",
-   "score": 209.3,
-   "flow": 10,
-   "spread_bp": 6.2
+   "symbol": "PUMP",
+   "score": 319.2,
+   "flow": 118,
+   "spread_bp": 7.19
   },
   {
-   "symbol": "COIN",
-   "score": 198.5,
-   "flow": 22,
-   "spread_bp": 1.65
+   "symbol": "CASHCAT",
+   "score": 284.7,
+   "flow": 18,
+   "spread_bp": 11.56
   },
   {
-   "symbol": "HBAR",
-   "score": 198.2,
-   "flow": 31,
-   "spread_bp": 4.39
+   "symbol": "牛来",
+   "score": 227.0,
+   "flow": 30,
+   "spread_bp": 23.39
   },
   {
-   "symbol": "BTW",
+   "symbol": "INJ",
    "score": 190.3,
    "flow": 44,
-   "spread_bp": 6.82
+   "spread_bp": 10.68
   },
   {
-   "symbol": "GRASS",
-   "score": 176.3,
-   "flow": 33,
-   "spread_bp": 13.87
+   "symbol": "PONS",
+   "score": 185.2,
+   "flow": 34,
+   "spread_bp": 8.08
   },
   {
-   "symbol": "TRUMP",
-   "score": 170.2,
+   "symbol": "USELESS",
+   "score": 144.5,
    "flow": 17,
-   "spread_bp": 10.79
+   "spread_bp": 18.68
   },
   {
-   "symbol": "SKY",
-   "score": 163.5,
-   "flow": 10,
-   "spread_bp": 11.62
-  },
-  {
-   "symbol": "SEI",
-   "score": 146.7,
-   "flow": 15,
-   "spread_bp": 9.08
-  },
-  {
-   "symbol": "TQQQ",
-   "score": 50.4,
-   "flow": 11,
-   "spread_bp": 3.69
-  },
-  {
-   "symbol": "MAGMA",
-   "score": 41.8,
-   "flow": 37,
-   "spread_bp": 11.57
+   "symbol": "BTC",
+   "score": 80.9,
+   "flow": 204,
+   "spread_bp": 0.01
   }
  ]
 }

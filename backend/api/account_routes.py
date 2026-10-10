@@ -1965,15 +1965,16 @@ def delete_account(
     request: Request = None,
     db: Session = Depends(get_db),
 ):
-    """删除账户（分级语义，2026-08-28 重设计 P1）。
+    """删除账户（分级语义，2026-08-28 重设计 P1；2026-10-10 会话一并停删）。
 
-    - 默认（软删/停用）：先停止该账户绑定的全部 running 会话，再
-      is_active='false' + auto_trading_enabled='false'（历史数据保留）；
-    - hard=true（彻底删除）：仅当无 running 会话且无 open 持仓时允许，
-      硬删账户行（子仓账本 live_sub_positions 一并清理）。
+    - 先把绑定会话全部停掉再删除记录（running / defensive / paused 都会先停，
+      已停的会话也从会话列表清掉）。任一条失败则账户不动，避免「列表没了还在跑」。
+    - 默认（软删/停用）：is_active='false' + auto_trading_enabled='false'（交易历史保留）；
+    - hard=true（彻底删除）：仅当无 open 持仓时允许，清除凭证并匿名化账户行。
     """
     try:
         from backend.database.models import FullAutoSession, PaperPosition
+        from backend.services.full_auto_trading_service import full_auto_service
 
         # [2026-08-28] 硬删是软删后的进阶操作：查询不过滤 is_active，
         # 否则软删后无法再彻底删除（404 假象）。
@@ -1987,27 +1988,8 @@ def delete_account(
             )
         account_name = account.name
 
-        # 停掉绑定该账户的全部 running 会话（account 或 paper_account 维度）
-        sessions = db.query(FullAutoSession).filter(
-            FullAutoSession.status == "running",
-            ((FullAutoSession.account_id == account_id)
-             | (FullAutoSession.paper_account_id == account_id)),
-        ).all()
-        stopped = []
-        for s in sessions:
-            try:
-                from backend.services.full_auto_trading_service import full_auto_service
-                full_auto_service.stop_session(db, s.session_id)
-            except Exception:
-                pass
-            s.status = "stopped"
-            stopped.append(s.session_id)
-        db.commit()
-
         if hard:
-            # 彻底删除 = 配置级清除（2026-08-28 修订）：账户行保留以满足
-            # 30+ 张历史表（trades/orders/快照/记忆）的外键归属审计；
-            # 清除账户级凭证/覆盖配置并匿名化，名字释放可复用。
+            # 先挡住彻底删除，避免会话已经删掉、账户却因持仓被拒绝。
             open_pos = db.query(PaperPosition).filter(
                 PaperPosition.account_id == account_id,
                 PaperPosition.status == "open",
@@ -2017,6 +1999,42 @@ def delete_account(
                     status_code=409,
                     detail=f"账户仍有 {open_pos} 个 open 持仓，禁止彻底删除（可先平仓或改软删）",
                 )
+
+        # 绑定会话一并：先停（含防守/暂停）再删记录。只停 running 会漏掉仍在跑的会话。
+        bound = db.query(FullAutoSession).filter(
+            (FullAutoSession.account_id == account_id)
+            | (FullAutoSession.paper_account_id == account_id),
+        ).all()
+        live_status = ("running", "defensive", "paused")
+        live_ids = [s.session_id for s in bound if s.status in live_status]
+        session_ids = [s.session_id for s in bound]
+        stopped = []
+        deleted_sessions = []
+        failed_sessions = []
+        for sid in session_ids:
+            try:
+                result = full_auto_service.delete_session(db, sid)
+                if result.get("success"):
+                    deleted_sessions.append(sid)
+                    if sid in live_ids:
+                        stopped.append(sid)
+                else:
+                    failed_sessions.append({
+                        "session_id": sid,
+                        "error": str(result.get("error") or "删除失败")[:160],
+                    })
+            except Exception as e:
+                failed_sessions.append({"session_id": sid, "error": str(e)[:160]})
+        if failed_sessions:
+            raise HTTPException(
+                status_code=409,
+                detail=f"有会话没能停止并删除，账户未移除：{failed_sessions}",
+            )
+
+        if hard:
+            # 彻底删除 = 配置级清除（2026-08-28 修订）：账户行保留以满足
+            # 30+ 张历史表（trades/orders/快照/记忆）的外键归属审计；
+            # 清除账户级凭证/覆盖配置并匿名化，名字释放可复用。
             try:
                 from backend.database.models import ExchangeCredential
                 db.query(ExchangeCredential).filter(
@@ -2037,6 +2055,7 @@ def delete_account(
                 "success": True,
                 "deleted": True,
                 "stopped_sessions": stopped,
+                "deleted_sessions": deleted_sessions,
                 "message": f"Account '{account_name}' hard deleted (configs cleared)",
                 "account_id": account_id,
                 "account_name": account_name,
@@ -2053,7 +2072,8 @@ def delete_account(
             "success": True,
             "deleted": False,
             "stopped_sessions": stopped,
-            "message": f"Account '{account_name}' deactivated (sessions stopped)",
+            "deleted_sessions": deleted_sessions,
+            "message": f"Account '{account_name}' deactivated (sessions stopped and deleted)",
             "account_id": account_id,
             "account_name": account_name,
         }

@@ -1,6 +1,6 @@
 {
   "agent": "signal_review",
-  "ts_ms": 1791504000265,
+  "ts_ms": 1791590400642,
   "ok": true,
   "mode": "observe",
   "configured_mode": "observe",
@@ -9,18 +9,18 @@
   "credibility": {
     "agent": "signal_review",
     "days": 60,
-    "n": 94,
-    "n_scored": 54,
-    "avg_score": 0.8888888888888888,
-    "avg_brier": 0.14274198148148146,
+    "n": 97,
+    "n_scored": 57,
+    "avg_score": 0.8947368421052632,
+    "avg_brier": 0.1392281228070175,
     "by_kind": [
       {
         "kind": "source_edge",
-        "n": 94,
-        "n_scored": 54,
-        "avg_score": 0.8888888888888888,
-        "avg_brier": 0.14274198148148146,
-        "last_ms": 1791417608829
+        "n": 97,
+        "n_scored": 57,
+        "avg_score": 0.8947368421052632,
+        "avg_brier": 0.1392281228070175,
+        "last_ms": 1791504011085
       }
     ],
     "verdict": {
@@ -39,21 +39,21 @@
     "sources": [
       {
         "source": "dual:event_impact",
-        "n": 6170,
-        "hit_rate": 0.4806,
+        "n": 6161,
+        "hit_rate": 0.4762,
         "hit_ci": [
-          0.4681,
-          0.493
+          0.4638,
+          0.4887
         ],
-        "avg_ret_bp": -45.0,
-        "avg_excess_bp": -44.61,
+        "avg_ret_bp": -47.47,
+        "avg_excess_bp": -47.16,
         "excess_ci_bp": [
-          -62.34,
-          -26.89
+          -64.93,
+          -29.4
         ],
-        "avg_brier": 0.2595,
-        "ic_strength": -0.0566,
-        "ic_confidence": -0.0167,
+        "avg_brier": 0.2594,
+        "ic_strength": -0.0368,
+        "ic_confidence": -0.0189,
         "half_life_hours": null,
         "horizon_curve": [
           {
@@ -63,18 +63,18 @@
           },
           {
             "bucket_h": 4,
-            "n": 226,
-            "avg_excess_bp": -161.93
+            "n": 216,
+            "avg_excess_bp": -172.22
           },
           {
             "bucket_h": 12,
-            "n": 4777,
-            "avg_excess_bp": -34.51
+            "n": 4773,
+            "avg_excess_bp": -36.66
           },
           {
             "bucket_h": 24,
-            "n": 1115,
-            "avg_excess_bp": -64.85
+            "n": 1120,
+            "avg_excess_bp": -68.62
           },
           {
             "bucket_h": 48,
@@ -95,106 +95,106 @@
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 6170,
-            "hit_rate": 0.4806,
-            "avg_excess_bp": -44.61
+            "n": 6161,
+            "hit_rate": 0.4762,
+            "avg_excess_bp": -47.16
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -26.9bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -29.4bp < 0，显著为负"
       },
       {
         "source": "dual:trend_chart_review",
-        "n": 559,
-        "hit_rate": 0.2862,
+        "n": 555,
+        "hit_rate": 0.3081,
         "hit_ci": [
-          0.2503,
-          0.3251
+          0.2711,
+          0.3477
         ],
-        "avg_ret_bp": -168.91,
-        "avg_excess_bp": -155.88,
+        "avg_ret_bp": -149.22,
+        "avg_excess_bp": -140.43,
         "excess_ci_bp": [
-          -186.32,
-          -125.43
+          -171.11,
+          -109.76
         ],
-        "avg_brier": 0.2368,
-        "ic_strength": 0.151,
-        "ic_confidence": 0.1689,
+        "avg_brier": 0.2348,
+        "ic_strength": 0.0936,
+        "ic_confidence": 0.1969,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 559,
-            "avg_excess_bp": -155.88
+            "n": 555,
+            "avg_excess_bp": -140.43
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 559,
-            "hit_rate": 0.2862,
-            "avg_excess_bp": -155.88
+            "n": 555,
+            "hit_rate": 0.3081,
+            "avg_excess_bp": -140.43
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -125.4bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -109.8bp < 0，显著为负"
       },
       {
         "source": "dual:daily_brief",
-        "n": 65,
-        "hit_rate": 0.4154,
+        "n": 78,
+        "hit_rate": 0.3846,
         "hit_ci": [
-          0.3036,
-          0.5366
+          0.2845,
+          0.4956
         ],
-        "avg_ret_bp": -49.33,
-        "avg_excess_bp": -93.63,
+        "avg_ret_bp": -51.25,
+        "avg_excess_bp": -76.42,
         "excess_ci_bp": [
-          -169.8,
-          -17.45
+          -141.11,
+          -11.72
         ],
-        "avg_brier": 0.2367,
-        "ic_strength": -0.3945,
-        "ic_confidence": 0.1745,
+        "avg_brier": 0.252,
+        "ic_strength": -0.4498,
+        "ic_confidence": 0.0238,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 65,
-            "avg_excess_bp": -93.63
+            "n": 78,
+            "avg_excess_bp": -76.42
           }
         ],
         "by_regime": [
           {
             "regime": "range",
-            "n": 65,
-            "hit_rate": 0.4154,
-            "avg_excess_bp": -93.63
+            "n": 78,
+            "hit_rate": 0.3846,
+            "avg_excess_bp": -76.42
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -17.4bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -11.7bp < 0，显著为负"
       }
     ],
     "min_n": 20,
     "anomalies": [
       {
         "source": "dual:event_impact",
-        "n": 6170,
-        "hit_rate": 0.4806,
+        "n": 6161,
+        "hit_rate": 0.4762,
         "hit_ci": [
-          0.4681,
-          0.493
+          0.4638,
+          0.4887
         ],
-        "avg_ret_bp": -45.0,
-        "avg_excess_bp": -44.61,
+        "avg_ret_bp": -47.47,
+        "avg_excess_bp": -47.16,
         "excess_ci_bp": [
-          -62.34,
-          -26.89
+          -64.93,
+          -29.4
         ],
-        "avg_brier": 0.2595,
-        "ic_strength": -0.0566,
-        "ic_confidence": -0.0167,
+        "avg_brier": 0.2594,
+        "ic_strength": -0.0368,
+        "ic_confidence": -0.0189,
         "half_life_hours": null,
         "horizon_curve": [
           {
@@ -204,18 +204,18 @@
           },
           {
             "bucket_h": 4,
-            "n": 226,
-            "avg_excess_bp": -161.93
+            "n": 216,
+            "avg_excess_bp": -172.22
           },
           {
             "bucket_h": 12,
-            "n": 4777,
-            "avg_excess_bp": -34.51
+            "n": 4773,
+            "avg_excess_bp": -36.66
           },
           {
             "bucket_h": 24,
-            "n": 1115,
-            "avg_excess_bp": -64.85
+            "n": 1120,
+            "avg_excess_bp": -68.62
           },
           {
             "bucket_h": 48,
@@ -236,144 +236,144 @@
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 6170,
-            "hit_rate": 0.4806,
-            "avg_excess_bp": -44.61
+            "n": 6161,
+            "hit_rate": 0.4762,
+            "avg_excess_bp": -47.16
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -26.9bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -29.4bp < 0，显著为负"
       },
       {
         "source": "dual:trend_chart_review",
-        "n": 559,
-        "hit_rate": 0.2862,
+        "n": 555,
+        "hit_rate": 0.3081,
         "hit_ci": [
-          0.2503,
-          0.3251
+          0.2711,
+          0.3477
         ],
-        "avg_ret_bp": -168.91,
-        "avg_excess_bp": -155.88,
+        "avg_ret_bp": -149.22,
+        "avg_excess_bp": -140.43,
         "excess_ci_bp": [
-          -186.32,
-          -125.43
+          -171.11,
+          -109.76
         ],
-        "avg_brier": 0.2368,
-        "ic_strength": 0.151,
-        "ic_confidence": 0.1689,
+        "avg_brier": 0.2348,
+        "ic_strength": 0.0936,
+        "ic_confidence": 0.1969,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 559,
-            "avg_excess_bp": -155.88
+            "n": 555,
+            "avg_excess_bp": -140.43
           }
         ],
         "by_regime": [
           {
             "regime": "unknown",
-            "n": 559,
-            "hit_rate": 0.2862,
-            "avg_excess_bp": -155.88
+            "n": 555,
+            "hit_rate": 0.3081,
+            "avg_excess_bp": -140.43
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -125.4bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -109.8bp < 0，显著为负"
       },
       {
         "source": "dual:daily_brief",
-        "n": 65,
-        "hit_rate": 0.4154,
+        "n": 78,
+        "hit_rate": 0.3846,
         "hit_ci": [
-          0.3036,
-          0.5366
+          0.2845,
+          0.4956
         ],
-        "avg_ret_bp": -49.33,
-        "avg_excess_bp": -93.63,
+        "avg_ret_bp": -51.25,
+        "avg_excess_bp": -76.42,
         "excess_ci_bp": [
-          -169.8,
-          -17.45
+          -141.11,
+          -11.72
         ],
-        "avg_brier": 0.2367,
-        "ic_strength": -0.3945,
-        "ic_confidence": 0.1745,
+        "avg_brier": 0.252,
+        "ic_strength": -0.4498,
+        "ic_confidence": 0.0238,
         "half_life_hours": null,
         "horizon_curve": [
           {
             "bucket_h": 24,
-            "n": 65,
-            "avg_excess_bp": -93.63
+            "n": 78,
+            "avg_excess_bp": -76.42
           }
         ],
         "by_regime": [
           {
             "regime": "range",
-            "n": 65,
-            "hit_rate": 0.4154,
-            "avg_excess_bp": -93.63
+            "n": 78,
+            "hit_rate": 0.3846,
+            "avg_excess_bp": -76.42
           }
         ],
         "verdict": "disable",
-        "verdict_reason": "超额 95% 上界 -17.4bp < 0，显著为负"
+        "verdict_reason": "超额 95% 上界 -11.7bp < 0，显著为负"
       }
     ],
     "llm": {
       "accepted": true,
       "consensus_score": 0.85,
-      "run_id": "36a5bb9de1254546bb967f14f048bef6",
+      "run_id": "3eceeee52f0d4d73840eaab3e5534e06",
       "final": {
         "direction": "bearish",
-        "strength": 7,
+        "strength": 8,
         "confidence": 0.85,
         "source_findings": [
           {
             "source": "dual:event_impact",
-            "likely_cause": "事件冲击信号在12小时与24小时窗口持续产生负超额，且样本量最大（6170），说明事件驱动逻辑可能被市场提前定价或存在反向修正；4小时窗口超额-161.93bp异常偏大，可能由少数极端事件或流动性冲击主导。",
-            "falsifiable_hypothesis": "若将事件冲击信号按事件类型或流动性分组后，各子组超额收益的95%置信区间仍整体低于0，则负超额并非由单一极端事件驱动。",
-            "suggested_check": "按事件类别、市值分组重新计算超额收益及置信区间，并剔除4小时窗口内超额收益绝对值最大的前1%样本后复算。"
+            "likely_cause": "事件影响信号在12小时持有期样本量最大（n=4773），但平均超额收益为-36.66bp，且整体IC为负（-0.0368），表明信号方向可能系统性反向或事件定价已被提前消化。",
+            "falsifiable_hypothesis": "若将事件影响信号反向使用（即做空信号看多、做多看空），则12小时持有期的平均超额收益应转为正值。",
+            "suggested_check": "在相同样本上计算反向信号的平均超额收益及95%置信区间，验证是否显著为正。"
           },
           {
             "source": "dual:trend_chart_review",
-            "likely_cause": "趋势图形态复核信号命中率仅28.62%，24小时平均超额-155.88bp，显著为负；可能原因是趋势形态识别在震荡或反转市中失效，或信号方向与市场实际动量相反。",
-            "falsifiable_hypothesis": "若在趋势强度较高（如ADX>25）的样本中，该信号超额收益的95%置信区间不再显著为负，则负超额主要源于震荡市中的误判。",
-            "suggested_check": "按趋势强度指标（如ADX、均线斜率）分层，分别计算各层24小时超额收益及置信区间。"
+            "likely_cause": "趋势图表复盘信号命中率仅30.81%，平均超额收益-140.43bp，且IC为正（0.0936）但置信度低（0.1969），可能信号在24小时持有期上存在方向性错误或市场处于强反转状态。",
+            "falsifiable_hypothesis": "若将趋势图表复盘信号反向使用，则24小时持有期的平均超额收益应显著为正。",
+            "suggested_check": "计算反向信号在24小时持有期的平均超额收益及置信区间，并检查不同市场状态下的表现。"
           },
           {
             "source": "dual:daily_brief",
-            "likely_cause": "每日简报信号样本量最小（65），命中率41.54%，平均超额-93.63bp，置信区间上界-17.45bp仍为负；可能原因是简报内容偏向滞后信息或与市场短期反转方向冲突。",
-            "falsifiable_hypothesis": "若将每日简报信号按发布时段（盘前/盘后）拆分后，至少一个子组的超额收益95%置信区间包含0，则负超额与发布时段有关。",
-            "suggested_check": "按信号发布时间（盘前、盘中、盘后）分组，分别计算24小时超额收益及置信区间。"
+            "likely_cause": "每日简报信号在震荡市（range）中表现最差，平均超额收益-76.42bp，IC为-0.4498，可能信号在震荡市中频繁误判方向。",
+            "falsifiable_hypothesis": "若在震荡市中将每日简报信号反向使用，则平均超额收益应转为正值。",
+            "suggested_check": "筛选震荡市样本，计算反向信号的平均超额收益及95%置信区间。"
           }
         ],
         "key_factors": [
-          "三个信号源超额收益95%置信区间上界均低于0，整体呈显著负向",
-          "dual:event_impact样本量最大且IC为负，负超额稳定但幅度较小",
-          "dual:trend_chart_review命中率最低且超额亏损最大，趋势识别可能反向",
-          "dual:daily_brief样本量小但置信区间仍为负，信号质量存疑",
-          "所有信号源regime均为unknown或range，缺乏趋势市验证"
+          "所有信号源超额收益的95%置信区间上界均小于0，统计上显著为负",
+          "dual:event_impact样本量最大（6161），平均超额-47.16bp，IC为负",
+          "dual:trend_chart_review命中率仅30.81%，平均超额-140.43bp",
+          "dual:daily_brief在震荡市中平均超额-76.42bp，IC为-0.4498",
+          "所有信号源均被系统判定为disable"
         ],
-        "summary": "近30天三个信号源均被判定为disable，超额收益显著为负，整体方向偏空。dual:event_impact样本量最大、负超额稳定；dual:trend_chart_review命中率仅28.62%、亏损最大；dual:daily_brief样本少但置信区间仍为负。建议全部暂停使用，并按分组与时段进行可证伪检验以定位失效原因。"
+        "summary": "近30天账本显示，三个信号源（dual:event_impact、dual:trend_chart_review、dual:daily_brief）的超额收益均显著为负，且所有信号源均被系统判定为disable。整体信号方向偏空，强度较高，置信度较高。建议暂停使用这些信号，或进一步检验反向使用的有效性。"
       }
     }
   },
   "predictions": [
-    "0ffc80270535444690a0b2525eeecf47",
-    "5e1c798bcb714dc49aafe9e122528c0b",
-    "fa7c9f1a54ab46779a2f65a278261d8a"
+    "104e83514d3c4ef7a580e584954e9d45",
+    "d6650d2141b4427a995827bc2507fa50",
+    "76146d147f6f42b7bad5700e589bea67"
   ],
   "advice": [
     {
       "action": "disable_source",
       "target": "dual:event_impact",
       "params": {
-        "n": 6170,
-        "avg_excess_bp": -44.61,
+        "n": 6161,
+        "avg_excess_bp": -47.16,
         "excess_ci_bp": [
-          -62.34,
-          -26.89
+          -64.93,
+          -29.4
         ]
       },
-      "reason": "超额 95% 上界 -26.9bp < 0，显著为负",
+      "reason": "超额 95% 上界 -29.4bp < 0，显著为负",
       "severity": 4,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -382,14 +382,14 @@
       "action": "disable_source",
       "target": "dual:trend_chart_review",
       "params": {
-        "n": 559,
-        "avg_excess_bp": -155.88,
+        "n": 555,
+        "avg_excess_bp": -140.43,
         "excess_ci_bp": [
-          -186.32,
-          -125.43
+          -171.11,
+          -109.76
         ]
       },
-      "reason": "超额 95% 上界 -125.4bp < 0，显著为负",
+      "reason": "超额 95% 上界 -109.8bp < 0，显著为负",
       "severity": 4,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -398,14 +398,14 @@
       "action": "disable_source",
       "target": "dual:daily_brief",
       "params": {
-        "n": 65,
-        "avg_excess_bp": -93.63,
+        "n": 78,
+        "avg_excess_bp": -76.42,
         "excess_ci_bp": [
-          -169.8,
-          -17.45
+          -141.11,
+          -11.72
         ]
       },
-      "reason": "超额 95% 上界 -17.4bp < 0，显著为负",
+      "reason": "超额 95% 上界 -11.7bp < 0，显著为负",
       "severity": 4,
       "applied": false,
       "apply_note": "observe 模式：仅记录不执行"
@@ -413,7 +413,7 @@
   ],
   "experiments": [],
   "errors": [],
-  "elapsed_sec": 10.898,
+  "elapsed_sec": 9.637,
   "latest_path": null,
   "dry_run": false
 }
